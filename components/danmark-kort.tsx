@@ -293,6 +293,18 @@ export function DanmarkKort() {
     });
   }, [valgteRegioner, klar, kommuner]);
 
+  const forsteRegionsRender = useRef(true);
+
+  useEffect(() => {
+    if (forsteRegionsRender.current) {
+      forsteRegionsRender.current = false;
+      return;
+    }
+
+    setValgtKode(null);
+    setSoegning("");
+  }, [valgteRegioner]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || visning !== "kort" || !klar) return;
