@@ -7,7 +7,29 @@ import {
   type StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Button, Dropdown, Header, Label, Spinner, type Selection } from "@heroui/react";
+import {
+  Button,
+  Dropdown,
+  Header,
+  Label,
+  Separator,
+  Spinner,
+  Tooltip,
+  type Selection,
+} from "@heroui/react";
+import {
+  AdjustmentsHorizontalIcon,
+  DocumentTextIcon,
+  FunnelIcon,
+  HomeIcon,
+  MapIcon,
+  QuestionMarkCircleIcon,
+  Squares2X2Icon,
+  UsersIcon,
+  ViewColumnsIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { CheckIcon } from "@heroicons/react/20/solid";
 
 type Kommune = {
   kode: string;
@@ -27,6 +49,89 @@ const REGION_NAVNE: Record<string, string> = {
   "1084": "Region Hovedstaden",
   "1085": "Region Sjælland",
 };
+
+const LANDSDEL_NAVNE: Record<string, string> = {
+  jylland: "Jylland",
+  fyn: "Fyn",
+  sjaelland: "Sjælland",
+};
+
+// Region Syddanmark (1083) dækker både Jylland og Fyn, så de fynske
+// kommuner skal udpeges eksplicit for at kunne udlede landsdelen.
+const FYN_KOMMUNE_KODER = new Set([
+  "0410", // Middelfart
+  "0420", // Assens
+  "0430", // Faaborg-Midtfyn
+  "0440", // Kerteminde
+  "0450", // Nyborg
+  "0461", // Odense
+  "0479", // Svendborg
+  "0480", // Nordfyns
+  "0482", // Langeland
+  "0492", // Ærø
+]);
+
+function landsdelForKommune(kode: string, regionskode: string): string {
+  if (regionskode === "1081" || regionskode === "1082") return "jylland";
+  if (regionskode === "1083") return FYN_KOMMUNE_KODER.has(kode) ? "fyn" : "jylland";
+  return "sjaelland";
+}
+
+function kommuneMatcherFilterId(kode: string, regionskode: string, filterId: string) {
+  if (filterId in REGION_NAVNE) return regionskode === filterId;
+  return landsdelForKommune(kode, regionskode) === filterId;
+}
+
+// Danmarks Statistiks kommunegruppering, se
+// https://www.dst.dk/da/Statistik/dokumentation/nomenklaturer/kommunegrupper
+const GRUPPE_NAVNE: Record<string, string> = {
+  "1": "Hovedstadskommuner",
+  "2": "Storbykommuner",
+  "3": "Provinsbykommuner",
+  "4": "Oplandskommuner",
+  "5": "Landkommuner",
+};
+
+const GRUPPE_BESKRIVELSE: Record<string, string> = {
+  "1": "Kommuner med meget høj adgang til arbejdspladser.",
+  "2": "Største by har mindst 100.000 indbyggere.",
+  "3": "Største by har mindst 30.000 indbyggere.",
+  "4": "Mindre største by, men relativt god adgang til arbejdspladser.",
+  "5": "Mindre største by og relativt lav adgang til arbejdspladser.",
+};
+
+const GRUPPE_KOMMUNE_KODER: Record<string, string[]> = {
+  "1": [
+    "0101", "0147", "0151", "0153", "0155", "0157", "0159", "0161", "0163",
+    "0165", "0167", "0169", "0173", "0175", "0183", "0185", "0187", "0190",
+    "0201", "0223", "0230", "0240", "0253", "0269",
+  ],
+  "2": ["0461", "0751", "0851"],
+  "3": [
+    "0217", "0219", "0259", "0265", "0330", "0370", "0561", "0607", "0615",
+    "0621", "0630", "0657", "0661", "0730", "0740", "0791",
+  ],
+  "4": [
+    "0210", "0250", "0260", "0270", "0316", "0320", "0329", "0336", "0340",
+    "0350", "0410", "0420", "0430", "0440", "0450", "0480", "0575", "0706",
+    "0710", "0727", "0746", "0756", "0766", "0840",
+  ],
+  "5": [
+    "0306", "0326", "0360", "0376", "0390", "0400", "0479", "0482", "0492",
+    "0510", "0530", "0540", "0550", "0563", "0573", "0580", "0665", "0671",
+    "0707", "0741", "0760", "0773", "0779", "0787", "0810", "0813", "0820",
+    "0825", "0846", "0849", "0860",
+  ],
+};
+
+const KOMMUNE_GRUPPE_ID = new Map<string, string>();
+Object.entries(GRUPPE_KOMMUNE_KODER).forEach(([gruppeId, koder]) => {
+  koder.forEach((kode) => KOMMUNE_GRUPPE_ID.set(kode, gruppeId));
+});
+
+function kommuneMatcherGruppeId(kode: string, gruppeId: string) {
+  return KOMMUNE_GRUPPE_ID.get(kode) === gruppeId;
+}
 
 const DANMARK_BOUNDS: [[number, number], [number, number]] = [
   [7.8, 54.5],
@@ -50,39 +155,42 @@ const KORT_STYLE: StyleSpecification = {
   ],
 };
 
-function MapIkon() {
+function RegionAfkrydsning() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2Z" strokeLinejoin="round" />
-      <path d="M9 4v14M15 6v14" />
-    </svg>
+    <Dropdown.ItemIndicator className="shrink-0">
+      {({ isSelected }) => (
+        <span
+          className={`flex h-4 w-4 items-center justify-center rounded border transition-colors duration-150 ${
+            isSelected ? "border-accent bg-accent" : "border-border bg-surface"
+          }`}
+        >
+          {isSelected && <CheckIcon className="h-3 w-3 text-white" />}
+        </span>
+      )}
+    </Dropdown.ItemIndicator>
   );
 }
 
-function LukIkon() {
+function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function OversigtIkon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <rect x="4" y="4" width="7" height="7" rx="1.3" />
-      <rect x="13" y="4" width="7" height="7" rx="1.3" />
-      <rect x="4" y="13" width="7" height="7" rx="1.3" />
-      <rect x="13" y="13" width="7" height="7" rx="1.3" />
-    </svg>
-  );
-}
-
-function FilterIkon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <path d="M4 5h16M7 12h10M10.5 19h3" strokeLinecap="round" />
-    </svg>
+    <Tooltip delay={150}>
+      <Tooltip.Trigger aria-label="Hvad betyder gruppen?">
+        <span
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground"
+        >
+          <QuestionMarkCircleIcon className="h-3.5 w-3.5" />
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content showArrow placement="left" className="w-64 break-normal">
+        <Tooltip.Arrow />
+        <p className="text-sm text-pretty">{beskrivelse}</p>
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
 
@@ -93,30 +201,10 @@ function rankFarve(rank: number) {
   return "bg-foreground text-surface";
 }
 
-function PrioritetIkon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <path d="M4 18v-4M4 10V6M12 18v-8M12 6v-.01M20 18v-2M20 12V6" strokeLinecap="round" />
-      <circle cx="4" cy="12" r="2" />
-      <circle cx="12" cy="10" r="2" />
-      <circle cx="20" cy="14" r="2" />
-    </svg>
-  );
-}
-
-function RegnearkIkon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <rect x="4" y="4" width="16" height="16" rx="1.5" />
-      <path d="M4 9.5h16M4 14.5h16M11.7 4v16" />
-    </svg>
-  );
-}
-
 const VISNINGER: { id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
-  { id: "oversigt", label: "Oversigt", Ikon: OversigtIkon },
-  { id: "kort", label: "Kort", Ikon: MapIkon },
-  { id: "regneark", label: "Regneark", Ikon: RegnearkIkon },
+  { id: "oversigt", label: "Oversigt", Ikon: () => <Squares2X2Icon className="h-4 w-4" /> },
+  { id: "kort", label: "Kort", Ikon: () => <MapIcon className="h-4 w-4" /> },
+  { id: "regneark", label: "Regneark", Ikon: () => <ViewColumnsIcon className="h-4 w-4" /> },
 ];
 
 export function DanmarkKort() {
@@ -125,6 +213,9 @@ export function DanmarkKort() {
   const hoveredKode = useRef<string | null>(null);
   const valgtKodeRef = useRef<string | null>(null);
   const soegRef = useRef<HTMLDivElement | null>(null);
+  const valgteRegionerRef = useRef<Selection>(new Set<string>());
+  const valgteGrupperRef = useRef<Selection>(new Set<string>());
+  const kommuneRegionerRef = useRef<Map<string, string>>(new Map());
 
   const [kommuner, setKommuner] = useState<Kommune[]>([]);
   const [valgtKode, setValgtKode] = useState<string | null>(null);
@@ -133,6 +224,7 @@ export function DanmarkKort() {
   const [klar, setKlar] = useState(false);
   const [visning, setVisning] = useState<Visning>("oversigt");
   const [valgteRegioner, setValgteRegioner] = useState<Selection>(new Set<string>());
+  const [valgteGrupper, setValgteGrupper] = useState<Selection>(new Set<string>());
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -147,6 +239,7 @@ export function DanmarkKort() {
     });
 
     map.setMinZoom(map.getZoom());
+    map.doubleClickZoom.disable();
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -214,15 +307,62 @@ export function DanmarkKort() {
       });
       liste.sort((a, b) => a.navn.localeCompare(b.navn, "da"));
       setKommuner(liste);
+      kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
 
       setKlar(true);
     });
 
+    const erKommuneTilladt = (kode: string) => {
+      const valgteOmr = valgteRegionerRef.current;
+      const omrFilterAktiv = valgteOmr !== "all" && valgteOmr.size > 0;
+      if (omrFilterAktiv) {
+        const regionskode = kommuneRegionerRef.current.get(kode);
+        if (regionskode) {
+          let matcher = false;
+          for (const id of valgteOmr) {
+            if (kommuneMatcherFilterId(kode, regionskode, String(id))) {
+              matcher = true;
+              break;
+            }
+          }
+          if (!matcher) return false;
+        }
+      }
+
+      const valgteGrp = valgteGrupperRef.current;
+      const grpFilterAktiv = valgteGrp !== "all" && valgteGrp.size > 0;
+      if (grpFilterAktiv) {
+        let matcher = false;
+        for (const id of valgteGrp) {
+          if (kommuneMatcherGruppeId(kode, String(id))) {
+            matcher = true;
+            break;
+          }
+        }
+        if (!matcher) return false;
+      }
+
+      return true;
+    };
+
     map.on("mousemove", "kommune-fill", (e) => {
-      map.getCanvas().style.cursor = "pointer";
       const feature = e.features?.[0];
       if (!feature) return;
       const kode = feature.properties?.kode as string;
+
+      if (!erKommuneTilladt(kode)) {
+        map.getCanvas().style.cursor = "";
+        if (hoveredKode.current) {
+          map.setFeatureState(
+            { source: SOURCE_ID, id: hoveredKode.current },
+            { hover: false },
+          );
+          hoveredKode.current = null;
+        }
+        return;
+      }
+
+      map.getCanvas().style.cursor = "pointer";
 
       if (hoveredKode.current && hoveredKode.current !== kode) {
         map.setFeatureState(
@@ -251,7 +391,8 @@ export function DanmarkKort() {
       const feature = e.features?.[0];
       const kode = feature?.properties?.kode as string | undefined;
       const navn = feature?.properties?.navn as string | undefined;
-      if (kode) setValgtKode(kode);
+      if (!kode || !erKommuneTilladt(kode)) return;
+      setValgtKode(kode);
       if (navn) setSoegning(navn);
     });
 
@@ -282,16 +423,30 @@ export function DanmarkKort() {
   }, [valgtKode, klar]);
 
   useEffect(() => {
+    valgteRegionerRef.current = valgteRegioner;
+    valgteGrupperRef.current = valgteGrupper;
+
     const map = mapRef.current;
     if (!map || !klar) return;
 
-    const filterAktiv = valgteRegioner !== "all" && valgteRegioner.size > 0;
+    const omrFilterAktiv = valgteRegioner !== "all" && valgteRegioner.size > 0;
+    const omrIds = omrFilterAktiv ? [...valgteRegioner].map(String) : [];
+
+    const grpFilterAktiv = valgteGrupper !== "all" && valgteGrupper.size > 0;
+    const grpIds = grpFilterAktiv ? [...valgteGrupper].map(String) : [];
 
     kommuner.forEach((k) => {
-      const udenfor = filterAktiv && !valgteRegioner.has(k.regionskode);
-      map.setFeatureState({ source: SOURCE_ID, id: k.kode }, { udenforFilter: udenfor });
+      const matcherOmr =
+        !omrFilterAktiv ||
+        omrIds.some((id) => kommuneMatcherFilterId(k.kode, k.regionskode, id));
+      const matcherGrp =
+        !grpFilterAktiv || grpIds.some((id) => kommuneMatcherGruppeId(k.kode, id));
+      map.setFeatureState(
+        { source: SOURCE_ID, id: k.kode },
+        { udenforFilter: !(matcherOmr && matcherGrp) },
+      );
     });
-  }, [valgteRegioner, klar, kommuner]);
+  }, [valgteRegioner, valgteGrupper, klar, kommuner]);
 
   const forsteRegionsRender = useRef(true);
 
@@ -303,7 +458,7 @@ export function DanmarkKort() {
 
     setValgtKode(null);
     setSoegning("");
-  }, [valgteRegioner]);
+  }, [valgteRegioner, valgteGrupper]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -329,29 +484,39 @@ export function DanmarkKort() {
   }, []);
 
   const regionFilterAktiv = valgteRegioner !== "all" && valgteRegioner.size > 0;
+  const gruppeFilterAktiv = valgteGrupper !== "all" && valgteGrupper.size > 0;
 
   const matcherRegion = (k: Kommune) =>
-    !regionFilterAktiv || valgteRegioner.has(k.regionskode);
+    !regionFilterAktiv ||
+    [...valgteRegioner].some((id) =>
+      kommuneMatcherFilterId(k.kode, k.regionskode, String(id)),
+    );
+
+  const matcherGruppe = (k: Kommune) =>
+    !gruppeFilterAktiv ||
+    [...valgteGrupper].some((id) => kommuneMatcherGruppeId(k.kode, String(id)));
+
+  const matcherFiltre = (k: Kommune) => matcherRegion(k) && matcherGruppe(k);
 
   const forslag = useMemo(() => {
     const q = soegning.trim().toLowerCase();
     if (!q) return [];
     return kommuner
-      .filter((k) => matcherRegion(k))
+      .filter((k) => matcherFiltre(k))
       .filter((k) => k.navn.toLowerCase().includes(q))
       .slice(0, 8);
-  }, [kommuner, soegning, valgteRegioner]);
+  }, [kommuner, soegning, valgteRegioner, valgteGrupper]);
 
   const kommunerFiltreret = useMemo(() => {
     const q = soegning.trim().toLowerCase();
     return kommuner
-      .filter((k) => matcherRegion(k))
+      .filter((k) => matcherFiltre(k))
       .filter((k) => (q ? k.navn.toLowerCase().includes(q) : true));
-  }, [kommuner, soegning, valgteRegioner]);
+  }, [kommuner, soegning, valgteRegioner, valgteGrupper]);
 
   const kommunerRegionFiltreret = useMemo(
-    () => kommuner.filter((k) => matcherRegion(k)),
-    [kommuner, valgteRegioner],
+    () => kommuner.filter((k) => matcherFiltre(k)),
+    [kommuner, valgteRegioner, valgteGrupper],
   );
 
   const rangAf = (kode: string) =>
@@ -442,8 +607,8 @@ export function DanmarkKort() {
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <FilterIkon />
-              Region
+              <FunnelIcon className="h-4 w-4" />
+              Område
               {regionFilterAktiv && (
                 <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-xs font-medium text-accent">
                   {valgteRegioner.size}
@@ -456,37 +621,53 @@ export function DanmarkKort() {
                 selectionMode="multiple"
                 onSelectionChange={setValgteRegioner}
               >
-                <Header>Region</Header>
-                {Object.entries(REGION_NAVNE).map(([kode, navn]) => (
-                  <Dropdown.Item key={kode} id={kode} textValue={navn}>
-                    <Dropdown.ItemIndicator className="shrink-0">
-                      {({ isSelected }) => (
-                        <span
-                          className={`flex h-4 w-4 items-center justify-center rounded border transition-colors duration-150 ${
-                            isSelected
-                              ? "border-accent bg-accent"
-                              : "border-border bg-surface"
-                          }`}
-                        >
-                          {isSelected && (
-                            <svg
-                              viewBox="0 0 16 16"
-                              className="h-2.5 w-2.5 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path
-                                d="M3.5 8.5l3 3 6-6.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          )}
-                        </span>
-                      )}
-                    </Dropdown.ItemIndicator>
+                <Dropdown.Section>
+                  <Header>Region</Header>
+                  {Object.entries(REGION_NAVNE).map(([kode, navn]) => (
+                    <Dropdown.Item key={kode} id={kode} textValue={navn}>
+                      <RegionAfkrydsning />
+                      <Label>{navn}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+                <Separator />
+                <Dropdown.Section>
+                  <Header>Landsdel</Header>
+                  {Object.entries(LANDSDEL_NAVNE).map(([id, navn]) => (
+                    <Dropdown.Item key={id} id={id} textValue={navn}>
+                      <RegionAfkrydsning />
+                      <Label>{navn}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          <Dropdown>
+            <Button
+              variant="outline"
+              className="h-10 gap-1.5 rounded-lg text-sm"
+            >
+              <UsersIcon className="h-4 w-4" />
+              Gruppe
+              {gruppeFilterAktiv && (
+                <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-xs font-medium text-accent">
+                  {valgteGrupper.size}
+                </span>
+              )}
+            </Button>
+            <Dropdown.Popover className="min-w-[260px]">
+              <Dropdown.Menu
+                selectedKeys={valgteGrupper}
+                selectionMode="multiple"
+                onSelectionChange={setValgteGrupper}
+              >
+                {Object.entries(GRUPPE_NAVNE).map(([id, navn]) => (
+                  <Dropdown.Item key={id} id={id} textValue={navn}>
+                    <RegionAfkrydsning />
                     <Label>{navn}</Label>
+                    <GruppeInfo beskrivelse={GRUPPE_BESKRIVELSE[id]} />
                   </Dropdown.Item>
                 ))}
               </Dropdown.Menu>
@@ -497,7 +678,7 @@ export function DanmarkKort() {
             variant="outline"
             className="h-10 gap-1.5 rounded-lg text-sm"
           >
-            <PrioritetIkon />
+            <AdjustmentsHorizontalIcon className="h-4 w-4" />
             Prioritet
           </Button>
         </div>
@@ -519,16 +700,7 @@ export function DanmarkKort() {
         {klar && valgtKommune && (
           <div className="absolute right-14 top-4 z-10 w-64 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg sm:w-72">
             <div className="relative flex h-20 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                className="h-7 w-7 text-muted/50"
-              >
-                <path d="M4 21V8l8-4 8 4v13" strokeLinejoin="round" />
-                <path d="M9 21v-6h6v6M4 21h16" />
-              </svg>
+              <HomeIcon className="h-7 w-7 text-muted/50" />
               {valgtKommuneRang > 0 && (
                 <span
                   className={`absolute -bottom-4 left-3 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
@@ -544,7 +716,7 @@ export function DanmarkKort() {
                 aria-label="Luk"
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted shadow-sm transition-colors duration-150 hover:text-foreground"
               >
-                <LukIkon />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="p-3.5 pl-16">
@@ -557,16 +729,7 @@ export function DanmarkKort() {
               type="button"
               className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="h-3.5 w-3.5"
-              >
-                <path d="M7 3h7l4 4v14H7z" strokeLinejoin="round" />
-                <path d="M14 3v4h4M9 12h6M9 15.5h6M9 8.5h3" />
-              </svg>
+              <DocumentTextIcon className="h-3.5 w-3.5" />
               Se fuld rapport
             </button>
           </div>
@@ -589,16 +752,7 @@ export function DanmarkKort() {
                   className="flex-1 text-left"
                 >
                   <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.4"
-                      className="h-8 w-8 text-muted/50"
-                    >
-                      <path d="M4 21V8l8-4 8 4v13" strokeLinejoin="round" />
-                      <path d="M9 21v-6h6v6M4 21h16" />
-                    </svg>
+                    <HomeIcon className="h-8 w-8 text-muted/50" />
                     <span
                       className={`absolute -bottom-4 left-3 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
                         rangAf(k.kode),
@@ -620,16 +774,7 @@ export function DanmarkKort() {
                   onClick={() => setValgtKode(k.kode)}
                   className="flex items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    className="h-3.5 w-3.5"
-                  >
-                    <path d="M7 3h7l4 4v14H7z" strokeLinejoin="round" />
-                    <path d="M14 3v4h4M9 12h6M9 15.5h6M9 8.5h3" />
-                  </svg>
+                  <DocumentTextIcon className="h-3.5 w-3.5" />
                   Se fuld rapport
                 </button>
               </div>
