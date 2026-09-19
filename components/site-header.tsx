@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import NextLink from "next/link";
-import { Button, Link } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
+
+const link = linkVariants();
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -14,28 +17,22 @@ export function SiteHeader() {
         aria-label="Primær navigation"
         className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
       >
-        <Link
-          as={NextLink}
+        <NextLink
           href="/"
           className="text-lg font-semibold tracking-tight text-foreground"
         >
           Danmarkskortet
-        </Link>
+        </NextLink>
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-8 md:flex">
-            <Link as={NextLink} href="/kort">
+            <NextLink className={link.base()} href="/kort">
               Kort
-            </Link>
+            </NextLink>
 
-            <Button
-              as={NextLink}
-              href="/kort"
-              variant="primary"
-              size="md"
-            >
+            <NextLink className={buttonVariants({ variant: "primary", size: "md" })} href="/kort">
               Kom i gang
-            </Button>
+            </NextLink>
           </div>
 
           <ThemeToggle />
@@ -58,24 +55,21 @@ export function SiteHeader() {
           className="border-t border-border bg-background px-4 py-4 md:hidden"
         >
           <div className="mx-auto flex max-w-7xl flex-col gap-2">
-            <Link
-              as={NextLink}
+            <NextLink
               href="/kort"
-              className="px-3 py-3"
-              onPress={() => setMenuOpen(false)}
+              className={`${link.base()} px-3 py-3`}
+              onClick={() => setMenuOpen(false)}
             >
               Kort
-            </Link>
+            </NextLink>
 
-            <Button
-              as={NextLink}
+            <NextLink
               href="/kort"
-              variant="primary"
-              className="mt-2"
-              onPress={() => setMenuOpen(false)}
+              className={`${buttonVariants({ variant: "primary" })} mt-2`}
+              onClick={() => setMenuOpen(false)}
             >
               Kom i gang
-            </Button>
+            </NextLink>
           </div>
         </div>
       )}

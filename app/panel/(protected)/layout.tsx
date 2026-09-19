@@ -1,7 +1,5 @@
-import NextLink from "next/link";
-import { Link } from "@heroui/react";
 import { verifySessionOrRedirect } from "@/lib/auth/dal";
-import { LogudKnap } from "@/components/panel/logud-knap";
+import { PanelNav } from "@/components/panel/panel-nav";
 
 export default async function ProtectedPanelLayout({
   children,
@@ -21,18 +19,7 @@ export default async function ProtectedPanelLayout({
           <p className="mt-1 text-sm text-muted">Logget ind som {administrator.email}</p>
         </div>
 
-        <nav className="flex items-center gap-5">
-          <Link as={NextLink} href="/panel">
-            Overblik
-          </Link>
-          <Link as={NextLink} href="/panel/kategorier">
-            Kategorier & nøgletal
-          </Link>
-          <Link as={NextLink} href="/panel/vaerdier">
-            Værdier
-          </Link>
-          <LogudKnap />
-        </nav>
+        <PanelNav />
       </div>
 
       {children}

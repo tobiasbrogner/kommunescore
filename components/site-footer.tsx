@@ -1,7 +1,9 @@
 "use client";
 
 import NextLink from "next/link";
-import { Link } from "@heroui/react";
+import { linkVariants } from "@heroui/styles";
+
+const link = linkVariants();
 
 export function SiteFooter() {
   const aar = new Date().getFullYear();
@@ -17,12 +19,12 @@ export function SiteFooter() {
           aria-label="Footer navigation"
           className="flex items-center gap-6 text-sm"
         >
-          <Link as={NextLink} href="/">
+          <NextLink className={link.base()} href="/">
             Forside
-          </Link>
-          <Link as={NextLink} href="/kort">
+          </NextLink>
+          <NextLink className={link.base()} href="/kort">
             Kort
-          </Link>
+          </NextLink>
         </nav>
 
         <p className="text-xs text-muted">© {aar} Danmarkskortet</p>
