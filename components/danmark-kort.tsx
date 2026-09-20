@@ -186,7 +186,12 @@ function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
           <QuestionMarkCircleIcon className="h-3.5 w-3.5" />
         </span>
       </Tooltip.Trigger>
-      <Tooltip.Content showArrow placement="left" className="w-64 break-normal">
+      <Tooltip.Content
+        showArrow
+        placement="right"
+        shouldFlip={false}
+        className="w-64 break-normal"
+      >
         <Tooltip.Arrow />
         <p className="text-sm text-pretty">{beskrivelse}</p>
       </Tooltip.Content>
@@ -195,10 +200,35 @@ function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
 }
 
 function rankFarve(rank: number) {
-  if (rank === 1) return "bg-gradient-to-br from-amber-300 to-yellow-500 text-yellow-950";
+  if (rank === 1) return "bg-gradient-to-br from-yellow-300 to-yellow-600 text-yellow-950";
   if (rank === 2) return "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-900";
   if (rank === 3) return "bg-gradient-to-br from-orange-300 to-orange-600 text-orange-950";
   return "bg-foreground text-surface";
+}
+
+function KommuneBillede({
+  kode,
+  navn,
+  ikonClassName,
+}: {
+  kode: string;
+  navn: string;
+  ikonClassName: string;
+}) {
+  const [fejlet, setFejlet] = useState(false);
+
+  if (fejlet) {
+    return <HomeIcon className={ikonClassName} />;
+  }
+
+  return (
+    <img
+      src={`/kommuner/${kode}.jpg`}
+      alt={navn}
+      className="absolute inset-0 h-full w-full object-cover"
+      onError={() => setFejlet(true)}
+    />
+  );
 }
 
 const VISNINGER: { id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
@@ -700,10 +730,15 @@ export function DanmarkKort() {
         {klar && valgtKommune && (
           <div className="absolute right-14 top-4 z-10 w-64 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg sm:w-72">
             <div className="relative flex h-20 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
-              <HomeIcon className="h-7 w-7 text-muted/50" />
+              <KommuneBillede
+                key={valgtKommune.kode}
+                kode={valgtKommune.kode}
+                navn={valgtKommune.navn}
+                ikonClassName="h-7 w-7 text-muted/50"
+              />
               {valgtKommuneRang > 0 && (
                 <span
-                  className={`absolute -bottom-4 left-3 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
+                  className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
                     valgtKommuneRang,
                   )}`}
                 >
@@ -714,7 +749,7 @@ export function DanmarkKort() {
                 type="button"
                 onClick={() => setValgtKode(null)}
                 aria-label="Luk"
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted shadow-sm transition-colors duration-150 hover:text-foreground"
+                className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted shadow-sm transition-colors duration-150 hover:text-foreground"
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
@@ -752,9 +787,13 @@ export function DanmarkKort() {
                   className="flex-1 text-left"
                 >
                   <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
-                    <HomeIcon className="h-8 w-8 text-muted/50" />
+                    <KommuneBillede
+                      kode={k.kode}
+                      navn={k.navn}
+                      ikonClassName="h-8 w-8 text-muted/50"
+                    />
                     <span
-                      className={`absolute -bottom-4 left-3 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
+                      className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
                         rangAf(k.kode),
                       )}`}
                     >

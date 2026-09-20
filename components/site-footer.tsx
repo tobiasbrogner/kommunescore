@@ -23,7 +23,7 @@ export function SiteFooter() {
             Forside
           </NextLink>
           <NextLink className={link.base()} href="/kort">
-            Kort
+            Udforsk
           </NextLink>
         </nav>
 

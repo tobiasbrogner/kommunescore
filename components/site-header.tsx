@@ -27,7 +27,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-8 md:flex">
             <NextLink className={link.base()} href="/kort">
-              Kort
+              Udforsk
             </NextLink>
 
             <NextLink className={buttonVariants({ variant: "primary", size: "md" })} href="/kort">
@@ -60,7 +60,7 @@ export function SiteHeader() {
               className={`${link.base()} px-3 py-3`}
               onClick={() => setMenuOpen(false)}
             >
-              Kort
+              Udforsk
             </NextLink>
 
             <NextLink
