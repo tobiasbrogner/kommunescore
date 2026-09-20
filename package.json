@@ -11,14 +11,15 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed:kommuner": "tsx scripts/seed-kommuner.ts",
-    "db:seed:admin": "tsx scripts/seed-admin.ts"
+    "db:seed:admin": "tsx scripts/seed-admin.ts",
+    "db:seed:boern": "tsx scripts/seed-boernepasning.ts"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
     "@heroui/react": "^3.2.5",
     "@heroui/styles": "^3.2.5",
     "@next/env": "^16.3.5",
     "@node-rs/argon2": "^2.2.1",
+    "@tabler/icons-react": "^3.47.0",
     "drizzle-orm": "^0.45.2",
     "maplibre-gl": "^4.7.1",
     "next": "16.3.5",
@@ -39,7 +40,8 @@
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
-    "typescript": "^5"
+    "typescript": "^5",
+    "xlsx": "^0.18.5"
   },
   "packageManager": "pnpm@12.4.2"
 }

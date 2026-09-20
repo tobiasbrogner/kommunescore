@@ -1,0 +1,1 @@
+ALTER TABLE "kategorier" ADD COLUMN "ikon" varchar(50);

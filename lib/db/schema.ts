@@ -21,6 +21,7 @@ export const kategorier = pgTable("kategorier", {
   id: serial("id").primaryKey(),
   navn: varchar("navn", { length: 100 }).notNull(),
   slug: varchar("slug", { length: 50 }).notNull().unique(),
+  ikon: varchar("ikon", { length: 50 }),
   standardvaegt: numeric("standardvaegt", { precision: 5, scale: 2 })
     .notNull()
     .default("1"),

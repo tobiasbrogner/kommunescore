@@ -9,10 +9,13 @@ import {
   Dropdown,
   Input,
   Label,
+  Modal,
   NumberField,
   Separator,
   TextField,
 } from "@heroui/react";
+import { AlleVaerdierTabel } from "@/components/panel/alle-vaerdier-tabel";
+import { IkonVaelger } from "@/components/panel/ikon-vaelger";
 
 type Noegletal = {
   id: number;
@@ -25,10 +28,14 @@ type Kategori = {
   id: number;
   navn: string;
   slug: string;
+  ikon: string | null;
   standardvaegt: string;
   sortering: number;
   noegletal: Noegletal[];
 };
+
+type Kommune = { kode: string; navn: string };
+type Vaerdi = { kommuneKode: string; noegletalId: number; vaerdi: string };
 
 const RETNING_LABEL: Record<Noegletal["retning"], string> = {
   hoejere_bedre: "Højere er bedre",
@@ -50,8 +57,12 @@ async function kald(url: string, method: string, body?: unknown) {
 
 export function KategorierManager({
   initielleKategorier,
+  kommuner,
+  vaerdier,
 }: {
   initielleKategorier: Kategori[];
+  kommuner: Kommune[];
+  vaerdier: Vaerdi[];
 }) {
   const router = useRouter();
   const [fejl, setFejl] = useState<string | null>(null);
@@ -97,6 +108,8 @@ export function KategorierManager({
         <KategoriKort
           key={kategori.id}
           kategori={kategori}
+          kommuner={kommuner}
+          vaerdier={vaerdier}
           onFejl={setFejl}
           onAendret={() => router.refresh()}
         />
@@ -139,14 +152,19 @@ export function KategorierManager({
 
 function KategoriKort({
   kategori,
+  kommuner,
+  vaerdier,
   onFejl,
   onAendret,
 }: {
   kategori: Kategori;
+  kommuner: Kommune[];
+  vaerdier: Vaerdi[];
   onFejl: (fejl: string | null) => void;
   onAendret: () => void;
 }) {
   const [navn, setNavn] = useState(kategori.navn);
+  const [ikon, setIkon] = useState<string | null>(kategori.ikon);
   const [standardvaegt, setStandardvaegt] = useState<number | undefined>(
     Number(kategori.standardvaegt),
   );
@@ -165,6 +183,9 @@ function KategoriKort({
     }
   }
 
+  const noegletalIds = new Set(kategori.noegletal.map((n) => n.id));
+  const kategoriVaerdier = vaerdier.filter((v) => noegletalIds.has(v.noegletalId));
+
   return (
     <Card className="border border-border/80 bg-background">
       <Card.Header>
@@ -172,7 +193,8 @@ function KategoriKort({
         <Card.Description>Slug: {kategori.slug}</Card.Description>
       </Card.Header>
       <Card.Content className="flex flex-col gap-5">
-        <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[auto_2fr_1fr_auto_auto_auto] sm:items-end">
+          <IkonVaelger value={ikon} onChange={setIkon} />
           <TextField value={navn} onChange={setNavn}>
             <Label>Navn</Label>
             <Input />
@@ -191,6 +213,7 @@ function KategoriKort({
               forsoeg(() =>
                 kald(`/api/admin/kategorier/${kategori.id}`, "PATCH", {
                   navn,
+                  ikon,
                   standardvaegt: standardvaegt ?? 0,
                 }),
               )
@@ -198,6 +221,31 @@ function KategoriKort({
           >
             Gem
           </Button>
+          <Modal>
+            <Button variant="secondary" isDisabled={kategori.noegletal.length === 0}>
+              Værdier
+            </Button>
+            <Modal.Backdrop>
+              <Modal.Container size="cover" scroll="inside">
+                <Modal.Dialog className="h-full max-h-full">
+                  <Modal.CloseTrigger />
+                  <Modal.Header>
+                    <Modal.Heading>{kategori.navn} — værdier</Modal.Heading>
+                    <p className="mt-1 text-sm text-muted">
+                      Klik i en celle, ret værdien, og tryk væk for at gemme.
+                    </p>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <AlleVaerdierTabel
+                      kommuner={kommuner}
+                      kategorier={[kategori]}
+                      vaerdier={kategoriVaerdier}
+                    />
+                  </Modal.Body>
+                </Modal.Dialog>
+              </Modal.Container>
+            </Modal.Backdrop>
+          </Modal>
           <Button
             variant="danger-soft"
             onPress={() => forsoeg(() => kald(`/api/admin/kategorier/${kategori.id}`, "DELETE"))}

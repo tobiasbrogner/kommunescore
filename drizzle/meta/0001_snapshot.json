@@ -1,0 +1,348 @@
+{
+  "id": "93ccfc4c-54a6-4947-944c-e6299042ace1",
+  "prevId": "2e7286f9-4bda-4238-a7c8-dcb29a4470fd",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.administratorer": {
+      "name": "administratorer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "administratorer_email_unique": {
+          "name": "administratorer_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.kategorier": {
+      "name": "kategorier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "navn": {
+          "name": "navn",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ikon": {
+          "name": "ikon",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "standardvaegt": {
+          "name": "standardvaegt",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1'"
+        },
+        "sortering": {
+          "name": "sortering",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "kategorier_slug_unique": {
+          "name": "kategorier_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.kommune_noegletal": {
+      "name": "kommune_noegletal",
+      "schema": "",
+      "columns": {
+        "kommune_kode": {
+          "name": "kommune_kode",
+          "type": "varchar(4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "noegletal_id": {
+          "name": "noegletal_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vaerdi": {
+          "name": "vaerdi",
+          "type": "numeric(14, 4)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "kommune_noegletal_kommune_kode_kommuner_kode_fk": {
+          "name": "kommune_noegletal_kommune_kode_kommuner_kode_fk",
+          "tableFrom": "kommune_noegletal",
+          "tableTo": "kommuner",
+          "columnsFrom": [
+            "kommune_kode"
+          ],
+          "columnsTo": [
+            "kode"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "kommune_noegletal_noegletal_id_noegletal_id_fk": {
+          "name": "kommune_noegletal_noegletal_id_noegletal_id_fk",
+          "tableFrom": "kommune_noegletal",
+          "tableTo": "noegletal",
+          "columnsFrom": [
+            "noegletal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "kommune_noegletal_kommune_kode_noegletal_id_pk": {
+          "name": "kommune_noegletal_kommune_kode_noegletal_id_pk",
+          "columns": [
+            "kommune_kode",
+            "noegletal_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.kommuner": {
+      "name": "kommuner",
+      "schema": "",
+      "columns": {
+        "kode": {
+          "name": "kode",
+          "type": "varchar(4)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "navn": {
+          "name": "navn",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.noegletal": {
+      "name": "noegletal",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "kategori_id": {
+          "name": "kategori_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "navn": {
+          "name": "navn",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enhed": {
+          "name": "enhed",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retning": {
+          "name": "retning",
+          "type": "retning",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "noegletal_kategori_id_kategorier_id_fk": {
+          "name": "noegletal_kategori_id_kategorier_id_fk",
+          "tableFrom": "noegletal",
+          "tableTo": "kategorier",
+          "columnsFrom": [
+            "kategori_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sessioner": {
+      "name": "sessioner",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "administrator_id": {
+          "name": "administrator_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sessioner_administrator_id_administratorer_id_fk": {
+          "name": "sessioner_administrator_id_administratorer_id_fk",
+          "tableFrom": "sessioner",
+          "tableTo": "administratorer",
+          "columnsFrom": [
+            "administrator_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sessioner_token_hash_unique": {
+          "name": "sessioner_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.retning": {
+      "name": "retning",
+      "schema": "public",
+      "values": [
+        "hoejere_bedre",
+        "lavere_bedre"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

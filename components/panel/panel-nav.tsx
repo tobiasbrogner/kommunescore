@@ -13,10 +13,7 @@ export function PanelNav() {
         Overblik
       </NextLink>
       <NextLink className={link.base()} href="/panel/kategorier">
-        Kategorier & nøgletal
-      </NextLink>
-      <NextLink className={link.base()} href="/panel/vaerdier">
-        Værdier
+        Kategorier, nøgletal & værdier
       </NextLink>
       <LogudKnap />
     </nav>

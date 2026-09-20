@@ -24,6 +24,9 @@ export async function PATCH(request: Request, { params }: Context) {
   const opdatering: Partial<typeof kategorier.$inferInsert> = {};
   if (typeof body?.navn === "string") opdatering.navn = body.navn.trim();
   if (typeof body?.slug === "string") opdatering.slug = body.slug.trim();
+  if (body?.ikon !== undefined) {
+    opdatering.ikon = typeof body.ikon === "string" && body.ikon.trim() !== "" ? body.ikon.trim() : null;
+  }
   if (body?.standardvaegt !== undefined) opdatering.standardvaegt = String(Number(body.standardvaegt));
   if (body?.sortering !== undefined) opdatering.sortering = Number(body.sortering);
 

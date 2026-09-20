@@ -18,18 +18,18 @@ import {
   type Selection,
 } from "@heroui/react";
 import {
-  AdjustmentsHorizontalIcon,
-  DocumentTextIcon,
-  FunnelIcon,
-  HomeIcon,
-  MapIcon,
-  QuestionMarkCircleIcon,
-  Squares2X2Icon,
-  UsersIcon,
-  ViewColumnsIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
-import { CheckIcon } from "@heroicons/react/20/solid";
+  IconAdjustmentsHorizontal,
+  IconCheck,
+  IconFileText,
+  IconFilter,
+  IconHome,
+  IconLayoutGrid,
+  IconLayoutColumns,
+  IconHelpCircle,
+  IconMap,
+  IconUsers,
+  IconX,
+} from "@tabler/icons-react";
 
 type Kommune = {
   kode: string;
@@ -164,7 +164,7 @@ function RegionAfkrydsning() {
             isSelected ? "border-accent bg-accent" : "border-border bg-surface"
           }`}
         >
-          {isSelected && <CheckIcon className="h-3 w-3 text-white" />}
+          {isSelected && <IconCheck className="h-3 w-3 text-white" />}
         </span>
       )}
     </Dropdown.ItemIndicator>
@@ -183,7 +183,7 @@ function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
           onClick={(e) => e.stopPropagation()}
           className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground"
         >
-          <QuestionMarkCircleIcon className="h-3.5 w-3.5" />
+          <IconHelpCircle className="h-3.5 w-3.5" />
         </span>
       </Tooltip.Trigger>
       <Tooltip.Content
@@ -218,7 +218,7 @@ function KommuneBillede({
   const [fejlet, setFejlet] = useState(false);
 
   if (fejlet) {
-    return <HomeIcon className={ikonClassName} />;
+    return <IconHome className={ikonClassName} />;
   }
 
   return (
@@ -232,9 +232,9 @@ function KommuneBillede({
 }
 
 const VISNINGER: { id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
-  { id: "oversigt", label: "Oversigt", Ikon: () => <Squares2X2Icon className="h-4 w-4" /> },
-  { id: "kort", label: "Kort", Ikon: () => <MapIcon className="h-4 w-4" /> },
-  { id: "regneark", label: "Regneark", Ikon: () => <ViewColumnsIcon className="h-4 w-4" /> },
+  { id: "oversigt", label: "Oversigt", Ikon: () => <IconLayoutGrid className="h-4 w-4" /> },
+  { id: "kort", label: "Kort", Ikon: () => <IconMap className="h-4 w-4" /> },
+  { id: "regneark", label: "Regneark", Ikon: () => <IconLayoutColumns className="h-4 w-4" /> },
 ];
 
 export function DanmarkKort() {
@@ -637,7 +637,7 @@ export function DanmarkKort() {
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <FunnelIcon className="h-4 w-4" />
+              <IconFilter className="h-4 w-4" />
               Område
               {regionFilterAktiv && (
                 <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-xs font-medium text-accent">
@@ -679,7 +679,7 @@ export function DanmarkKort() {
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <UsersIcon className="h-4 w-4" />
+              <IconUsers className="h-4 w-4" />
               Gruppe
               {gruppeFilterAktiv && (
                 <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-xs font-medium text-accent">
@@ -708,7 +708,7 @@ export function DanmarkKort() {
             variant="outline"
             className="h-10 gap-1.5 rounded-lg text-sm"
           >
-            <AdjustmentsHorizontalIcon className="h-4 w-4" />
+            <IconAdjustmentsHorizontal className="h-4 w-4" />
             Prioritet
           </Button>
         </div>
@@ -751,7 +751,7 @@ export function DanmarkKort() {
                 aria-label="Luk"
                 className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted shadow-sm transition-colors duration-150 hover:text-foreground"
               >
-                <XMarkIcon className="h-4 w-4" />
+                <IconX className="h-4 w-4" />
               </button>
             </div>
             <div className="p-3.5 pl-16">
@@ -764,7 +764,7 @@ export function DanmarkKort() {
               type="button"
               className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
             >
-              <DocumentTextIcon className="h-3.5 w-3.5" />
+              <IconFileText className="h-3.5 w-3.5" />
               Se fuld rapport
             </button>
           </div>
@@ -772,7 +772,7 @@ export function DanmarkKort() {
       </div>
 
       {visning === "oversigt" && (
-        <div className="flex h-[520px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-[740px]">
+        <div className="flex h-[550px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[650px] lg:h-[770px]">
         <div className="h-5 shrink-0" />
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-2">
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -813,7 +813,7 @@ export function DanmarkKort() {
                   onClick={() => setValgtKode(k.kode)}
                   className="flex items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
                 >
-                  <DocumentTextIcon className="h-3.5 w-3.5" />
+                  <IconFileText className="h-3.5 w-3.5" />
                   Se fuld rapport
                 </button>
               </div>

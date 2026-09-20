@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const navn = typeof body?.navn === "string" ? body.navn.trim() : "";
   const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
+  const ikon = typeof body?.ikon === "string" && body.ikon.trim() !== "" ? body.ikon.trim() : null;
   const standardvaegt = Number(body?.standardvaegt ?? 1);
   const sortering = Number(body?.sortering ?? 0);
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
 
   const [oprettet] = await db
     .insert(kategorier)
-    .values({ navn, slug, standardvaegt: String(standardvaegt), sortering })
+    .values({ navn, slug, ikon, standardvaegt: String(standardvaegt), sortering })
     .returning();
 
   revalidateTag(KOMMUNE_SCORES_TAG, "max");
