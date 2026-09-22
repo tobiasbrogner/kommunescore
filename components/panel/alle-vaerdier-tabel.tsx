@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { beregnScores, type KategoriMeta, type RaaVaerdi } from "@/lib/scores/compute";
 
-type Noegletal = { id: number; navn: string; enhed: string };
+type Noegletal = {
+  id: number;
+  navn: string;
+  enhed: string;
+  retning: "hoejere_bedre" | "lavere_bedre";
+};
 type Kategori = { id: number; navn: string; noegletal: Noegletal[] };
 type Kommune = { kode: string; navn: string };
 type Vaerdi = { kommuneKode: string; noegletalId: number; vaerdi: string };
@@ -43,6 +49,39 @@ export function AlleVaerdierTabel({
 
   const kategorierMedNoegletal = kategorier.filter((k) => k.noegletal.length > 0);
 
+  const scorePrKommune = useMemo(() => {
+    const raaVaerdier: RaaVaerdi[] = [];
+    for (const k of kategorierMedNoegletal) {
+      for (const n of k.noegletal) {
+        for (const kom of kommuner) {
+          const raa = lokaleVaerdier[`${kom.kode}:${n.id}`];
+          if (raa === undefined || raa === "") continue;
+          const tal = Number(raa.replace(",", "."));
+          if (!Number.isFinite(tal)) continue;
+          raaVaerdier.push({
+            kommuneKode: kom.kode,
+            noegletalId: n.id,
+            kategoriId: k.id,
+            retning: n.retning,
+            vaerdi: tal,
+          });
+        }
+      }
+    }
+
+    const kategoriMeta: KategoriMeta[] = kategorierMedNoegletal.map((k) => ({
+      id: k.id,
+      navn: k.navn,
+      slug: "",
+      standardvaegt: 1,
+      ikon: null,
+      noegletal: [],
+    }));
+
+    const scores = beregnScores(kommuner, kategoriMeta, raaVaerdier);
+    return new Map(scores.map((s) => [s.kode, s.kategorier]));
+  }, [kommuner, kategorierMedNoegletal, lokaleVaerdier]);
+
   async function gem(kommuneKode: string, noegletalId: number, raaVaerdi: string) {
     const noegle = `${kommuneKode}:${noegletalId}`;
     if (raaVaerdi === "") return;
@@ -71,33 +110,36 @@ export function AlleVaerdierTabel({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border">
+    <div className="overflow-clip rounded-xl border border-border">
       <table className="w-full table-fixed border-collapse text-left text-sm">
         <colgroup>
           <col className="w-40" />
-          {kategorierMedNoegletal.flatMap((k) => k.noegletal.map((n) => <col key={n.id} />))}
+          {kategorierMedNoegletal.flatMap((k) => [
+            ...k.noegletal.map((n) => <col key={n.id} />),
+            <col key={`score-${k.id}`} className="w-20" />,
+          ])}
         </colgroup>
-        <thead className="bg-surface-secondary">
+        <thead className="sticky top-0 z-20 bg-surface-secondary">
           <tr>
             <th
               rowSpan={2}
-              className="sticky left-0 z-10 bg-surface-secondary px-4 py-2.5 font-medium"
+              className="sticky left-0 z-30 bg-surface-secondary px-4 py-2.5 font-medium"
             >
               Kommune
             </th>
             {kategorierMedNoegletal.map((k) => (
               <th
                 key={k.id}
-                colSpan={k.noegletal.length}
-                className="border-l border-border px-4 py-2 text-center font-medium"
+                colSpan={k.noegletal.length + 1}
+                className="border-l border-border bg-surface-secondary px-4 py-2 text-center font-medium"
               >
                 {k.navn}
               </th>
             ))}
           </tr>
           <tr>
-            {kategorierMedNoegletal.flatMap((k) =>
-              k.noegletal.map((n, i) => {
+            {kategorierMedNoegletal.flatMap((k) => [
+              ...k.noegletal.map((n, i) => {
                 const fremhaevet = erGennemsnit(n.navn);
                 return (
                   <th
@@ -106,23 +148,29 @@ export function AlleVaerdierTabel({
                       fremhaevet
                         ? "border-l border-accent/40 bg-accent/10 font-semibold text-foreground"
                         : i === 0
-                          ? "border-l border-border"
-                          : ""
+                          ? "border-l border-border bg-surface-secondary"
+                          : "bg-surface-secondary"
                     }`}
                   >
                     {n.navn} ({n.enhed})
                   </th>
                 );
               }),
-            )}
+              <th
+                key={`score-${k.id}`}
+                className="border-l border-accent/40 bg-accent/10 px-3 py-2 text-xs font-semibold text-foreground"
+              >
+                Score
+              </th>,
+            ])}
           </tr>
         </thead>
         <tbody>
           {kommuner.map((kom) => (
             <tr key={kom.kode} className="border-t border-border/60">
               <td className="sticky left-0 z-10 bg-surface px-4 py-2 font-medium">{kom.navn}</td>
-              {kategorierMedNoegletal.flatMap((k) =>
-                k.noegletal.map((n, i) => {
+              {kategorierMedNoegletal.flatMap((k) => [
+                ...k.noegletal.map((n, i) => {
                   const noegle = `${kom.kode}:${n.id}`;
                   const status = statusPrCelle[noegle] ?? "idle";
                   const fremhaevet = erGennemsnit(n.navn);
@@ -151,7 +199,13 @@ export function AlleVaerdierTabel({
                     </td>
                   );
                 }),
-              )}
+                <td
+                  key={`score-${k.id}`}
+                  className="border-l border-accent/40 bg-accent/10 px-3 py-1.5 text-center font-semibold text-foreground"
+                >
+                  {scorePrKommune.get(kom.kode)?.[k.id]?.toFixed(1) ?? "–"}
+                </td>,
+              ])}
             </tr>
           ))}
         </tbody>

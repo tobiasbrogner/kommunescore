@@ -2,53 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Label, Modal, TextField, useOverlayState } from "@heroui/react";
-
-type IkonKort = Record<string, string>;
-
-let ikonPromise: Promise<IkonKort> | null = null;
-function hentIkoner() {
-  ikonPromise ??= fetch("/tabler-ikoner.json").then((res) => res.json());
-  return ikonPromise;
-}
-
-function humaniser(navn: string) {
-  return navn.replace(/-/g, " ");
-}
-
-function Ikon({ markup, className }: { markup: string; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      dangerouslySetInnerHTML={{ __html: markup }}
-    />
-  );
-}
-
-function PladsholderIkon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <circle cx="9" cy="9" r="1.5" />
-      <path d="M4 15l4 -4a2 2 0 0 1 2.5 0l4.5 4" />
-      <path d="M14 14l1 -1a2 2 0 0 1 2.5 0l2.5 2.5" />
-    </svg>
-  );
-}
+import { hentIkoner, humaniser, Ikon, type IkonKort, PladsholderIkon } from "@/components/ikon";
 
 const MAKS_RESULTATER = 96;
 

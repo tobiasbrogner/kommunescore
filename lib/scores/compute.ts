@@ -11,6 +11,8 @@ export type KategoriMeta = {
   navn: string;
   slug: string;
   standardvaegt: number;
+  ikon: string | null;
+  noegletal: { navn: string; enhed: string }[];
 };
 
 export type KommuneScore = {

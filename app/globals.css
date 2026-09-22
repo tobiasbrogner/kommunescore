@@ -2,31 +2,31 @@
 @import "@heroui/styles";
 
 :root {
-  --accent: oklch(0.43 0.11 160);
+  --accent: oklch(0.5 0.16 255);
   --accent-foreground: oklch(1 0 0);
 
   --background: oklch(0.985 0.004 95);
-  --foreground: oklch(0.19 0.01 160);
+  --foreground: oklch(0.19 0.01 255);
 
   --surface: oklch(1 0 0);
   --surface-secondary: oklch(0.965 0.008 95);
 
-  --muted: oklch(0.47 0.015 160);
+  --muted: oklch(0.47 0.015 255);
   --border: oklch(0.88 0.012 95);
 }
 
 .dark {
-  --accent: oklch(0.72 0.14 160);
-  --accent-foreground: oklch(0.16 0.02 160);
+  --accent: oklch(0.72 0.14 255);
+  --accent-foreground: oklch(0.16 0.02 255);
 
-  --background: oklch(0.17 0.01 160);
+  --background: oklch(0.17 0.01 255);
   --foreground: oklch(0.94 0.006 95);
 
-  --surface: oklch(0.21 0.012 160);
-  --surface-secondary: oklch(0.25 0.012 160);
+  --surface: oklch(0.21 0.012 255);
+  --surface-secondary: oklch(0.25 0.012 255);
 
-  --muted: oklch(0.66 0.02 160);
-  --border: oklch(0.31 0.015 160);
+  --muted: oklch(0.66 0.02 255);
+  --border: oklch(0.31 0.015 255);
 }
 
 html {

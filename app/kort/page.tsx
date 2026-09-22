@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { DanmarkKort } from "@/components/danmark-kort";
+import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
   title: "Kort | Danmarkskortet",
   description: "Udforsk Danmarks kommuner på et interaktivt kort.",
 };
 
-export default function KortSide() {
+export default async function KortSide() {
+  const { kategorier, kommuner: kommuneScores } = await getCachedKommuneScores();
+
   return (
     <main>
       <section className="border-b border-border/70 bg-surface-secondary">
@@ -22,7 +25,7 @@ export default function KortSide() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <DanmarkKort />
+        <DanmarkKort kategorier={kategorier} kommuneScores={kommuneScores} />
       </section>
     </main>
   );

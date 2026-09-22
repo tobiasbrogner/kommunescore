@@ -19,10 +19,17 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
         navn: kategorier.navn,
         slug: kategorier.slug,
         standardvaegt: kategorier.standardvaegt,
+        ikon: kategorier.ikon,
       })
       .from(kategorier),
     db
-      .select({ id: noegletal.id, kategoriId: noegletal.kategoriId, retning: noegletal.retning })
+      .select({
+        id: noegletal.id,
+        kategoriId: noegletal.kategoriId,
+        retning: noegletal.retning,
+        navn: noegletal.navn,
+        enhed: noegletal.enhed,
+      })
       .from(noegletal),
     db
       .select({
@@ -54,6 +61,10 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
     navn: k.navn,
     slug: k.slug,
     standardvaegt: Number(k.standardvaegt),
+    ikon: k.ikon,
+    noegletal: alleNoegletal
+      .filter((n) => n.kategoriId === k.id)
+      .map((n) => ({ navn: n.navn, enhed: n.enhed })),
   }));
 
   return {

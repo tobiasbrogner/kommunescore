@@ -13,7 +13,9 @@ import {
   Header,
   Label,
   Separator,
+  Slider,
   Spinner,
+  Switch,
   Tooltip,
   type Selection,
 } from "@heroui/react";
@@ -27,9 +29,13 @@ import {
   IconLayoutColumns,
   IconHelpCircle,
   IconMap,
+  IconPalette,
+  IconRotateClockwise2,
   IconUsers,
   IconX,
 } from "@tabler/icons-react";
+import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
+import { KategoriIkon } from "@/components/ikon";
 
 type Kommune = {
   kode: string;
@@ -37,10 +43,86 @@ type Kommune = {
   regionskode: string;
 };
 
+const PRIORITET_STANDARD = 50;
+
 type Visning = "kort" | "oversigt" | "regneark";
 
 const KOMMUNER_URL = "/data/kommuner.geojson";
 const SOURCE_ID = "kommuner";
+
+// Score-farveskalaer på kortet: 5 trin, hver beregnet som en sammenhængende
+// OKLCH-rampe (rød er bevidst udeladt indtil videre).
+const KORT_FARVE_VALGT = "#3b6fd1";
+type KortPaletId = "groen-gul-orange" | "blaa" | "groen" | "lilla-pink";
+const KORT_PALETTER: Record<KortPaletId, { navn: string; farver: readonly string[] }> = {
+  "groen-gul-orange": {
+    navn: "Grøn til orange",
+    farver: [
+      "#d55c13", // 1 – laveste
+      "#eb992e",
+      "#e7c03a", // 3 – midt (gul)
+      "#99b22d",
+      "#1b9247", // 5 – højeste
+    ],
+  },
+  blaa: {
+    navn: "Blå nuancer",
+    farver: [
+      "#cbd9ec", // 1 – laveste
+      "#8fb4e4",
+      "#4c8bd9",
+      "#1a68bf",
+      "#124784", // 5 – højeste
+    ],
+  },
+  groen: {
+    navn: "Grøn nuancer",
+    farver: [
+      "#ccddcc", // 1 – laveste
+      "#91bf92",
+      "#519d55",
+      "#187726",
+      "#065114", // 5 – højeste
+    ],
+  },
+  "lilla-pink": {
+    navn: "Lilla-pink",
+    farver: [
+      "#e161bc", // 1 – laveste
+      "#a758c8",
+      "#765bd2",
+      "#4058c0",
+      "#094ea6", // 5 – højeste
+    ],
+  },
+};
+const KORT_PALET_STANDARD: KortPaletId = "groen-gul-orange";
+// 4 skæringspunkter, der deler 50-100 i 5 lige store score-intervaller.
+const KORT_SCORE_TAERSKLER = [60, 70, 80, 90] as const;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
+function byggKommuneFyldFarve(farver: readonly string[]): any {
+  return [
+    "case",
+    ["boolean", ["feature-state", "valgt"], false],
+    KORT_FARVE_VALGT,
+    ["boolean", ["feature-state", "hover"], false],
+    KORT_FARVE_VALGT,
+    [
+      "step",
+      ["coalesce", ["feature-state", "score"], KORT_SCORE_TAERSKLER[0]],
+      farver[0],
+      KORT_SCORE_TAERSKLER[0],
+      farver[1],
+      KORT_SCORE_TAERSKLER[1],
+      farver[2],
+      KORT_SCORE_TAERSKLER[2],
+      farver[3],
+      KORT_SCORE_TAERSKLER[3],
+      farver[4],
+    ],
+  ];
+}
 
 const REGION_NAVNE: Record<string, string> = {
   "1081": "Region Nordjylland",
@@ -171,6 +253,77 @@ function RegionAfkrydsning() {
   );
 }
 
+function PrioritetInfo() {
+  return (
+    <Tooltip delay={150}>
+      <Tooltip.Trigger aria-label="Hvad er Prioritet?">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground">
+          <IconHelpCircle className="h-3.5 w-3.5" />
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content
+        showArrow
+        placement="right"
+        shouldFlip={false}
+        className="w-64 break-normal"
+      >
+        <Tooltip.Arrow />
+        <p className="text-sm text-pretty">
+          Justér, hvor vigtig hver kategori er for dig. En højere vægt
+          betyder, at kommunernes score i den pågældende kategori får større
+          betydning for den samlede rangering. Det ændrer ikke kommunernes
+          score, men kun hvordan de vægtes og sorteres.
+        </p>
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
+function erGennemsnit(navn: string) {
+  return navn.toLowerCase().includes("gennemsnit");
+}
+
+function KategoriInfo({ kategori }: { kategori: KategoriMeta }) {
+  const gennemsnit = kategori.noegletal.find((n) => erGennemsnit(n.navn));
+  const restNoegletal = gennemsnit
+    ? kategori.noegletal.filter((n) => n !== gennemsnit)
+    : kategori.noegletal;
+
+  return (
+    <Tooltip delay={150}>
+      <Tooltip.Trigger aria-label={`Hvad indgår i ${kategori.navn}?`}>
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground">
+          <IconHelpCircle className="h-3 w-3" />
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content
+        showArrow
+        placement="right"
+        shouldFlip={false}
+        className="w-64 break-normal"
+      >
+        <Tooltip.Arrow />
+        <p className="text-sm font-medium text-foreground">
+          {gennemsnit
+            ? `${kategori.navn} dækker ${gennemsnit.navn.toLowerCase()} for:`
+            : `${kategori.navn} dækker over:`}
+        </p>
+        {restNoegletal.length > 0 ? (
+          <ul className="mt-1.5 flex flex-col gap-0.5 text-sm text-pretty text-muted">
+            {restNoegletal.map((n) => (
+              <li key={n.navn}>· {n.navn}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1.5 text-sm text-pretty text-muted">
+            Ingen nøgletal oprettet endnu.
+          </p>
+        )}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
 function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
   return (
     <Tooltip delay={150}>
@@ -231,13 +384,32 @@ function KommuneBillede({
   );
 }
 
+function ScoreBadge({ score }: { score: number }) {
+  const rundet = Math.round(score);
+
+  return (
+    <div
+      title={`Score: ${rundet} ud af 100`}
+      className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full bg-surface-secondary px-2 text-sm font-bold tabular-nums text-foreground ring-1 ring-inset ring-border/50"
+    >
+      {rundet}
+    </div>
+  );
+}
+
 const VISNINGER: { id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
   { id: "oversigt", label: "Oversigt", Ikon: () => <IconLayoutGrid className="h-4 w-4" /> },
   { id: "kort", label: "Kort", Ikon: () => <IconMap className="h-4 w-4" /> },
   { id: "regneark", label: "Regneark", Ikon: () => <IconLayoutColumns className="h-4 w-4" /> },
 ];
 
-export function DanmarkKort() {
+export function DanmarkKort({
+  kategorier,
+  kommuneScores,
+}: {
+  kategorier: KategoriMeta[];
+  kommuneScores: KommuneScore[];
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const hoveredKode = useRef<string | null>(null);
@@ -246,6 +418,8 @@ export function DanmarkKort() {
   const valgteRegionerRef = useRef<Selection>(new Set<string>());
   const valgteGrupperRef = useRef<Selection>(new Set<string>());
   const kommuneRegionerRef = useRef<Map<string, string>>(new Map());
+  const farvePaletIdRef = useRef<KortPaletId>(KORT_PALET_STANDARD);
+  const museOverAktivRef = useRef(true);
 
   const [kommuner, setKommuner] = useState<Kommune[]>([]);
   const [valgtKode, setValgtKode] = useState<string | null>(null);
@@ -255,6 +429,14 @@ export function DanmarkKort() {
   const [visning, setVisning] = useState<Visning>("oversigt");
   const [valgteRegioner, setValgteRegioner] = useState<Selection>(new Set<string>());
   const [valgteGrupper, setValgteGrupper] = useState<Selection>(new Set<string>());
+  const [prioriteter, setPrioriteter] = useState<Record<number, number>>(() =>
+    Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])),
+  );
+  const [aktiveKategorier, setAktiveKategorier] = useState<Record<number, boolean>>(() =>
+    Object.fromEntries(kategorier.map((k) => [k.id, true])),
+  );
+  const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
+  const [museOverAktiv, setMuseOverAktiv] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -274,8 +456,6 @@ export function DanmarkKort() {
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
     map.on("load", async () => {
-      const accent = "#2f6f4f";
-
       map.addSource(SOURCE_ID, {
         type: "geojson",
         data: KOMMUNER_URL,
@@ -289,14 +469,7 @@ export function DanmarkKort() {
         type: "fill",
         source: SOURCE_ID,
         paint: {
-          "fill-color": [
-            "case",
-            ["boolean", ["feature-state", "valgt"], false],
-            accent,
-            ["boolean", ["feature-state", "hover"], false],
-            accent,
-            "#f7f4ee",
-          ],
+          "fill-color": byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver),
           "fill-opacity": [
             "case",
             ["boolean", ["feature-state", "valgt"], false],
@@ -311,6 +484,10 @@ export function DanmarkKort() {
       });
 
       map.setPaintProperty("kommune-fill", "fill-opacity-transition", {
+        duration: 400,
+        delay: 0,
+      });
+      map.setPaintProperty("kommune-fill", "fill-color-transition", {
         duration: 400,
         delay: 0,
       });
@@ -393,6 +570,8 @@ export function DanmarkKort() {
       }
 
       map.getCanvas().style.cursor = "pointer";
+
+      if (!museOverAktivRef.current) return;
 
       if (hoveredKode.current && hoveredKode.current !== kode) {
         map.setFeatureState(
@@ -491,6 +670,30 @@ export function DanmarkKort() {
   }, [valgteRegioner, valgteGrupper]);
 
   useEffect(() => {
+    farvePaletIdRef.current = farvePaletId;
+
+    const map = mapRef.current;
+    if (!map || !klar) return;
+
+    map.setPaintProperty(
+      "kommune-fill",
+      "fill-color",
+      byggKommuneFyldFarve(KORT_PALETTER[farvePaletId].farver),
+    );
+  }, [farvePaletId, klar]);
+
+  useEffect(() => {
+    museOverAktivRef.current = museOverAktiv;
+    if (museOverAktiv) return;
+
+    const map = mapRef.current;
+    if (!map || !hoveredKode.current) return;
+
+    map.setFeatureState({ source: SOURCE_ID, id: hoveredKode.current }, { hover: false });
+    hoveredKode.current = null;
+  }, [museOverAktiv]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || visning !== "kort" || !klar) return;
 
@@ -528,6 +731,40 @@ export function DanmarkKort() {
 
   const matcherFiltre = (k: Kommune) => matcherRegion(k) && matcherGruppe(k);
 
+  const kategoriScorerPrKommune = useMemo(
+    () => new Map(kommuneScores.map((s) => [s.kode, s.kategorier])),
+    [kommuneScores],
+  );
+
+  const vaegtetScore = (kode: string) => {
+    const kategoriScorer = kategoriScorerPrKommune.get(kode);
+    if (!kategoriScorer) return PRIORITET_STANDARD;
+
+    let sumVaegtetScore = 0;
+    let sumVaegt = 0;
+    for (const kat of kategorier) {
+      if (aktiveKategorier[kat.id] === false) continue;
+      const vaegt = prioriteter[kat.id] ?? PRIORITET_STANDARD;
+      if (vaegt <= 0) continue;
+      const score = kategoriScorer[kat.id] ?? PRIORITET_STANDARD;
+      sumVaegtetScore += score * vaegt;
+      sumVaegt += vaegt;
+    }
+    return sumVaegt > 0 ? sumVaegtetScore / sumVaegt : PRIORITET_STANDARD;
+  };
+
+  const sorterEfterScore = (a: Kommune, b: Kommune) =>
+    vaegtetScore(b.kode) - vaegtetScore(a.kode) || a.navn.localeCompare(b.navn, "da");
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !klar) return;
+
+    kommuner.forEach((k) => {
+      map.setFeatureState({ source: SOURCE_ID, id: k.kode }, { score: vaegtetScore(k.kode) });
+    });
+  }, [klar, kommuner, kategoriScorerPrKommune, kategorier, prioriteter, aktiveKategorier]);
+
   const forslag = useMemo(() => {
     const q = soegning.trim().toLowerCase();
     if (!q) return [];
@@ -541,12 +778,30 @@ export function DanmarkKort() {
     const q = soegning.trim().toLowerCase();
     return kommuner
       .filter((k) => matcherFiltre(k))
-      .filter((k) => (q ? k.navn.toLowerCase().includes(q) : true));
-  }, [kommuner, soegning, valgteRegioner, valgteGrupper]);
+      .filter((k) => (q ? k.navn.toLowerCase().includes(q) : true))
+      .sort(sorterEfterScore);
+  }, [
+    kommuner,
+    soegning,
+    valgteRegioner,
+    valgteGrupper,
+    kategoriScorerPrKommune,
+    kategorier,
+    prioriteter,
+    aktiveKategorier,
+  ]);
 
   const kommunerRegionFiltreret = useMemo(
-    () => kommuner.filter((k) => matcherFiltre(k)),
-    [kommuner, valgteRegioner, valgteGrupper],
+    () => kommuner.filter((k) => matcherFiltre(k)).sort(sorterEfterScore),
+    [
+      kommuner,
+      valgteRegioner,
+      valgteGrupper,
+      kategoriScorerPrKommune,
+      kategorier,
+      prioriteter,
+      aktiveKategorier,
+    ],
   );
 
   const rangAf = (kode: string) =>
@@ -704,13 +959,202 @@ export function DanmarkKort() {
             </Dropdown.Popover>
           </Dropdown>
 
-          <Button
-            variant="outline"
-            className="h-10 gap-1.5 rounded-lg text-sm"
-          >
-            <IconAdjustmentsHorizontal className="h-4 w-4" />
-            Prioritet
-          </Button>
+          <Dropdown>
+            <Button
+              variant="outline"
+              className="h-10 gap-1.5 rounded-lg text-sm"
+            >
+              <IconAdjustmentsHorizontal className="h-4 w-4" />
+              Prioritet
+            </Button>
+            <Dropdown.Popover className="min-w-[280px]">
+              <div className="flex flex-col gap-4 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
+                    <PrioritetInfo />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrioriteter(
+                        Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])),
+                      );
+                      setAktiveKategorier(
+                        Object.fromEntries(kategorier.map((k) => [k.id, true])),
+                      );
+                    }}
+                    className="flex items-center gap-1 text-xs text-muted transition-colors duration-150 hover:text-foreground"
+                  >
+                    <IconRotateClockwise2 className="h-3.5 w-3.5" />
+                    Nulstil
+                  </button>
+                </div>
+
+                {kategorier.map((kat) => {
+                  const aktiv = aktiveKategorier[kat.id] ?? true;
+                  return (
+                    <div
+                      key={kat.id}
+                      className={`flex flex-col gap-2.5 rounded-xl border border-border p-3 transition-colors duration-150 ${
+                        aktiv ? "bg-surface" : "bg-surface-secondary/60"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div
+                          className={`flex min-w-0 items-center gap-1.5 transition-opacity duration-150 ${
+                            aktiv ? "" : "opacity-50"
+                          }`}
+                        >
+                          <KategoriIkon navn={kat.ikon} className="h-4 w-4 shrink-0 text-muted" />
+                          <Label className="truncate">{kat.navn}</Label>
+                          <KategoriInfo kategori={kat} />
+                        </div>
+                        <Switch
+                          size="sm"
+                          isSelected={aktiv}
+                          onChange={(valgt) =>
+                            setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
+                          }
+                          aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
+                        >
+                          <Switch.Content>
+                            <Switch.Control>
+                              <Switch.Thumb />
+                            </Switch.Control>
+                          </Switch.Content>
+                        </Switch>
+                      </div>
+
+                      <div className="flex items-end gap-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex justify-between text-[10px] text-muted">
+                            <span>Lav</span>
+                            <span>Høj</span>
+                          </div>
+                          <Slider
+                            className={`mt-0.5 w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
+                            minValue={0}
+                            maxValue={100}
+                            step={5}
+                            isDisabled={!aktiv}
+                            value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                            onChange={(v) =>
+                              setPrioriteter((p) => ({
+                                ...p,
+                                [kat.id]: Array.isArray(v) ? v[0] : v,
+                              }))
+                            }
+                            aria-label={kat.navn}
+                          >
+                            <Slider.Track>
+                              <Slider.Fill />
+                              <Slider.Thumb />
+                            </Slider.Track>
+                          </Slider>
+                        </div>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={100}
+                          step={5}
+                          disabled={!aktiv}
+                          value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                          onChange={(e) => {
+                            const raa = e.target.value;
+                            if (raa === "") return;
+                            const tal = Number(raa);
+                            if (!Number.isFinite(tal)) return;
+                            const klemt = Math.min(100, Math.max(0, Math.round(tal)));
+                            setPrioriteter((p) => ({ ...p, [kat.id]: klemt }));
+                          }}
+                          onBlur={(e) => {
+                            const tal = e.target.value === "" ? PRIORITET_STANDARD : Number(e.target.value);
+                            const basis = Number.isFinite(tal) ? tal : PRIORITET_STANDARD;
+                            const afrundet = Math.min(100, Math.max(0, Math.round(basis / 5) * 5));
+                            setPrioriteter((p) => ({ ...p, [kat.id]: afrundet }));
+                          }}
+                          aria-label={`${kat.navn} – vægt i tal`}
+                          className="w-9 shrink-0 rounded-md border border-border bg-surface px-1 py-1 text-right text-xs tabular-nums text-foreground outline-none transition-colors focus:border-accent disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {kategorier.length === 0 && (
+                  <p className="text-sm text-muted">Ingen kategorier oprettet endnu.</p>
+                )}
+              </div>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          <Dropdown>
+            <Button
+              variant="outline"
+              className="h-10 gap-1.5 rounded-lg text-sm"
+            >
+              <IconPalette className="h-4 w-4" />
+              Indstillinger
+            </Button>
+            <Dropdown.Popover className="min-w-[240px]">
+              <div className="flex flex-col gap-4 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-foreground">
+                    Fremhæv ved museover
+                  </span>
+                  <Switch
+                    size="sm"
+                    isSelected={museOverAktiv}
+                    onChange={setMuseOverAktiv}
+                    aria-label="Fremhæv kommune ved museover på kortet"
+                  >
+                    <Switch.Content>
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                    </Switch.Content>
+                  </Switch>
+                </div>
+
+                <Separator />
+
+                <p className="text-sm font-medium text-foreground">Farvepalet på kortet</p>
+                <div className="flex flex-col gap-1.5">
+                  {(Object.entries(KORT_PALETTER) as [KortPaletId, (typeof KORT_PALETTER)[KortPaletId]][]).map(
+                    ([id, palet]) => {
+                      const valgt = farvePaletId === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setFarvePaletId(id)}
+                          className={`flex items-center gap-2.5 rounded-lg border p-2 text-left transition-colors duration-150 ${
+                            valgt
+                              ? "border-accent bg-accent/5"
+                              : "border-border hover:bg-surface-secondary"
+                          }`}
+                        >
+                          <span className="flex h-5 w-14 shrink-0 overflow-hidden rounded-md">
+                            {palet.farver.map((farve, i) => (
+                              <span
+                                key={i}
+                                className="h-full flex-1"
+                                style={{ backgroundColor: farve }}
+                              />
+                            ))}
+                          </span>
+                          <span className="flex-1 text-sm text-foreground">{palet.navn}</span>
+                          {valgt && <IconCheck className="h-4 w-4 shrink-0 text-accent" />}
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
+              </div>
+            </Dropdown.Popover>
+          </Dropdown>
         </div>
       </div>
 
@@ -800,11 +1244,14 @@ export function DanmarkKort() {
                       {rangAf(k.kode)}.
                     </span>
                   </div>
-                  <div className="p-3.5 pl-16">
-                    <p className="font-medium text-foreground">{k.navn}</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {REGION_NAVNE[k.regionskode] ?? "Ukendt region"}
-                    </p>
+                  <div className="flex items-center justify-between gap-2 p-3.5 pl-16">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{k.navn}</p>
+                      <p className="mt-0.5 text-xs text-muted">
+                        {REGION_NAVNE[k.regionskode] ?? "Ukendt region"}
+                      </p>
+                    </div>
+                    <ScoreBadge score={vaegtetScore(k.kode)} />
                   </div>
                 </button>
 
