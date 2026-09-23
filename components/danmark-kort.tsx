@@ -29,7 +29,7 @@ import {
   IconLayoutColumns,
   IconHelpCircle,
   IconMap,
-  IconPalette,
+  IconSettings,
   IconRotateClockwise2,
   IconUsers,
   IconX,
@@ -50,55 +50,52 @@ type Visning = "kort" | "oversigt" | "regneark";
 const KOMMUNER_URL = "/data/kommuner.geojson";
 const SOURCE_ID = "kommuner";
 
-// Score-farveskalaer på kortet: 5 trin, hver beregnet som en sammenhængende
+// Score-farveskalaer på kortet: 7 trin, hver beregnet som en sammenhængende
 // OKLCH-rampe (rød er bevidst udeladt indtil videre).
-const KORT_FARVE_VALGT = "#3b6fd1";
-type KortPaletId = "groen-gul-orange" | "blaa" | "groen" | "lilla-pink";
+const KORT_FARVE_VALGT = "#4b5563";
+const KORT_FARVE_HOVER = "#9ca3af";
+type KortPaletId = "groen-gul-orange" | "blaa" | "groen";
 const KORT_PALETTER: Record<KortPaletId, { navn: string; farver: readonly string[] }> = {
   "groen-gul-orange": {
-    navn: "Grøn til orange",
+    navn: "Standard",
     farver: [
       "#d55c13", // 1 – laveste
-      "#eb992e",
-      "#e7c03a", // 3 – midt (gul)
-      "#99b22d",
-      "#1b9247", // 5 – højeste
+      "#e48525",
+      "#eaa632",
+      "#e7c03a", // 4 – midt (gul)
+      "#b4b731",
+      "#78a83a",
+      "#1b9247", // 7 – højeste
     ],
   },
   blaa: {
-    navn: "Blå nuancer",
+    navn: "Blå",
     farver: [
       "#cbd9ec", // 1 – laveste
-      "#8fb4e4",
+      "#a3c0e7",
+      "#79a7e1",
       "#4c8bd9",
-      "#1a68bf",
-      "#124784", // 5 – højeste
+      "#2d74c8",
+      "#175dab",
+      "#124784", // 7 – højeste
     ],
   },
   groen: {
-    navn: "Grøn nuancer",
+    navn: "Grøn",
     farver: [
       "#ccddcc", // 1 – laveste
-      "#91bf92",
+      "#a5c9a5",
+      "#7cb47e",
       "#519d55",
-      "#187726",
-      "#065114", // 5 – højeste
-    ],
-  },
-  "lilla-pink": {
-    navn: "Lilla-pink",
-    farver: [
-      "#e161bc", // 1 – laveste
-      "#a758c8",
-      "#765bd2",
-      "#4058c0",
-      "#094ea6", // 5 – højeste
+      "#2e8436",
+      "#126a20",
+      "#065114", // 7 – højeste
     ],
   },
 };
 const KORT_PALET_STANDARD: KortPaletId = "groen-gul-orange";
-// 4 skæringspunkter, der deler 50-100 i 5 lige store score-intervaller.
-const KORT_SCORE_TAERSKLER = [60, 70, 80, 90] as const;
+// 6 skæringspunkter, der deler 50-100 i 7 lige store score-intervaller.
+const KORT_SCORE_TAERSKLER = Array.from({ length: 6 }, (_, i) => 50 + ((i + 1) * 50) / 7);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
 function byggKommuneFyldFarve(farver: readonly string[]): any {
@@ -107,19 +104,12 @@ function byggKommuneFyldFarve(farver: readonly string[]): any {
     ["boolean", ["feature-state", "valgt"], false],
     KORT_FARVE_VALGT,
     ["boolean", ["feature-state", "hover"], false],
-    KORT_FARVE_VALGT,
+    KORT_FARVE_HOVER,
     [
       "step",
       ["coalesce", ["feature-state", "score"], KORT_SCORE_TAERSKLER[0]],
       farver[0],
-      KORT_SCORE_TAERSKLER[0],
-      farver[1],
-      KORT_SCORE_TAERSKLER[1],
-      farver[2],
-      KORT_SCORE_TAERSKLER[2],
-      farver[3],
-      KORT_SCORE_TAERSKLER[3],
-      farver[4],
+      ...KORT_SCORE_TAERSKLER.flatMap((taerskel, i) => [taerskel, farver[i + 1]]),
     ],
   ];
 }
@@ -419,7 +409,7 @@ export function DanmarkKort({
   const valgteGrupperRef = useRef<Selection>(new Set<string>());
   const kommuneRegionerRef = useRef<Map<string, string>>(new Map());
   const farvePaletIdRef = useRef<KortPaletId>(KORT_PALET_STANDARD);
-  const museOverAktivRef = useRef(true);
+  const museOverAktivRef = useRef(false);
 
   const [kommuner, setKommuner] = useState<Kommune[]>([]);
   const [valgtKode, setValgtKode] = useState<string | null>(null);
@@ -436,7 +426,8 @@ export function DanmarkKort({
     Object.fromEntries(kategorier.map((k) => [k.id, true])),
   );
   const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
-  const [museOverAktiv, setMuseOverAktiv] = useState(true);
+  const [museOverAktiv, setMuseOverAktiv] = useState(false);
+  const [klikFremhaevAktiv, setKlikFremhaevAktiv] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -452,6 +443,12 @@ export function DanmarkKort({
 
     map.setMinZoom(map.getZoom());
     map.doubleClickZoom.disable();
+    // Kortet skal altid vende nord op og ligge fladt: slå rotation og hældning fra
+    // (højreklik-træk, to-finger-rotation og Shift+piletaster).
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+    map.touchPitch.disable();
+    map.keyboard.disableRotation();
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -626,10 +623,13 @@ export function DanmarkKort({
     }
 
     if (valgtKode) {
-      map.setFeatureState({ source: SOURCE_ID, id: valgtKode }, { valgt: true });
+      map.setFeatureState(
+        { source: SOURCE_ID, id: valgtKode },
+        { valgt: klikFremhaevAktiv },
+      );
       valgtKodeRef.current = valgtKode;
     }
-  }, [valgtKode, klar]);
+  }, [valgtKode, klikFremhaevAktiv, klar]);
 
   useEffect(() => {
     valgteRegionerRef.current = valgteRegioner;
@@ -1095,7 +1095,7 @@ export function DanmarkKort({
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <IconPalette className="h-4 w-4" />
+              <IconSettings className="h-4 w-4" />
               Indstillinger
             </Button>
             <Dropdown.Popover className="min-w-[240px]">
@@ -1109,6 +1109,24 @@ export function DanmarkKort({
                     isSelected={museOverAktiv}
                     onChange={setMuseOverAktiv}
                     aria-label="Fremhæv kommune ved museover på kortet"
+                  >
+                    <Switch.Content>
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                    </Switch.Content>
+                  </Switch>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-foreground">
+                    Fremhæv ved klik
+                  </span>
+                  <Switch
+                    size="sm"
+                    isSelected={klikFremhaevAktiv}
+                    onChange={setKlikFremhaevAktiv}
+                    aria-label="Fremhæv valgt kommune på kortet"
                   >
                     <Switch.Content>
                       <Switch.Control>
@@ -1198,11 +1216,14 @@ export function DanmarkKort({
                 <IconX className="h-4 w-4" />
               </button>
             </div>
-            <div className="p-3.5 pl-16">
-              <p className="font-medium text-foreground">{valgtKommune.navn}</p>
-              <p className="mt-0.5 text-xs text-muted">
-                {REGION_NAVNE[valgtKommune.regionskode] ?? "Ukendt region"}
-              </p>
+            <div className="flex items-center justify-between gap-2 p-3.5 pl-16">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{valgtKommune.navn}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {REGION_NAVNE[valgtKommune.regionskode] ?? "Ukendt region"}
+                </p>
+              </div>
+              <ScoreBadge score={vaegtetScore(valgtKommune.kode)} />
             </div>
             <button
               type="button"
