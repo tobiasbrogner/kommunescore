@@ -99,3 +99,7 @@ body {
     animation: none;
   }
 }
+/* Kort-visning (sat af DanmarkKort): kortet fylder skærmen, så footeren skjules. */
+html[data-kort-visning] [data-site-footer] {
+  display: none;
+}

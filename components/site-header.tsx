@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@heroui/react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,12 +11,14 @@ const link = linkVariants();
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Kortsiden er bredere end resten af sitet; headeren følger med, så den flugter med værktøjslinjen.
+  const bredde = usePathname().startsWith("/kort") ? "max-w-[1600px]" : "max-w-7xl";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-md">
       <nav
         aria-label="Primær navigation"
-        className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
+        className={`mx-auto flex h-18 ${bredde} items-center justify-between px-4 sm:px-6 lg:px-8`}
       >
         <NextLink
           href="/"
@@ -54,7 +57,7 @@ export function SiteHeader() {
           id="mobile-navigation"
           className="border-t border-border bg-background px-4 py-4 md:hidden"
         >
-          <div className="mx-auto flex max-w-7xl flex-col gap-2">
+          <div className={`mx-auto flex ${bredde} flex-col gap-2`}>
             <NextLink
               href="/kort"
               className={`${link.base()} px-3 py-3`}

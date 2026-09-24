@@ -25,7 +25,7 @@ import {
   IconAdjustmentsHorizontal,
   IconCheck,
   IconFileText,
-  IconFilter,
+  IconWorldMap,
   IconHome,
   IconLayoutGrid,
   IconLayoutColumns,
@@ -334,8 +334,8 @@ const FILTER_ZOOM_INDSTILLINGER = {
 };
 
 const MAX_BOUNDS: [[number, number], [number, number]] = [
-  [6.0, 53.3],
-  [17.0, 58.7],
+  [2.0, 53.3],
+  [21.0, 58.7],
 ];
 
 // Tyskland, Sverige, Norge og Polen (Natural Earth 1:10m, klippet til kortets udsnit).
@@ -539,11 +539,69 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-const VISNINGER: { id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
-  { id: "oversigt", label: "Oversigt", Ikon: () => <IconLayoutGrid className="h-4 w-4" /> },
+// Bredde for værktøjslinjen og Oversigt/Regneark. Kortet går fuld bredde på store skærme.
+const INDHOLD_BREDDE = "mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8";
+
+const VISNINGER:{ id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
   { id: "kort", label: "Kort", Ikon: () => <IconMap className="h-4 w-4" /> },
+  { id: "oversigt", label: "Oversigt", Ikon: () => <IconLayoutGrid className="h-4 w-4" /> },
   { id: "regneark", label: "Regneark", Ikon: () => <IconLayoutColumns className="h-4 w-4" /> },
 ];
+
+// Kommunekortet i Oversigt og i sidepanelet ved siden af kortet.
+function KommuneKort({
+  kommune: k,
+  rang,
+  score,
+  valgt = false,
+  onVaelg,
+}: {
+  kommune: Kommune;
+  rang: number;
+  score: number;
+  valgt?: boolean;
+  onVaelg: (k: Kommune) => void;
+}) {
+  return (
+    <div
+      data-kode={k.kode}
+      className={`flex shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${
+        valgt ? "border-accent ring-2 ring-accent/40" : "border-border"
+      }`}
+    >
+      <button type="button" onClick={() => onVaelg(k)} className="flex-1 text-left">
+        <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
+          <KommuneBillede kode={k.kode} navn={k.navn} ikonClassName="h-8 w-8 text-muted/50" />
+          <span
+            className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
+              rang,
+            )}`}
+          >
+            {rang}.
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2 p-3.5 pl-16">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{k.navn}</p>
+            <p className="mt-0.5 text-xs text-muted">
+              {REGION_NAVNE[k.regionskode] ?? "Ukendt region"}
+            </p>
+          </div>
+          <ScoreBadge score={score} />
+        </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onVaelg(k)}
+        className="flex items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
+      >
+        <IconFileText className="h-3.5 w-3.5" />
+        Se fuld rapport
+      </button>
+    </div>
+  );
+}
 
 export function DanmarkKort({
   kategorier,
@@ -553,6 +611,7 @@ export function DanmarkKort({
   kommuneScores: KommuneScore[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const sidepanelRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const hoveredKode = useRef<string | null>(null);
   const valgtKodeRef = useRef<string | null>(null);
@@ -571,7 +630,7 @@ export function DanmarkKort({
   const [soegning, setSoegning] = useState("");
   const [forslagAabent, setForslagAabent] = useState(false);
   const [klar, setKlar] = useState(false);
-  const [visning, setVisning] = useState<Visning>("oversigt");
+  const [visning, setVisning] = useState<Visning>("kort");
   const visningRef = useRef<Visning>(visning);
   // Samlet udstrækning af kommunerne i det aktive Område/Gruppe-filter (null = intet filter).
   const filterUdstraekningRef = useRef<[[number, number], [number, number]] | null>(null);
@@ -922,6 +981,24 @@ export function DanmarkKort({
     hoveredKode.current = null;
   }, [museOverAktiv]);
 
+  // Rul den valgte kommune frem i sidepanelet, fx når der klikkes på kortet.
+  useEffect(() => {
+    if (!valgtKode || visning !== "kort") return;
+    sidepanelRef.current
+      ?.querySelector(`[data-kode="${valgtKode}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [valgtKode, visning]);
+
+  // I Kort-visning skjules footeren, så kortet fylder skærmen uden scroll.
+  useEffect(() => {
+    const html = document.documentElement;
+    if (visning === "kort") html.dataset.kortVisning = "";
+    else delete html.dataset.kortVisning;
+    return () => {
+      delete html.dataset.kortVisning;
+    };
+  }, [visning]);
+
   useEffect(() => {
     visningRef.current = visning;
     const map = mapRef.current;
@@ -1058,9 +1135,11 @@ export function DanmarkKort({
   const valgtKommune = kommuner.find((k) => k.kode === valgtKode) ?? null;
   const valgtKommuneRang = valgtKommune ? rangAf(valgtKommune.kode) : 0;
 
-  const vaelgKommune = (k: Kommune) => {
+  // Fra søgeforslagene skrives navnet i søgefeltet; fra sidepanelet ikke, da søgningen
+  // ellers ville filtrere listen ned til den ene kommune.
+  const vaelgKommune = (k: Kommune, { udfyldSoegning = true } = {}) => {
     setValgtKode(k.kode);
-    setSoegning(k.navn);
+    if (udfyldSoegning) setSoegning(k.navn);
     setForslagAabent(false);
 
     // Centrér kortet på kommunen. Ekstra luft til højre, hvor kommunekortet ligger.
@@ -1076,9 +1155,33 @@ export function DanmarkKort({
     }
   };
 
+  const vaelgFraSidepanel = (k: Kommune) => vaelgKommune(k, { udfyldSoegning: false });
+  const vaelgFraOversigt = (k: Kommune) => setValgtKode(k.kode);
+
+  const ingenKommuner = (
+    <div className="col-span-full flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted">
+      {klar ? (
+        <p>Ingen kommuner matcher.</p>
+      ) : (
+        <>
+          <Spinner />
+          <p>Indlæser kommuner…</p>
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+    <div
+      className={`flex flex-col ${
+        visning === "kort"
+          ? "gap-4 py-12 lg:h-[calc(100dvh-4.5rem-1px)] lg:gap-0 lg:py-0"
+          : "gap-4 py-12 lg:gap-0 lg:pt-0 lg:pb-16"
+      }`}
+    >
+      <div
+        className={`${INDHOLD_BREDDE} flex flex-wrap items-center gap-3 lg:py-3`}
+      >
         <div ref={soegRef} className="relative w-full max-w-[240px]">
           <input
             type="search"
@@ -1152,7 +1255,7 @@ export function DanmarkKort({
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <IconFilter className="h-4 w-4" />
+              <IconWorldMap className="h-4 w-4" />
               Område
               {regionFilterAktiv && <FilterBadge antal={valgteRegioner.size} />}
             </Button>
@@ -1430,10 +1533,34 @@ export function DanmarkKort({
       </div>
 
       <div
-        className={`relative h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:h-[620px] lg:h-[740px] ${
-          visning === "kort" ? "" : "hidden"
-        }`}
+        className={
+          visning === "kort" ? "lg:flex lg:min-h-0 lg:flex-1 lg:border-t lg:border-border" : "hidden"
+        }
       >
+      {/* Sidepanel til venstre for kortet (kun på store skærme): samme kommunekort som i
+          Oversigt, sorteret efter score og filtreret af søgning og Område/Gruppe. */}
+      <aside
+        ref={sidepanelRef}
+        aria-label="Kommuner"
+        className="hidden w-1/4 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block"
+      >
+        <div className="flex flex-col gap-4 p-4">
+          {kommunerFiltreret.map((k) => (
+            <KommuneKort
+              key={k.kode}
+              kommune={k}
+              rang={rangAf(k.kode)}
+              score={vaegtetScore(k.kode)}
+              valgt={valgtKode === k.kode}
+              onVaelg={vaelgFraSidepanel}
+            />
+          ))}
+
+          {kommunerFiltreret.length === 0 && ingenKommuner}
+        </div>
+      </aside>
+
+      <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
         <div ref={containerRef} className="h-full w-full" />
         {!klar && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-secondary">
@@ -1518,77 +1645,34 @@ export function DanmarkKort({
           </div>
         )}
       </div>
+      </div>
 
       {visning === "oversigt" && (
+        <div className={INDHOLD_BREDDE}>
         <div className="flex h-[550px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[650px] lg:h-[770px]">
         <div className="h-5 shrink-0" />
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-2">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {kommunerFiltreret.map((k) => (
-              <div
-                key={k.kode}
-                className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm"
-              >
-                <button
-                  type="button"
-                  onClick={() => setValgtKode(k.kode)}
-                  className="flex-1 text-left"
-                >
-                  <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
-                    <KommuneBillede
-                      kode={k.kode}
-                      navn={k.navn}
-                      ikonClassName="h-8 w-8 text-muted/50"
-                    />
-                    <span
-                      className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
-                        rangAf(k.kode),
-                      )}`}
-                    >
-                      {rangAf(k.kode)}.
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 p-3.5 pl-16">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{k.navn}</p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {REGION_NAVNE[k.regionskode] ?? "Ukendt region"}
-                      </p>
-                    </div>
-                    <ScoreBadge score={vaegtetScore(k.kode)} />
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setValgtKode(k.kode)}
-                  className="flex items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
-                >
-                  <IconFileText className="h-3.5 w-3.5" />
-                  Se fuld rapport
-                </button>
-              </div>
+              <KommuneKort
+              key={k.kode}
+              kommune={k}
+              rang={rangAf(k.kode)}
+              score={vaegtetScore(k.kode)}
+              onVaelg={vaelgFraOversigt}
+            />
             ))}
 
-            {kommunerFiltreret.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted">
-                {klar ? (
-                  <p>Ingen kommuner matcher.</p>
-                ) : (
-                  <>
-                    <Spinner />
-                    <p>Indlæser kommuner…</p>
-                  </>
-                )}
-              </div>
-            )}
+            {kommunerFiltreret.length === 0 && ingenKommuner}
           </div>
         </div>
         <div className="h-5 shrink-0" />
         </div>
+        </div>
       )}
 
       {visning === "regneark" && (
+        <div className={INDHOLD_BREDDE}>
         <div className="h-[520px] overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-[740px]">
         <div className="h-full overflow-y-auto">
           <table className="w-full text-left text-sm">
@@ -1631,6 +1715,7 @@ export function DanmarkKort({
               )}
             </tbody>
           </table>
+        </div>
         </div>
         </div>
       )}
