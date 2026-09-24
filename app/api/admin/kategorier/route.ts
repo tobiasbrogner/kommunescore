@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     .values({ navn, slug, ikon, standardvaegt: String(standardvaegt), sortering })
     .returning();
 
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json(oprettet, { status: 201 });
 }

@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { kategorier, kommuner, kommuneNoegletal, noegletal } from "@/lib/db/schema";
+import { revaliderScores } from "./_revalider";
 
 const KILDE_PATH = path.join(process.cwd(), "data/kilder/boernepasning-arstakster-2026.xlsx");
 
@@ -119,6 +120,7 @@ async function main() {
   console.log(
     `Oprettede kategorien "${KATEGORI_NAVN}" med ${RAA_NOEGLETAL.length + 1} nøgletal og ${indsaettelser.length} værdier for ${raekker.length} kommuner.`,
   );
+  await revaliderScores();
   process.exit(0);
 }
 

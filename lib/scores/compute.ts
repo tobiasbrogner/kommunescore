@@ -11,8 +11,9 @@ export type KategoriMeta = {
   navn: string;
   slug: string;
   standardvaegt: number;
+  venlighed: number;
   ikon: string | null;
-  noegletal: { navn: string; enhed: string }[];
+  noegletal: { navn: string; enhed: string; beskrivelse: string | null }[];
 };
 
 export type KommuneScore = {
@@ -25,9 +26,22 @@ export type KommuneScore = {
 const SCORE_MIN = 50;
 const SCORE_MAKS = 100;
 
+/** Kategoriens venlighed (0-100) som eksponent på den normaliserede andel:
+ * 0 → 1 (lineær), 50 → 0,5 (kvadratrod), 100 → 0,25. En eksponent under 1
+ * løfter lave og mellemste værdier, mens bund (50), top (100) og rækkefølgen
+ * er uændret. Det hjælper kategorier hvor få ekstreme kommuner ellers
+ * presser alle andre ned mod bunden. */
+export function venlighedTilEksponent(venlighed: number) {
+  return Math.pow(2, -Math.min(100, Math.max(0, venlighed)) / 50);
+}
+
 /** Min-max-normaliserer ét nøgletals værdier på tværs af alle kommuner til 50-100,
  * og vender skalaen om når lavere værdi er bedst. */
-function normaliserNoegletal(vaerdier: { kommuneKode: string; vaerdi: number }[], retning: "hoejere_bedre" | "lavere_bedre") {
+function normaliserNoegletal(
+  vaerdier: { kommuneKode: string; vaerdi: number }[],
+  retning: "hoejere_bedre" | "lavere_bedre",
+  eksponent = 1,
+) {
   const tal = vaerdier.map((v) => v.vaerdi);
   const min = Math.min(...tal);
   const maks = Math.max(...tal);
@@ -37,6 +51,7 @@ function normaliserNoegletal(vaerdier: { kommuneKode: string; vaerdi: number }[]
   for (const { kommuneKode, vaerdi } of vaerdier) {
     let andel = spaend === 0 ? 1 : (vaerdi - min) / spaend;
     if (retning === "lavere_bedre") andel = 1 - andel;
+    andel = Math.pow(andel, eksponent);
     resultat.set(kommuneKode, SCORE_MIN + andel * (SCORE_MAKS - SCORE_MIN));
   }
   return resultat;
@@ -59,13 +74,16 @@ export function beregnScores(
     kategoriPrNoegletal.set(r.noegletalId, r.kategoriId);
   }
 
+  const venlighedPrKategori = new Map(kategorier.map((k) => [k.id, k.venlighed]));
+
   // kommuneKode -> kategoriId -> liste af normaliserede nøgletal-scores
   const kategoriScorerPrKommune = new Map<string, Map<number, number[]>>();
 
   for (const [noegletalId, vaerdier] of perNoegletal) {
     const retning = retningPrNoegletal.get(noegletalId)!;
     const kategoriId = kategoriPrNoegletal.get(noegletalId)!;
-    const normaliseret = normaliserNoegletal(vaerdier, retning);
+    const venlighed = venlighedPrKategori.get(kategoriId) ?? 0;
+    const normaliseret = normaliserNoegletal(vaerdier, retning, venlighedTilEksponent(venlighed));
 
     for (const [kommuneKode, score] of normaliseret) {
       if (!kategoriScorerPrKommune.has(kommuneKode)) {

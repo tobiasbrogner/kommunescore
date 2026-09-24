@@ -1,0 +1,1 @@
+ALTER TABLE "noegletal" ADD COLUMN "beskrivelse" varchar(500);

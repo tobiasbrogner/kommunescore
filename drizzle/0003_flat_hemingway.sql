@@ -1,0 +1,1 @@
+ALTER TABLE "kategorier" ADD COLUMN "venlighed" integer DEFAULT 0 NOT NULL;

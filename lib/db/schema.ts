@@ -26,6 +26,8 @@ export const kategorier = pgTable("kategorier", {
     .notNull()
     .default("1"),
   sortering: integer("sortering").notNull().default(0),
+  // 0-100. 0 = lineær skala; højere løfter lave/mellemste værdier (se lib/scores/compute.ts).
+  venlighed: integer("venlighed").notNull().default(0),
 });
 
 export const noegletal = pgTable("noegletal", {
@@ -36,6 +38,8 @@ export const noegletal = pgTable("noegletal", {
   navn: varchar("navn", { length: 150 }).notNull(),
   enhed: varchar("enhed", { length: 30 }).notNull(),
   retning: retningEnum("retning").notNull(),
+  // Valgfri forklaring, vist i kategoriens tooltip på /kort.
+  beskrivelse: varchar("beskrivelse", { length: 500 }),
 });
 
 export const kommuneNoegletal = pgTable(

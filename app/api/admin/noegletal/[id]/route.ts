@@ -43,7 +43,7 @@ export async function PATCH(request: Request, { params }: Context) {
     return NextResponse.json({ fejl: "Nøgletal findes ikke." }, { status: 404 });
   }
 
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json(opdateret);
 }
@@ -61,7 +61,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   }
 
   await db.delete(noegletal).where(eq(noegletal.id, noegletalId));
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }

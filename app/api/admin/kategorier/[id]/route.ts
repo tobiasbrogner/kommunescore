@@ -29,6 +29,13 @@ export async function PATCH(request: Request, { params }: Context) {
   }
   if (body?.standardvaegt !== undefined) opdatering.standardvaegt = String(Number(body.standardvaegt));
   if (body?.sortering !== undefined) opdatering.sortering = Number(body.sortering);
+  if (body?.venlighed !== undefined) {
+    const venlighed = Number(body.venlighed);
+    if (!Number.isFinite(venlighed)) {
+      return NextResponse.json({ fejl: "Ugyldig venlighed." }, { status: 400 });
+    }
+    opdatering.venlighed = Math.round(Math.min(100, Math.max(0, venlighed)));
+  }
 
   const [opdateret] = await db
     .update(kategorier)
@@ -40,7 +47,7 @@ export async function PATCH(request: Request, { params }: Context) {
     return NextResponse.json({ fejl: "Kategori findes ikke." }, { status: 404 });
   }
 
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json(opdateret);
 }
@@ -58,7 +65,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   }
 
   await db.delete(kategorier).where(eq(kategorier.id, kategoriId));
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }

@@ -19,6 +19,7 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
         navn: kategorier.navn,
         slug: kategorier.slug,
         standardvaegt: kategorier.standardvaegt,
+        venlighed: kategorier.venlighed,
         ikon: kategorier.ikon,
       })
       .from(kategorier),
@@ -29,6 +30,7 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
         retning: noegletal.retning,
         navn: noegletal.navn,
         enhed: noegletal.enhed,
+        beskrivelse: noegletal.beskrivelse,
       })
       .from(noegletal),
     db
@@ -61,10 +63,11 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
     navn: k.navn,
     slug: k.slug,
     standardvaegt: Number(k.standardvaegt),
+    venlighed: k.venlighed,
     ikon: k.ikon,
     noegletal: alleNoegletal
       .filter((n) => n.kategoriId === k.id)
-      .map((n) => ({ navn: n.navn, enhed: n.enhed })),
+      .map((n) => ({ navn: n.navn, enhed: n.enhed, beskrivelse: n.beskrivelse })),
   }));
 
   return {

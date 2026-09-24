@@ -32,7 +32,7 @@ export async function PUT(request: Request) {
       set: { vaerdi: sql`excluded.vaerdi` },
     });
 
-  revalidateTag(KOMMUNE_SCORES_TAG, "max");
+  revalidateTag(KOMMUNE_SCORES_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }

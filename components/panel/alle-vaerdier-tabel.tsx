@@ -9,7 +9,7 @@ type Noegletal = {
   enhed: string;
   retning: "hoejere_bedre" | "lavere_bedre";
 };
-type Kategori = { id: number; navn: string; noegletal: Noegletal[] };
+type Kategori = { id: number; navn: string; venlighed: number; noegletal: Noegletal[] };
 type Kommune = { kode: string; navn: string };
 type Vaerdi = { kommuneKode: string; noegletalId: number; vaerdi: string };
 
@@ -74,6 +74,7 @@ export function AlleVaerdierTabel({
       navn: k.navn,
       slug: "",
       standardvaegt: 1,
+      venlighed: k.venlighed,
       ikon: null,
       noegletal: [],
     }));

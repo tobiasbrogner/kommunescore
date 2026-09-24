@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -12,10 +12,12 @@ import {
   Modal,
   NumberField,
   Separator,
+  Slider,
   TextField,
 } from "@heroui/react";
 import { AlleVaerdierTabel } from "@/components/panel/alle-vaerdier-tabel";
 import { IkonVaelger } from "@/components/panel/ikon-vaelger";
+import { beregnScores } from "@/lib/scores/compute";
 
 type Noegletal = {
   id: number;
@@ -31,6 +33,7 @@ type Kategori = {
   ikon: string | null;
   standardvaegt: string;
   sortering: number;
+  venlighed: number;
   noegletal: Noegletal[];
 };
 
@@ -168,6 +171,7 @@ function KategoriKort({
   const [standardvaegt, setStandardvaegt] = useState<number | undefined>(
     Number(kategori.standardvaegt),
   );
+  const [venlighed, setVenlighed] = useState(kategori.venlighed);
   const [nytNoegletalNavn, setNytNoegletalNavn] = useState("");
   const [nytNoegletalEnhed, setNytNoegletalEnhed] = useState("");
   const [nytNoegletalRetning, setNytNoegletalRetning] =
@@ -185,6 +189,28 @@ function KategoriKort({
 
   const noegletalIds = new Set(kategori.noegletal.map((n) => n.id));
   const kategoriVaerdier = vaerdier.filter((v) => noegletalIds.has(v.noegletalId));
+
+  // Forhåndsvisning: den midterste kommunes kategori-score ved streng (0) og
+  // den valgte venlighed, så man kan se effekten før man gemmer.
+  const midtersteScore = useMemo(() => {
+    const retningPrId = new Map(kategori.noegletal.map((n) => [n.id, n.retning]));
+    const raa = kategoriVaerdier.map((v) => ({
+      kommuneKode: v.kommuneKode,
+      noegletalId: v.noegletalId,
+      kategoriId: kategori.id,
+      retning: retningPrId.get(v.noegletalId)!,
+      vaerdi: Number(v.vaerdi),
+    }));
+    if (raa.length === 0) return null;
+    const median = (vl: number) => {
+      const meta = [{ id: kategori.id, navn: "", slug: "", standardvaegt: 1, venlighed: vl, ikon: null, noegletal: [] }];
+      const scores = beregnScores(kommuner, meta, raa)
+        .map((s) => s.kategorier[kategori.id])
+        .sort((a, b) => a - b);
+      return Math.round(scores[Math.floor(scores.length / 2)]);
+    };
+    return { streng: median(0), valgt: median(venlighed) };
+  }, [kategori.id, kategori.noegletal, kategoriVaerdier, kommuner, venlighed]);
 
   return (
     <Card className="border border-border/80 bg-background">
@@ -215,6 +241,7 @@ function KategoriKort({
                   navn,
                   ikon,
                   standardvaegt: standardvaegt ?? 0,
+                  venlighed,
                 }),
               )
             }
@@ -235,7 +262,9 @@ function KategoriKort({
                       Klik i en celle, ret værdien, og tryk væk for at gemme.
                     </p>
                   </Modal.Header>
-                  <Modal.Body>
+                  {/* pt-0: HeroUI giver body 3px padding, som ellers efterlader en
+                      stribe over den sticky tabel-header hvor rækkerne ses igennem. */}
+                  <Modal.Body className="pt-0">
                     <AlleVaerdierTabel
                       kommuner={kommuner}
                       kategorier={[kategori]}
@@ -252,6 +281,40 @@ function KategoriKort({
           >
             Slet kategori
           </Button>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <Label>Venlighed i scoren</Label>
+            <span className="text-sm tabular-nums text-muted">{venlighed}</span>
+          </div>
+          <div className="flex justify-between text-xs text-muted">
+            <span>Streng (lineær)</span>
+            <span>Venlig</span>
+          </div>
+          <Slider
+            minValue={0}
+            maxValue={100}
+            step={5}
+            value={venlighed}
+            onChange={(v) => setVenlighed(Array.isArray(v) ? v[0] : v)}
+            aria-label={`Venlighed i scoren for ${kategori.navn}`}
+          >
+            <Slider.Track>
+              <Slider.Fill />
+              <Slider.Thumb />
+            </Slider.Track>
+          </Slider>
+          <p className="text-xs text-pretty text-muted">
+            Løfter lave og mellemste værdier, så få ekstreme kommuner ikke presser alle andre ned.
+            Bund, top og rækkefølge er uændret. Tryk Gem for at anvende.
+            {midtersteScore && (
+              <>
+                {" "}Midterste kommune: <span className="font-medium text-foreground">{midtersteScore.streng}</span>
+                {" "}(streng) → <span className="font-medium text-foreground">{midtersteScore.valgt}</span>.
+              </>
+            )}
+          </p>
         </div>
 
         <Separator />
