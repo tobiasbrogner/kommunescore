@@ -1,9 +1,11 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Map as MapLibreMap,
   NavigationControl,
+  type IControl,
   type GeoJSONSource,
   type StyleSpecification,
 } from "maplibre-gl";
@@ -18,26 +20,45 @@ import {
   Spinner,
   Surface,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   type Selection,
 } from "@heroui/react";
 import {
   IconAdjustmentsHorizontal,
   IconCheck,
+  IconChevronDown,
   IconFileText,
+  IconFilterOff,
   IconWorldMap,
+  IconChevronsDown,
   IconHome,
   IconLayoutGrid,
   IconLayoutColumns,
   IconHelpCircle,
   IconMap,
+  IconMinus,
+  IconPlus,
   IconSettings,
-  IconRotateClockwise2,
+  IconSortAscending,
+  IconSortDescending,
+  IconTarget,
+  IconTrendingUp,
   IconUsers,
   IconX,
 } from "@tabler/icons-react";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 import { KategoriIkon } from "@/components/ikon";
+import { REGION_NAVNE } from "@/lib/kommuner/regioner";
+import { polygonArealKm2 } from "@/lib/kommuner/areal";
+import { kommuneSlug } from "@/lib/kommuner/slug";
+import {
+  byggKategoriFordelinger,
+  byggKommuneProfil,
+  type KommuneProfil,
+  type ProfilPunkt,
+} from "@/lib/scores/profil";
 
 type Kommune = {
   kode: string;
@@ -49,29 +70,21 @@ const PRIORITET_STANDARD = 50;
 
 type Visning = "kort" | "oversigt" | "regneark";
 
+// Sidepanelets sortering: samlet score, navn eller en enkelt kategoris score ("kat-<id>").
+type SortFelt = "score" | "navn" | `kat-${number}`;
+type SortRetning = "stigende" | "faldende";
+
 const KOMMUNER_URL = "/data/kommuner.geojson";
 const SOURCE_ID = "kommuner";
 const LINJE_SOURCE_ID = "kommune-linjer";
 // Hver kommune opdelt i sine enkelte polygoner (fastland og øer), så hover-omridset
 // kan springe øer over, der er for små på skærmen.
 const KOMMUNE_DELE_SOURCE_ID = "kommune-dele";
+// Kommunenavne: én tekst pr. kommune, vist fra dette zoomniveau.
+const NAVNE_SOURCE_ID = "kommune-navne";
+const NAVNE_MIN_ZOOM = 7.5;
 // En ø skal fylde mindst så mange skærmpixels for at få hover-omrids.
 const HOVER_OMRIDS_MIN_PIXELS = 40;
-
-// Omtrentligt areal i km² af en polygons ydre ring (lille område, så en flad
-// projektion omkring polygonens breddegrad er rigelig præcis).
-function polygonArealKm2(ring: GeoJSON.Position[]) {
-  const lat0 = (ring.reduce((sum, [, lat]) => sum + lat, 0) / ring.length) * (Math.PI / 180);
-  const kmPrGradLon = 111.32 * Math.cos(lat0);
-  const kmPrGradLat = 110.57;
-  let areal = 0;
-  for (let i = 0; i < ring.length - 1; i++) {
-    const [x1, y1] = ring[i];
-    const [x2, y2] = ring[i + 1];
-    areal += x1 * kmPrGradLon * (y2 * kmPrGradLat) - x2 * kmPrGradLon * (y1 * kmPrGradLat);
-  }
-  return Math.abs(areal) / 2;
-}
 
 // Kommunens udstrækning som [[minLon, minLat], [maxLon, maxLat]].
 function kommuneUdstraekning(geometri: GeoJSON.Geometry): [[number, number], [number, number]] {
@@ -116,6 +129,29 @@ function opdelIKommuneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureColl
     });
   });
   return { type: "FeatureCollection", features: dele };
+}
+
+// Kun kommunens største landdel, så navnet står én gang (på fastlandet) og ikke på
+// hver ø. MapLibre placerer teksten midt inde i polygonen.
+function kommuneNavneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  const stoerste = new Map<string, GeoJSON.Feature>();
+  for (const del of opdelIKommuneDele(data).features) {
+    const kode = del.properties?.kode as string;
+    const nuvaerende = stoerste.get(kode);
+    if (!nuvaerende || del.properties!.areal > nuvaerende.properties!.areal) {
+      stoerste.set(kode, del);
+    }
+  }
+  const navnPrKode = new Map(
+    data.features.map((f) => [f.properties?.kode as string, f.properties?.navn as string]),
+  );
+  return {
+    type: "FeatureCollection",
+    features: [...stoerste.values()].map((del) => ({
+      ...del,
+      properties: { ...del.properties, navn: navnPrKode.get(del.properties?.kode as string) },
+    })),
+  };
 }
 
 // Det tykke omrids vises om kommunen under musen og den valgte kommune, men kun for
@@ -211,6 +247,11 @@ function kortScoreTaerskler(antalFarver: number) {
   );
 }
 
+// En scores placering (0-100 %) på farveskalaen, der går fra 50 til 100.
+function scoreTilProcent(score: number) {
+  return Math.min(100, Math.max(0, ((score - 50) / 50) * 100));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
 function byggKommuneFyldFarve(farver: readonly string[]): any {
   const taerskler = kortScoreTaerskler(farver.length);
@@ -228,14 +269,6 @@ function byggKommuneFyldFarve(farver: readonly string[]): any {
     ],
   ];
 }
-
-const REGION_NAVNE: Record<string, string> = {
-  "1081": "Region Nordjylland",
-  "1082": "Region Midtjylland",
-  "1083": "Region Syddanmark",
-  "1084": "Region Hovedstaden",
-  "1085": "Region Sjælland",
-};
 
 const LANDSDEL_NAVNE: Record<string, string> = {
   jylland: "Jylland",
@@ -333,10 +366,16 @@ const FILTER_ZOOM_INDSTILLINGER = {
   duration: 800,
 };
 
-const MAX_BOUNDS: [[number, number], [number, number]] = [
-  [2.0, 53.3],
-  [21.0, 58.7],
-];
+// Vis hele Danmark og lås kortet til netop det udsnit: man kan zoome ind og panorere
+// rundt, men aldrig zoome ud eller flytte sig længere væk end startvisningen. Kaldes
+// igen, når kortet skifter størrelse, da udsnittet afhænger af kortets bredde og højde.
+function laasKortTilDanmark(map: MapLibreMap) {
+  map.setMaxBounds(null);
+  map.setMinZoom(0);
+  map.fitBounds(DANMARK_BOUNDS, { padding: 24, duration: 0 });
+  map.setMinZoom(map.getZoom());
+  map.setMaxBounds(map.getBounds());
+}
 
 // Tyskland, Sverige, Norge og Polen (Natural Earth 1:10m, klippet til kortets udsnit).
 // Rent baggrundslag: ingen hændelser er bundet til det, så landene kan ikke klikkes.
@@ -346,6 +385,8 @@ const LAND_FARVE = "#e8e5d9";
 
 const KORT_STYLE: StyleSpecification = {
   version: 8,
+  // Skrifttype til kommunenavnene (OpenMapTiles' fri fontserver, Open Sans).
+  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     nabolande: { type: "geojson", data: NABOLANDE_URL },
   },
@@ -401,6 +442,48 @@ function PrioritetInfo() {
           betydning for den samlede rangering. Det ændrer ikke kommunernes
           score, men kun hvordan de vægtes og sorteres.
         </p>
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
+function ScoreInfo({ farvEfterPlacering }: { farvEfterPlacering: boolean }) {
+  return (
+    <Tooltip delay={150}>
+      <Tooltip.Trigger aria-label="Hvordan beregnes scoren?">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:text-foreground">
+          <IconHelpCircle className="h-3.5 w-3.5" />
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content
+        showArrow
+        placement="bottom"
+        shouldFlip={false}
+        className="w-72 break-normal"
+      >
+        <Tooltip.Arrow />
+        <div className="flex flex-col gap-2 text-sm text-pretty">
+          <p>
+            Hver kommune får en score fra 50 til 100 i hver kategori. Den samlede score er et
+            gennemsnit af kategorierne, vægtet efter din <strong>Prioritet</strong>.
+          </p>
+          <p>
+            <strong>Prioritet</strong> ændrer vægtene og dermed den samlede score. Fravælger du en
+            kategori, tæller den slet ikke med.
+          </p>
+          <p>
+            <strong>Område</strong> og <strong>Gruppe</strong> ændrer ikke scoren, men hvilke
+            kommuner der er med. Spændet og placeringerne gælder kun de viste kommuner.
+          </p>
+          <p>Søgefeltet påvirker hverken score eller spænd.</p>
+          {farvEfterPlacering && (
+            <p>
+              <strong>Farverne</strong> viser placering: hver farve dækker lige mange af de viste
+              kommuner, fra de laveste (rød) til de bedste (grøn). Tallet på kommunen er stadig
+              selve scoren.
+            </p>
+          )}
+        </div>
       </Tooltip.Content>
     </Tooltip>
   );
@@ -484,6 +567,39 @@ function GruppeInfo({ beskrivelse }: { beskrivelse: string }) {
   );
 }
 
+// "Fuldskærm"-knap på kortet: skjuler kun kommunelisten til venstre, så kortet fylder
+// hele bredden (ikke browserens fuldskærm). Bruger MapLibres egne fuldskærmsikoner.
+class SidepanelKontrol implements IControl {
+  private container = document.createElement("div");
+  private knap = document.createElement("button");
+
+  constructor(onToggle: () => void) {
+    // Listen findes kun på store skærme, så knappen gør det også.
+    this.container.className = "maplibregl-ctrl maplibregl-ctrl-group max-lg:hidden";
+    this.knap.type = "button";
+    this.knap.innerHTML = '<span class="maplibregl-ctrl-icon" aria-hidden="true"></span>';
+    this.knap.addEventListener("click", onToggle);
+    this.container.appendChild(this.knap);
+    this.setUdvidet(false);
+  }
+
+  setUdvidet(udvidet: boolean) {
+    this.knap.className = udvidet ? "maplibregl-ctrl-shrink" : "maplibregl-ctrl-fullscreen";
+    const label = udvidet ? "Vis kommunelisten" : "Skjul kommunelisten";
+    this.knap.title = label;
+    this.knap.setAttribute("aria-label", label);
+    this.knap.setAttribute("aria-pressed", String(udvidet));
+  }
+
+  onAdd() {
+    return this.container;
+  }
+
+  onRemove() {
+    this.container.remove();
+  }
+}
+
 function rankFarve(rank: number) {
   if (rank === 1) return "bg-gradient-to-br from-yellow-300 to-yellow-600 text-yellow-950";
   if (rank === 2) return "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-900";
@@ -549,17 +665,80 @@ const VISNINGER:{ id: Visning; label: string; Ikon: () => React.JSX.Element }[] 
 ];
 
 // Kommunekortet i Oversigt og i sidepanelet ved siden af kortet.
+function ProfilKolonne({
+  titel,
+  Ikon,
+  farve,
+  punkter,
+  className = "",
+}: {
+  titel: string;
+  Ikon: typeof IconTarget;
+  farve: string;
+  punkter: ProfilPunkt[];
+  className?: string;
+}) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <p className={`flex items-center gap-1.5 text-sm font-semibold ${farve}`}>
+        <Ikon className="h-4 w-4 shrink-0" />
+        {titel}
+      </p>
+      {punkter.length > 0 ? (
+        <ul className="mt-2 flex flex-col gap-2">
+          {punkter.map((p) => (
+            <li key={p.kategori.id} className="flex items-start gap-2">
+              <KategoriIkon
+                navn={p.kategori.ikon}
+                className="mt-0.5 h-4 w-4 shrink-0 text-muted"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium break-words hyphens-auto text-foreground">
+                  {p.kategori.navn}
+                </p>
+                <p className="text-xs leading-snug break-words hyphens-auto text-muted">{p.tekst}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-muted">–</p>
+      )}
+    </div>
+  );
+}
+
+// Åbner kommunens rapport (/kommune/[navn], fx /kommune/aarhus) i en ny fane, så kortet og ens valg bevares.
+function RapportLink({ navn }: { navn: string }) {
+  return (
+    <a
+      href={`/kommune/${kommuneSlug(navn)}`}
+      target="_blank"
+      rel="noopener"
+      className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
+    >
+      <IconFileText className="h-3.5 w-3.5" />
+      Se fuld rapport
+    </a>
+  );
+}
+
 function KommuneKort({
   kommune: k,
   rang,
   score,
   valgt = false,
+  profil,
+  lavtBillede = false,
   onVaelg,
 }: {
   kommune: Kommune;
   rang: number;
   score: number;
   valgt?: boolean;
+  profil?: KommuneProfil;
+  // Lidt lavere billede i sidepanelet, så de øverste tre kort kan ses hele.
+  lavtBillede?: boolean;
   onVaelg: (k: Kommune) => void;
 }) {
   return (
@@ -570,7 +749,9 @@ function KommuneKort({
       }`}
     >
       <button type="button" onClick={() => onVaelg(k)} className="flex-1 text-left">
-        <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
+        <div
+          className={`relative flex ${lavtBillede ? "h-24" : "h-28"} items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10`}
+        >
           <KommuneBillede kode={k.kode} navn={k.navn} ikonClassName="h-8 w-8 text-muted/50" />
           <span
             className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
@@ -589,16 +770,60 @@ function KommuneKort({
           </div>
           <ScoreBadge score={score} />
         </div>
+
+        {profil && (profil.styrker.length > 0 || profil.fokus.length > 0) && (
+          <div className="mx-3.5 grid grid-cols-2 gap-3 border-t border-border py-3">
+            <ProfilKolonne
+              titel="Styrker"
+              Ikon={IconTrendingUp}
+              farve="text-success"
+              punkter={profil.styrker}
+            />
+            <ProfilKolonne
+              className="border-l border-border pl-3"
+              titel="Fokusområder"
+              Ikon={IconTarget}
+              farve="text-accent"
+              punkter={profil.fokus}
+            />
+          </div>
+        )}
       </button>
 
-      <button
-        type="button"
-        onClick={() => onVaelg(k)}
-        className="flex items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
+      <RapportLink navn={k.navn} />
+    </div>
+  );
+}
+
+// Sidepanelet viser kommunerne i bidder, så listen ikke bliver uendelig lang.
+const SIDEPANEL_BID = 10;
+
+function VisFlere({
+  vist,
+  ialt,
+  bid,
+  onVisFlere,
+}: {
+  vist: number;
+  ialt: number;
+  bid: number;
+  onVisFlere: () => void;
+}) {
+  if (ialt <= vist) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-2 pt-2">
+      <p className="text-xs text-muted">
+        Viser <span className="font-semibold tabular-nums text-foreground">{vist}</span> af {ialt}
+      </p>
+      <Button
+        variant="outline"
+        className="h-10 w-full gap-1.5 rounded-lg text-sm"
+        onPress={onVisFlere}
       >
-        <IconFileText className="h-3.5 w-3.5" />
-        Se fuld rapport
-      </button>
+        <IconChevronsDown className="h-4 w-4" />
+        Vis {Math.min(bid, ialt - vist)} mere
+      </Button>
     </div>
   );
 }
@@ -611,7 +836,6 @@ export function DanmarkKort({
   kommuneScores: KommuneScore[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const sidepanelRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const hoveredKode = useRef<string | null>(null);
   const valgtKodeRef = useRef<string | null>(null);
@@ -631,6 +855,17 @@ export function DanmarkKort({
   const [forslagAabent, setForslagAabent] = useState(false);
   const [klar, setKlar] = useState(false);
   const [visning, setVisning] = useState<Visning>("kort");
+  const [sidepanelSkjult, setSidepanelSkjult] = useState(false);
+  const [zoomIkonPladser, setZoomIkonPladser] = useState<{
+    ind: HTMLElement;
+    ud: HTMLElement;
+  } | null>(null);
+  const sidepanelKontrolRef = useRef<SidepanelKontrol | null>(null);
+  const [sortFelt, setSortFelt] = useState<SortFelt>("score");
+  const [sortRetning, setSortRetning] = useState<SortRetning>("faldende");
+  // "Vis flere" gælder én bestemt søgning/filtrering/sortering (listeNoegle nedenfor);
+  // ændres den, starter listen forfra med første bid.
+  const [visFlere, setVisFlere] = useState({ noegle: "", antal: SIDEPANEL_BID });
   const visningRef = useRef<Visning>(visning);
   // Samlet udstrækning af kommunerne i det aktive Område/Gruppe-filter (null = intet filter).
   const filterUdstraekningRef = useRef<[[number, number], [number, number]] | null>(null);
@@ -646,6 +881,8 @@ export function DanmarkKort({
   const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
   const [museOverAktiv, setMuseOverAktiv] = useState(true);
   const [klikFremhaevAktiv, setKlikFremhaevAktiv] = useState(false);
+  // Test: farv kommunerne efter placering (kvantiler) i stedet for fast skala 50-100.
+  const [farvEfterPlacering, setFarvEfterPlacering] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -655,11 +892,23 @@ export function DanmarkKort({
       style: KORT_STYLE,
       bounds: DANMARK_BOUNDS,
       fitBoundsOptions: { padding: 24 },
-      maxBounds: MAX_BOUNDS,
       attributionControl: false,
     });
 
-    map.setMinZoom(map.getZoom());
+    laasKortTilDanmark(map);
+    // Når kortet ændrer størrelse (vindue, eller kommunelisten skjules/vises), låses det
+    // til det nye udsnit; et aktivt Område/Gruppe-filter zoomes der ind på igen.
+    // map.resize() udløser også hændelsen uden ændret størrelse; det springes over.
+    let forrigeStoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
+    map.on("resize", () => {
+      const stoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
+      if (stoerrelse === forrigeStoerrelse) return;
+      forrigeStoerrelse = stoerrelse;
+      laasKortTilDanmark(map);
+      if (filterUdstraekningRef.current) {
+        map.fitBounds(filterUdstraekningRef.current, { ...FILTER_ZOOM_INDSTILLINGER, duration: 0 });
+      }
+    });
     map.doubleClickZoom.disable();
     // Kortet skal altid vende nord op og ligge fladt: slå rotation og hældning fra
     // (højreklik-træk, to-finger-rotation og Shift+piletaster).
@@ -669,6 +918,18 @@ export function DanmarkKort({
     map.keyboard.disableRotation();
 
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
+    // Zoomknapperne beholder MapLibres opførsel, men ikonerne byttes til Tabler (via portal).
+    const zoomInd = map.getContainer().querySelector<HTMLElement>(
+      ".maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon",
+    );
+    const zoomUd = map.getContainer().querySelector<HTMLElement>(
+      ".maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon",
+    );
+    if (zoomInd && zoomUd) setZoomIkonPladser({ ind: zoomInd, ud: zoomUd });
+    // Nederste hjørner stabler nye kontroller ovenpå, så knappen lander over zoom.
+    const sidepanelKontrol = new SidepanelKontrol(() => setSidepanelSkjult((s) => !s));
+    sidepanelKontrolRef.current = sidepanelKontrol;
+    map.addControl(sidepanelKontrol, "bottom-right");
 
     map.on("load", async () => {
       map.addSource(SOURCE_ID, {
@@ -752,6 +1013,29 @@ export function DanmarkKort({
       const res = await fetch(KOMMUNER_URL);
       const data: GeoJSON.FeatureCollection = await res.json();
       (map.getSource(KOMMUNE_DELE_SOURCE_ID) as GeoJSONSource).setData(opdelIKommuneDele(data));
+
+      // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
+      // at overlappe hinanden (MapLibre skjuler automatisk dem, der ikke er plads til).
+      map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavneDele(data) });
+      map.addLayer({
+        id: "kommune-navne",
+        type: "symbol",
+        source: NAVNE_SOURCE_ID,
+        minzoom: NAVNE_MIN_ZOOM,
+        layout: {
+          "text-field": ["get", "navn"],
+          "text-font": ["Open Sans Semibold"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 11, 10, 15],
+          "text-max-width": 8,
+          "text-padding": 4,
+        },
+        paint: {
+          "text-color": "#1f2937",
+          "text-halo-color": "rgba(255, 255, 255, 0.85)",
+          "text-halo-width": 1.5,
+          "text-opacity": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 0, NAVNE_MIN_ZOOM + 0.3, 1],
+        },
+      });
 
       const liste: Kommune[] = [];
       data.features.forEach((feature) => {
@@ -855,6 +1139,7 @@ export function DanmarkKort({
     mapRef.current = map;
 
     return () => {
+      setZoomIkonPladser(null);
       map.remove();
       mapRef.current = null;
     };
@@ -981,21 +1266,22 @@ export function DanmarkKort({
     hoveredKode.current = null;
   }, [museOverAktiv]);
 
-  // Rul den valgte kommune frem i sidepanelet, fx når der klikkes på kortet.
   useEffect(() => {
-    if (!valgtKode || visning !== "kort") return;
-    sidepanelRef.current
-      ?.querySelector(`[data-kode="${valgtKode}"]`)
-      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [valgtKode, visning]);
+    sidepanelKontrolRef.current?.setUdvidet(sidepanelSkjult);
+    // Kortet skifter bredde, når listen skjules eller vises.
+    mapRef.current?.resize();
+  }, [sidepanelSkjult]);
 
   // I Kort-visning skjules footeren, så kortet fylder skærmen uden scroll.
   useEffect(() => {
     const html = document.documentElement;
     if (visning === "kort") html.dataset.kortVisning = "";
     else delete html.dataset.kortVisning;
+    if (visning === "oversigt" || visning === "regneark") html.dataset.laastVisning = "";
+    else delete html.dataset.laastVisning;
     return () => {
       delete html.dataset.kortVisning;
+      delete html.dataset.laastVisning;
     };
   }, [visning]);
 
@@ -1007,9 +1293,7 @@ export function DanmarkKort({
     map.resize();
 
     if (!valgtKode) {
-      map.setMinZoom(0);
-      map.fitBounds(DANMARK_BOUNDS, { padding: 24, duration: 0 });
-      map.setMinZoom(map.getZoom());
+      laasKortTilDanmark(map);
       if (filterUdstraekningRef.current) {
         map.fitBounds(filterUdstraekningRef.current, { ...FILTER_ZOOM_INDSTILLINGER, duration: 0 });
       }
@@ -1028,6 +1312,11 @@ export function DanmarkKort({
 
   const regionFilterAktiv = valgteRegioner !== "all" && valgteRegioner.size > 0;
   const gruppeFilterAktiv = valgteGrupper !== "all" && valgteGrupper.size > 0;
+
+  const nulstilPrioriteter = () => {
+    setPrioriteter(Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])));
+    setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, true])));
+  };
   const antalAendredePrioriteter = kategorier.filter(
     (k) =>
       (prioriteter[k.id] ?? PRIORITET_STANDARD) !== PRIORITET_STANDARD ||
@@ -1051,6 +1340,15 @@ export function DanmarkKort({
     [kommuneScores],
   );
 
+  // Styrker og fokusområder er faste "highlights" for kommunen: de sammenlignes med
+  // hele landet i alle kategorier og påvirkes hverken af filtre eller Prioritet.
+  const kommuneProfiler = useMemo(() => {
+    const fordelinger = byggKategoriFordelinger(kategorier, kommuneScores);
+    return new Map(
+      kommuneScores.map((s) => [s.kode, byggKommuneProfil(kategorier, fordelinger, s.kategorier)]),
+    );
+  }, [kategorier, kommuneScores]);
+
   const vaegtetScore = (kode: string) => {
     const kategoriScorer = kategoriScorerPrKommune.get(kode);
     if (!kategoriScorer) return PRIORITET_STANDARD;
@@ -1071,14 +1369,6 @@ export function DanmarkKort({
   const sorterEfterScore = (a: Kommune, b: Kommune) =>
     vaegtetScore(b.kode) - vaegtetScore(a.kode) || a.navn.localeCompare(b.navn, "da");
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !klar) return;
-
-    kommuner.forEach((k) => {
-      map.setFeatureState({ source: SOURCE_ID, id: k.kode }, { score: vaegtetScore(k.kode) });
-    });
-  }, [klar, kommuner, kategoriScorerPrKommune, kategorier, prioriteter, aktiveKategorier]);
 
   const forslag = useMemo(() => {
     const q = soegning.trim().toLowerCase();
@@ -1118,6 +1408,79 @@ export function DanmarkKort({
       aktiveKategorier,
     ],
   );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !klar) return;
+
+    // Farv efter placering: placeringen blandt de viste kommuner omsættes til en
+    // "farvescore" på 50-100, så palettens 12 trin hver dækker lige mange kommuner,
+    // uanset hvor tæt scorerne ligger. Kommuner uden for filtret er grå alligevel.
+    const antal = kommunerRegionFiltreret.length;
+    const farveScore = (kode: string) => {
+      if (!farvEfterPlacering) return vaegtetScore(kode);
+      if (antal <= 1) return 100;
+      // Lige scorer deler placering, så de også får samme farve.
+      const score = vaegtetScore(kode);
+      const bedreEnd = kommunerRegionFiltreret.filter((k) => vaegtetScore(k.kode) > score).length;
+      return 50 + (1 - bedreEnd / (antal - 1)) * 50;
+    };
+
+    kommuner.forEach((k) => {
+      map.setFeatureState({ source: SOURCE_ID, id: k.kode }, { score: farveScore(k.kode) });
+    });
+  }, [
+    klar,
+    kommuner,
+    kategoriScorerPrKommune,
+    kategorier,
+    prioriteter,
+    aktiveKategorier,
+    farvEfterPlacering,
+    valgteRegioner,
+    valgteGrupper,
+  ]);
+
+  const sortFeltNavn = (felt: SortFelt) => {
+    if (felt === "score") return "Samlet score";
+    if (felt === "navn") return "Navn";
+    const id = Number(felt.slice(4));
+    return kategorier.find((kat) => kat.id === id)?.navn ?? "Kategori";
+  };
+
+  const vaelgSortFelt = (felt: SortFelt) => {
+    setSortFelt(felt);
+    // Navne læses naturligt A-Å, scorer med de bedste først.
+    setSortRetning(felt === "navn" ? "stigende" : "faldende");
+  };
+
+  const sidepanelKommuner = useMemo(() => {
+    const vaerdi = (k: Kommune) => {
+      if (sortFelt === "score") return vaegtetScore(k.kode);
+      const id = Number(sortFelt.slice(4));
+      return kategoriScorerPrKommune.get(k.kode)?.[id] ?? 0;
+    };
+    // Placeringen er højeste score først og ved lige score A-Å. Faldende følger den
+    // rækkefølge, og stigende vender den helt, så placeringstallene altid står i orden.
+    const retning = sortRetning === "stigende" ? 1 : -1;
+    const navnOrden = (a: Kommune, b: Kommune) => a.navn.localeCompare(b.navn, "da");
+    return [...kommunerFiltreret].sort((a, b) =>
+      sortFelt === "navn"
+        ? retning * navnOrden(a, b)
+        : retning * (vaerdi(a) - vaerdi(b)) || -retning * navnOrden(a, b),
+    );
+  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune]);
+
+  // Ny søgning, filtrering eller sortering starter listen forfra med første bid.
+  const noegleFor = (valg: Selection) => (valg === "all" ? "all" : [...valg].sort().join(","));
+  const listeNoegle = [
+    soegning,
+    noegleFor(valgteRegioner),
+    noegleFor(valgteGrupper),
+    sortFelt,
+    sortRetning,
+  ].join("|");
+  const antalVist = visFlere.noegle === listeNoegle ? visFlere.antal : SIDEPANEL_BID;
 
   const rangAf = (kode: string) =>
     kommunerRegionFiltreret.findIndex((k) => k.kode === kode) + 1;
@@ -1176,7 +1539,7 @@ export function DanmarkKort({
       className={`flex flex-col ${
         visning === "kort"
           ? "gap-4 py-12 lg:h-[calc(100dvh-4.5rem-1px)] lg:gap-0 lg:py-0"
-          : "gap-4 py-12 lg:gap-0 lg:pt-0 lg:pb-16"
+          : "gap-4 py-12 lg:min-h-0 lg:flex-1 lg:gap-0 lg:pt-0 lg:pb-6"
       }`}
     >
       <div
@@ -1250,6 +1613,22 @@ export function DanmarkKort({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Står til venstre for filtrene, så de ikke flytter sig, når den dukker op. */}
+          {(regionFilterAktiv || gruppeFilterAktiv || antalAendredePrioriteter > 0) && (
+            <Button
+              variant="ghost"
+              className="h-10 gap-1.5 rounded-lg text-sm"
+              onPress={() => {
+                setValgteRegioner(new Set<string>());
+                setValgteGrupper(new Set<string>());
+                nulstilPrioriteter();
+              }}
+            >
+              <IconFilterOff className="h-4 w-4" />
+              Nulstil filtre
+            </Button>
+          )}
+
           <Dropdown>
             <Button
               variant="outline"
@@ -1323,30 +1702,19 @@ export function DanmarkKort({
               Prioritet
               {antalAendredePrioriteter > 0 && <FilterBadge antal={antalAendredePrioriteter} />}
             </Button>
-            <Dropdown.Popover className="min-w-[280px]">
-              <div className="flex flex-col gap-4 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
-                    <PrioritetInfo />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPrioriteter(
-                        Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])),
-                      );
-                      setAktiveKategorier(
-                        Object.fromEntries(kategorier.map((k) => [k.id, true])),
-                      );
-                    }}
-                    className="flex items-center gap-1 text-xs text-muted transition-colors duration-150 hover:text-foreground"
-                  >
-                    <IconRotateClockwise2 className="h-3.5 w-3.5" />
-                    Nulstil
-                  </button>
+            <Dropdown.Popover className={kategorier.length > 1 ? "w-[580px] max-w-[calc(100vw-2rem)]" : "min-w-[280px]"}>
+              <div className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto p-3">
+                {/* Nulstilling sker med "Nulstil filtre" i værktøjslinjen. */}
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
+                  <PrioritetInfo />
                 </div>
 
+                {/* To kolonner, der fyldes oppefra og ned: først venstre kolonne, så højre. */}
+                <div
+                  className="grid gap-3 sm:grid-flow-col sm:grid-cols-2"
+                  style={{ gridTemplateRows: `repeat(${Math.ceil(kategorier.length / 2)}, auto)` }}
+                >
                 {kategorier.map((kat) => {
                   const aktiv = aktiveKategorier[kat.id] ?? true;
                   return (
@@ -1438,6 +1806,7 @@ export function DanmarkKort({
                     </div>
                   );
                 })}
+                </div>
 
                 {kategorier.length === 0 && (
                   <p className="text-sm text-muted">Ingen kategorier oprettet endnu.</p>
@@ -1454,7 +1823,7 @@ export function DanmarkKort({
               <IconSettings className="h-4 w-4" />
               Indstillinger
             </Button>
-            <Dropdown.Popover className="min-w-[240px]">
+            <Dropdown.Popover className="w-72">
               <div className="flex flex-col gap-4 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-foreground">
@@ -1490,6 +1859,32 @@ export function DanmarkKort({
                       </Switch.Control>
                     </Switch.Content>
                   </Switch>
+                </div>
+
+                <Separator />
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-foreground">Farv kortet efter</span>
+                  <ToggleButtonGroup
+                    aria-label="Farv kortet efter"
+                    size="sm"
+                    fullWidth
+                    selectionMode="single"
+                    disallowEmptySelection
+                    selectedKeys={[farvEfterPlacering ? "placering" : "score"]}
+                    onSelectionChange={(keys) => setFarvEfterPlacering(keys.has("placering"))}
+                  >
+                    <ToggleButton id="score">Score</ToggleButton>
+                    <ToggleButton id="placering">
+                      <ToggleButtonGroup.Separator />
+                      Placering
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <p className="text-xs leading-snug text-muted">
+                    {farvEfterPlacering
+                      ? "Hver farve dækker lige mange kommuner, fra de laveste til de bedste."
+                      : "Farven følger scoren på en fast skala fra 50 til 100."}
+                  </p>
                 </div>
 
                 <Separator />
@@ -1540,21 +1935,113 @@ export function DanmarkKort({
       {/* Sidepanel til venstre for kortet (kun på store skærme): samme kommunekort som i
           Oversigt, sorteret efter score og filtreret af søgning og Område/Gruppe. */}
       <aside
-        ref={sidepanelRef}
         aria-label="Kommuner"
-        className="hidden w-1/4 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block"
+        className={`hidden w-1/4 shrink-0 overflow-y-auto border-r border-border bg-surface ${
+          sidepanelSkjult ? "" : "lg:block"
+        }`}
       >
-        <div className="flex flex-col gap-4 p-4">
-          {kommunerFiltreret.map((k) => (
+        <div className="sticky top-0 z-20 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <Dropdown>
+              <Button
+                variant="outline"
+                className="h-10 shrink-0 gap-1.5 rounded-lg text-sm"
+              >
+                <span className="truncate">
+                  <span className="text-muted">Sortér:</span> {sortFeltNavn(sortFelt)}
+                </span>
+                <IconChevronDown className="h-4 w-4 shrink-0" />
+              </Button>
+              <Dropdown.Popover className="min-w-[220px]">
+                <Dropdown.Menu
+                  aria-label="Sortér efter"
+                  selectedKeys={new Set([sortFelt])}
+                  selectionMode="single"
+                  disallowEmptySelection
+                  onSelectionChange={(keys) => {
+                    const felt = keys === "all" ? undefined : [...keys][0];
+                    if (felt) vaelgSortFelt(String(felt) as SortFelt);
+                  }}
+                >
+                  <Dropdown.Section>
+                    <Header>Sortér efter</Header>
+                    <Dropdown.Item id="score" textValue="Samlet score">
+                      <Label>Samlet score</Label>
+                      <Dropdown.ItemIndicator />
+                    </Dropdown.Item>
+                    <Dropdown.Item id="navn" textValue="Navn">
+                      <Label>Navn</Label>
+                      <Dropdown.ItemIndicator />
+                    </Dropdown.Item>
+                  </Dropdown.Section>
+                  {kategorier.length > 0 && <Separator />}
+                  {kategorier.length > 0 && (
+                    <Dropdown.Section>
+                      <Header>Kategori</Header>
+                      {kategorier.map((kat) => (
+                        <Dropdown.Item key={kat.id} id={`kat-${kat.id}`} textValue={kat.navn}>
+                          <Label>{kat.navn}</Label>
+                          <Dropdown.ItemIndicator />
+                        </Dropdown.Item>
+                      ))}
+                    </Dropdown.Section>
+                  )}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+
+            <Button
+              isIconOnly
+              variant="outline"
+              className="h-10 w-10 shrink-0 rounded-lg"
+              aria-label={
+                sortRetning === "stigende"
+                  ? "Sorteret stigende – vend til faldende"
+                  : "Sorteret faldende – vend til stigende"
+              }
+              onPress={() => setSortRetning((r) => (r === "stigende" ? "faldende" : "stigende"))}
+            >
+              {sortRetning === "stigende" ? (
+                <IconSortAscending className="h-4 w-4" />
+              ) : (
+                <IconSortDescending className="h-4 w-4" />
+              )}
+            </Button>
+
+            {/* Vises kun, når søgning eller filtre har skåret kommuner fra. */}
+            <p className="ml-auto min-w-0 text-right text-xs leading-tight text-muted" aria-live="polite">
+              {kommuner.length > 0 && sidepanelKommuner.length < kommuner.length && (
+                <>
+                  <span className="font-semibold text-foreground">{sidepanelKommuner.length}</span>{" "}
+                  ud af {kommuner.length} kommuner fundet
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 p-4">
+          {sidepanelKommuner.slice(0, antalVist).map((k) => (
             <KommuneKort
               key={k.kode}
               kommune={k}
               rang={rangAf(k.kode)}
               score={vaegtetScore(k.kode)}
               valgt={valgtKode === k.kode}
+              profil={kommuneProfiler.get(k.kode)}
+              lavtBillede
               onVaelg={vaelgFraSidepanel}
             />
           ))}
+
+          <VisFlere
+            vist={antalVist}
+            ialt={sidepanelKommuner.length}
+            bid={SIDEPANEL_BID}
+            onVisFlere={() =>
+              setVisFlere({ noegle: listeNoegle, antal: antalVist + SIDEPANEL_BID })
+            }
+          />
 
           {kommunerFiltreret.length === 0 && ingenKommuner}
         </div>
@@ -1562,6 +2049,8 @@ export function DanmarkKort({
 
       <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
         <div ref={containerRef} className="h-full w-full" />
+        {zoomIkonPladser && createPortal(<IconPlus className="h-5 w-5" />, zoomIkonPladser.ind)}
+        {zoomIkonPladser && createPortal(<IconMinus className="h-5 w-5" />, zoomIkonPladser.ud)}
         {!klar && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-secondary">
             <Spinner />
@@ -1571,30 +2060,53 @@ export function DanmarkKort({
 
         {klar && scoreSpaend && (
           <Surface
-            aria-label={`Farveskala: laveste score ${scoreSpaend.laveste}, højeste score ${scoreSpaend.hoejeste}`}
-            className="absolute left-4 top-4 z-10 flex flex-col gap-1 rounded-xl border border-border px-3 py-1.5 shadow-lg"
+            aria-label={
+              farvEfterPlacering
+                ? `Farveskala efter placering, fra laveste til bedste. Kommunerne ligger mellem ${scoreSpaend.laveste} og ${scoreSpaend.hoejeste}.`
+                : `Farveskala fra 50 til 100. Kommunerne ligger mellem ${scoreSpaend.laveste} og ${scoreSpaend.hoejeste}.`
+            }
+            className="absolute left-4 top-4 z-10 flex flex-col gap-1.5 rounded-xl border border-border px-3 py-2 shadow-lg"
           >
             <span className="text-left text-xs leading-tight font-medium text-muted">
-              Laveste vs. højeste score
+              {farvEfterPlacering ? "Placering" : "Score"}
             </span>
-            <div className="flex items-center gap-3">
-              <span
-                title="Laveste score"
-                className="text-sm leading-tight font-medium tabular-nums text-foreground"
-              >
-                {scoreSpaend.laveste}
+            {/* Fast skala: farverne følger scoren 50-100, og rammen viser, hvor kommunerne
+                i det aktuelle filter ligger. Efter placering: hele paletten fordeles ligeligt
+                på kommunerne, så rammen omkranser hele skalaen. */}
+            <div className="flex items-center gap-2" aria-hidden="true">
+              <span className="text-xs tabular-nums text-muted">
+                {farvEfterPlacering ? "Laveste" : "50"}
               </span>
-              <span className="flex h-2.5 w-28 overflow-hidden rounded-full sm:w-36">
-                {KORT_PALETTER[farvePaletId].farver.map((farve, i) => (
-                  <span key={i} className="h-full flex-1" style={{ backgroundColor: farve }} />
-                ))}
+              <span className="relative w-36 sm:w-44">
+                <span className="flex h-2.5 overflow-hidden rounded-full">
+                  {KORT_PALETTER[farvePaletId].farver.map((farve, i) => (
+                    <span key={i} className="h-full flex-1" style={{ backgroundColor: farve }} />
+                  ))}
+                </span>
+                <span
+                  className="absolute -inset-y-1 rounded-full border-2 border-white shadow-[0_0_0_1px_rgb(0_0_0/0.12),0_1px_3px_rgb(0_0_0/0.2)]"
+                  style={
+                    farvEfterPlacering
+                      ? { left: 0, right: 0 }
+                      : {
+                          left: `${scoreTilProcent(scoreSpaend.laveste)}%`,
+                          right: `${100 - scoreTilProcent(scoreSpaend.hoejeste)}%`,
+                        }
+                  }
+                />
               </span>
-              <span
-                title="Højeste score"
-                className="text-sm leading-tight font-medium tabular-nums text-foreground"
-              >
-                {scoreSpaend.hoejeste}
+              <span className="text-xs tabular-nums text-muted">
+                {farvEfterPlacering ? "Bedste" : "100"}
               </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-left text-xs leading-tight text-muted">
+                Kommunerne ligger fra{" "}
+                <span className="font-semibold tabular-nums text-foreground">{scoreSpaend.laveste}</span>{" "}
+                til{" "}
+                <span className="font-semibold tabular-nums text-foreground">{scoreSpaend.hoejeste}</span>
+              </span>
+              <ScoreInfo farvEfterPlacering={farvEfterPlacering} />
             </div>
           </Surface>
         )}
@@ -1635,30 +2147,28 @@ export function DanmarkKort({
               </div>
               <ScoreBadge score={vaegtetScore(valgtKommune.kode)} />
             </div>
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
-            >
-              <IconFileText className="h-3.5 w-3.5" />
-              Se fuld rapport
-            </button>
+            <RapportLink navn={valgtKommune.navn} />
           </div>
         )}
       </div>
       </div>
 
       {visning === "oversigt" && (
-        <div className={INDHOLD_BREDDE}>
-        <div className="flex h-[550px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[650px] lg:h-[770px]">
+        <div className={`${INDHOLD_BREDDE} lg:min-h-0 lg:flex-1`}>
+        {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
+            (se html[data-laast-visning] i globals.css). */}
+        <div className="flex h-[550px] flex-col overflow-hidden sm:h-[650px] lg:h-full rounded-[1.75rem] border border-border bg-surface shadow-sm">
         <div className="h-5 shrink-0" />
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-2">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {/* Kortene har Styrker/Fokusområder i to kolonner, så de skal have en vis bredde. */}
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {kommunerFiltreret.map((k) => (
               <KommuneKort
               key={k.kode}
               kommune={k}
               rang={rangAf(k.kode)}
               score={vaegtetScore(k.kode)}
+              profil={kommuneProfiler.get(k.kode)}
               onVaelg={vaelgFraOversigt}
             />
             ))}
@@ -1672,9 +2182,14 @@ export function DanmarkKort({
       )}
 
       {visning === "regneark" && (
-        <div className={INDHOLD_BREDDE}>
-        <div className="h-[520px] overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-[740px]">
-        <div className="h-full overflow-y-auto">
+        <div className={`${INDHOLD_BREDDE} lg:min-h-0 lg:flex-1`}>
+        {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
+            (se html[data-laast-visning] i globals.css). */}
+        <div className="flex h-[520px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-full">
+        {/* Luft over og under scrollområdet, så scrollbaren holder sig fri af de runde
+            hjørner (som i Oversigt). */}
+        <div className="h-5 shrink-0" />
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-border text-muted">
@@ -1716,6 +2231,7 @@ export function DanmarkKort({
             </tbody>
           </table>
         </div>
+        <div className="h-5 shrink-0" />
         </div>
         </div>
       )}

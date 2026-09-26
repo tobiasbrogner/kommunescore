@@ -15,6 +15,9 @@ export const retningEnum = pgEnum("retning", ["hoejere_bedre", "lavere_bedre"]);
 export const kommuner = pgTable("kommuner", {
   kode: varchar("kode", { length: 4 }).primaryKey(),
   navn: varchar("navn", { length: 100 }).notNull(),
+  // Vises under "Om [kommune]" på rapportsiden; redigeres i admin-panelet.
+  stoersteBy: varchar("stoerste_by", { length: 100 }),
+  beskrivelse: varchar("beskrivelse", { length: 2000 }),
 });
 
 export const kategorier = pgTable("kategorier", {

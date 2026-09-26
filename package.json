@@ -14,7 +14,9 @@
     "db:seed:admin": "tsx scripts/seed-admin.ts",
     "db:seed:boern": "tsx scripts/seed-boernepasning.ts",
     "db:seed:jobmuligheder": "tsx scripts/seed-jobmuligheder.ts",
-    "db:seed:spisesteder": "tsx scripts/seed-spisesteder.ts"
+    "db:seed:spisesteder": "tsx scripts/seed-spisesteder.ts",
+    "db:seed:indbyggertal": "tsx scripts/seed-indbyggertal.ts",
+    "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"
   },
   "dependencies": {
     "@heroui/react": "^3.2.5",

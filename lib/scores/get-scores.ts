@@ -1,7 +1,13 @@
 import { unstable_cache } from "next/cache";
+import { asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { kommuner, kategorier, noegletal, kommuneNoegletal } from "@/lib/db/schema";
-import { beregnScores, type KommuneScore, type KategoriMeta } from "@/lib/scores/compute";
+import {
+  beregnScores,
+  type KommuneScore,
+  type KategoriMeta,
+  type RaaVaerdi,
+} from "@/lib/scores/compute";
 
 export const KOMMUNE_SCORES_TAG = "kommune-scores";
 
@@ -10,7 +16,22 @@ export type KommuneScoresPayload = {
   kommuner: KommuneScore[];
 };
 
-async function hentOgBeregn(): Promise<KommuneScoresPayload> {
+export type NoegletalMeta = {
+  id: number;
+  kategoriId: number;
+  navn: string;
+  enhed: string;
+  retning: "hoejere_bedre" | "lavere_bedre";
+  beskrivelse: string | null;
+};
+
+// Rapportsiden har også brug for de rå nøgletal (fx antal indbyggere), ikke kun scorerne.
+export type RapportPayload = KommuneScoresPayload & {
+  noegletal: NoegletalMeta[];
+  vaerdier: RaaVaerdi[];
+};
+
+async function hentOgBeregnAlt(): Promise<RapportPayload> {
   const [alleKommuner, alleKategorier, alleNoegletal, alleVaerdier] = await Promise.all([
     db.select({ kode: kommuner.kode, navn: kommuner.navn }).from(kommuner),
     db
@@ -22,7 +43,10 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
         venlighed: kategorier.venlighed,
         ikon: kategorier.ikon,
       })
-      .from(kategorier),
+      .from(kategorier)
+      // Samme rækkefølge som i admin-panelet; uden den afhænger rækkefølgen af,
+      // hvornår en kategori sidst blev gemt.
+      .orderBy(asc(kategorier.sortering), asc(kategorier.id)),
     db
       .select({
         id: noegletal.id,
@@ -32,7 +56,8 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
         enhed: noegletal.enhed,
         beskrivelse: noegletal.beskrivelse,
       })
-      .from(noegletal),
+      .from(noegletal)
+      .orderBy(asc(noegletal.id)),
     db
       .select({
         kommuneKode: kommuneNoegletal.kommuneKode,
@@ -73,9 +98,20 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
   return {
     kategorier: kategoriMeta,
     kommuner: beregnScores(alleKommuner, kategoriMeta, raaVaerdier),
+    noegletal: alleNoegletal,
+    vaerdier: raaVaerdier,
   };
 }
 
+async function hentOgBeregn(): Promise<KommuneScoresPayload> {
+  const { kategorier, kommuner } = await hentOgBeregnAlt();
+  return { kategorier, kommuner };
+}
+
 export const getCachedKommuneScores = unstable_cache(hentOgBeregn, ["kommune-scores"], {
+  tags: [KOMMUNE_SCORES_TAG],
+});
+
+export const getCachedRapportData = unstable_cache(hentOgBeregnAlt, ["kommune-rapport-data"], {
   tags: [KOMMUNE_SCORES_TAG],
 });

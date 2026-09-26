@@ -15,6 +15,9 @@ export function PanelNav() {
       <NextLink className={link.base()} href="/panel/kategorier">
         Kategorier, nøgletal & værdier
       </NextLink>
+      <NextLink className={link.base()} href="/panel/kommuner">
+        Kommuner
+      </NextLink>
       <LogudKnap />
     </nav>
   );

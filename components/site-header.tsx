@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@heroui/react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
-
+import { LogoMark } from "@/components/logo";
 const link = linkVariants();
 
 export function SiteHeader() {
@@ -22,9 +22,10 @@ export function SiteHeader() {
       >
         <NextLink
           href="/"
-          className="text-lg font-semibold tracking-tight text-foreground"
+          className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
         >
-          Danmarkskortet
+          <LogoMark className="size-9" />
+          Logo Her
         </NextLink>
 
         <div className="flex items-center gap-3">

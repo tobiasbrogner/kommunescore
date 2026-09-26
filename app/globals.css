@@ -13,6 +13,10 @@
 
   --muted: oklch(0.47 0.015 255);
   --border: oklch(0.88 0.012 95);
+
+  /* Footerens blå bånd – mørkt i begge temaer, så hvid tekst altid har kontrast. */
+  --footer: oklch(0.42 0.15 258);
+  --footer-panel: oklch(0.47 0.155 258);
 }
 
 .dark {
@@ -27,6 +31,9 @@
 
   --muted: oklch(0.66 0.02 255);
   --border: oklch(0.31 0.015 255);
+
+  --footer: oklch(0.3 0.11 258);
+  --footer-panel: oklch(0.34 0.12 258);
 }
 
 html {
@@ -82,6 +89,27 @@ body {
   }
 }
 
+/* Kortets zoom- og fuldskærmsknapper lidt større end standard (29px). Ekstra klasse i
+   selektoren, så den vinder over maplibre-gl.css, der indlæses senere. */
+.maplibregl-ctrl.maplibregl-ctrl-group button {
+  width: 35px;
+  height: 35px;
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  background-size: contain;
+}
+
+/* Zoomknapperne viser Tabler-ikoner (indsat af DanmarkKort) i stedet for MapLibres. */
+.maplibregl-ctrl.maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out)
+  .maplibregl-ctrl-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: none;
+  color: #333;
+}
+
 .maplibregl-popup-content {
   border-radius: 0.75rem;
   padding: 0.5rem 0.85rem;
@@ -99,6 +127,24 @@ body {
     animation: none;
   }
 }
+/* Oversigt og Regneark (sat af DanmarkKort): på store skærme låses siden til skærmens
+   højde med header og footer synlige, og visningens boks fylder pladsen imellem. Så er
+   boksen det eneste, der scroller. */
+@media (min-width: 64rem) {
+  html[data-laast-visning] body {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  html[data-laast-visning] body > main,
+  html[data-laast-visning] body > main > main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+}
+
 /* Kort-visning (sat af DanmarkKort): kortet fylder skærmen, så footeren skjules. */
 html[data-kort-visning] [data-site-footer] {
   display: none;
