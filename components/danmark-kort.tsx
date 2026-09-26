@@ -1322,6 +1322,7 @@ export function DanmarkKort({
       (prioriteter[k.id] ?? PRIORITET_STANDARD) !== PRIORITET_STANDARD ||
       !(aktiveKategorier[k.id] ?? true),
   ).length;
+  const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
   const matcherRegion = (k: Kommune) =>
     !regionFilterAktiv ||
@@ -1710,6 +1711,12 @@ export function DanmarkKort({
                   <PrioritetInfo />
                 </div>
 
+                {antalAktiveKategorier === 1 && kategorier.length > 1 && (
+                  <p id="min-en-kategori" className="-mt-2 text-xs text-muted">
+                    Mindst én kategori skal være slået til.
+                  </p>
+                )}
+
                 {/* To kolonner, der fyldes oppefra og ned: først venstre kolonne, så højre. */}
                 <div
                   className="grid gap-3 sm:grid-flow-col sm:grid-cols-2"
@@ -1717,6 +1724,8 @@ export function DanmarkKort({
                 >
                 {kategorier.map((kat) => {
                   const aktiv = aktiveKategorier[kat.id] ?? true;
+                  // Mindst én kategori skal tælle med, ellers er der ingen score at vise.
+                  const erSidsteAktive = aktiv && antalAktiveKategorier === 1;
                   return (
                     <div
                       key={kat.id}
@@ -1737,10 +1746,12 @@ export function DanmarkKort({
                         <Switch
                           size="sm"
                           isSelected={aktiv}
+                          isDisabled={erSidsteAktive}
                           onChange={(valgt) =>
                             setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
                           }
                           aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
+                          aria-describedby={erSidsteAktive ? "min-en-kategori" : undefined}
                         >
                           <Switch.Content>
                             <Switch.Control>

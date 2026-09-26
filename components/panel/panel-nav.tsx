@@ -18,6 +18,9 @@ export function PanelNav() {
       <NextLink className={link.base()} href="/panel/kommuner">
         Kommuner
       </NextLink>
+      <NextLink className={link.base()} href="/panel/feedback">
+        Feedback
+      </NextLink>
       <LogudKnap />
     </nav>
   );

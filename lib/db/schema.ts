@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   integer,
   numeric,
   pgEnum,
@@ -11,6 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const retningEnum = pgEnum("retning", ["hoejere_bedre", "lavere_bedre"]);
+
+export const feedbackTypeEnum = pgEnum("feedback_type", ["fejl", "oenske", "mangel", "andet"]);
 
 export const kommuner = pgTable("kommuner", {
   kode: varchar("kode", { length: 4 }).primaryKey(),
@@ -73,6 +76,19 @@ export const sessioner = pgTable("sessioner", {
     .references(() => administratorer.id, { onDelete: "cascade" }),
   tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Feedback indsendt af besøgende via knappen i headeren; læses i admin-panelet.
+export const feedback = pgTable("feedback", {
+  id: serial("id").primaryKey(),
+  type: feedbackTypeEnum("type").notNull(),
+  besked: varchar("besked", { length: 4000 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  // Siden brugeren stod på, da feedbacken blev sendt (fx "/kort?kommune=0101").
+  side: varchar("side", { length: 500 }),
+  brugeragent: varchar("brugeragent", { length: 500 }),
+  behandlet: boolean("behandlet").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

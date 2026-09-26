@@ -7,10 +7,12 @@ import { Button } from "@heroui/react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoMark } from "@/components/logo";
+import { FeedbackModal } from "@/components/feedback-modal";
 const link = linkVariants();
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Kortsiden er bredere end resten af sitet; headeren følger med, så den flugter med værktøjslinjen.
   const bredde = usePathname().startsWith("/kort") ? "max-w-[1600px]" : "max-w-7xl";
 
@@ -30,6 +32,14 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-8 md:flex">
+            <button
+              type="button"
+              className={`${link.base()} cursor-pointer`}
+              onClick={() => setFeedbackOpen(true)}
+            >
+              Feedback
+            </button>
+
             <NextLink className={link.base()} href="/kort">
               Udforsk
             </NextLink>
@@ -59,6 +69,17 @@ export function SiteHeader() {
           className="border-t border-border bg-background px-4 py-4 md:hidden"
         >
           <div className={`mx-auto flex ${bredde} flex-col gap-2`}>
+            <button
+              type="button"
+              className={`${link.base()} cursor-pointer px-3 py-3 text-left`}
+              onClick={() => {
+                setMenuOpen(false);
+                setFeedbackOpen(true);
+              }}
+            >
+              Feedback
+            </button>
+
             <NextLink
               href="/kort"
               className={`${link.base()} px-3 py-3`}
@@ -77,6 +98,8 @@ export function SiteHeader() {
           </div>
         </div>
       )}
+
+      <FeedbackModal isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </header>
   );
 }
