@@ -149,3 +149,44 @@ body {
 html[data-kort-visning] [data-site-footer] {
   display: none;
 }
+
+/* Udskrift / "Gem som PDF" (kommunerapporten): kun selve indholdet, altid i lyst tema,
+   og med baggrundsfarver (score-cirkel, bjælker), som browseren ellers udelader. */
+@media print {
+  :root,
+  .dark {
+    --accent: oklch(0.5 0.16 255);
+    --accent-foreground: oklch(1 0 0);
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.19 0.01 255);
+    --surface: oklch(1 0 0);
+    --surface-secondary: oklch(0.965 0.008 95);
+    --muted: oklch(0.47 0.015 255);
+    --border: oklch(0.88 0.012 95);
+    color-scheme: light;
+  }
+
+  html {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-skjul-ved-print],
+  [data-site-footer] {
+    display: none !important;
+  }
+
+  /* PDF'en tages med det samme; indtoningen må ikke nå at være halvvejs. */
+  .motion-rise {
+    animation: none;
+  }
+
+  tr,
+  .rounded-2xl {
+    break-inside: avoid;
+  }
+
+  h2 {
+    break-after: avoid;
+  }
+}

@@ -2,7 +2,7 @@ import "./_load-env";
 
 import path from "node:path";
 import * as XLSX from "xlsx";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { kategorier, kommuner, kommuneNoegletal, noegletal } from "@/lib/db/schema";
 import { revaliderScores } from "./_revalider";
@@ -12,14 +12,34 @@ const KILDE_PATH = path.join(process.cwd(), "data/kilder/boernepasning-arstakste
 const KATEGORI_NAVN = "Børn";
 const KATEGORI_SLUG = "boern";
 
+const KILDE_TEKST = "pr. 1. januar 2026 (Danmarks Statistik, RES88)";
+const PRIS_SCORE_TEKST = "En lavere pris giver en højere score.";
+
 const RAA_NOEGLETAL = [
-  { kolonne: 2, navn: "Kommunal dagpleje (0-2 år)" },
-  { kolonne: 3, navn: "Vuggestue (0-2 år)" },
-  { kolonne: 4, navn: "Børnehave (3-5 år)" },
-  { kolonne: 5, navn: "Skolefritidsordninger (6-9 år)" },
+  {
+    kolonne: 2,
+    navn: "Kommunal dagpleje (0-2 år)",
+    beskrivelse: `Årlig takst for kommunal dagpleje inkl. frokost ${KILDE_TEKST}. Søskenderabat mv. kan gøre forældrebetalingen lavere. ${PRIS_SCORE_TEKST}`,
+  },
+  {
+    kolonne: 3,
+    navn: "Vuggestue (0-2 år)",
+    beskrivelse: `Årlig takst for en plads i vuggestue ${KILDE_TEKST}. Søskenderabat mv. kan gøre forældrebetalingen lavere. ${PRIS_SCORE_TEKST}`,
+  },
+  {
+    kolonne: 4,
+    navn: "Børnehave (3-5 år)",
+    beskrivelse: `Årlig takst for en plads i børnehave ${KILDE_TEKST}. Søskenderabat mv. kan gøre forældrebetalingen lavere. ${PRIS_SCORE_TEKST}`,
+  },
+  {
+    kolonne: 5,
+    navn: "Skolefritidsordninger (6-9 år)",
+    beskrivelse: `Årlig takst for en plads i SFO for 6-9-årige ${KILDE_TEKST}. ${PRIS_SCORE_TEKST}`,
+  },
 ] as const;
 
 const GENNEMSNIT_NAVN = "Gennemsnitspris årligt";
+const GENNEMSNIT_BESKRIVELSE = `Gennemsnittet af kommunens årstakster for dagpleje, vuggestue, børnehave og SFO ${KILDE_TEKST}. Pasningstyper, kommunen ikke har, tæller ikke med. ${PRIS_SCORE_TEKST}`;
 
 type Raekke = { navn: string; vaerdier: (number | null)[] };
 
@@ -64,25 +84,28 @@ async function main() {
     .onConflictDoUpdate({ target: kategorier.slug, set: { navn: sql`excluded.navn` } })
     .returning();
 
-  const raaNoegletalRows = await Promise.all(
-    RAA_NOEGLETAL.map(({ navn }) =>
-      db
-        .insert(noegletal)
-        .values({ kategoriId: kategori.id, navn, enhed: "kr.", retning: "lavere_bedre" })
-        .returning()
-        .then(([row]) => row),
-    ),
-  );
+  // Genbrug eksisterende nøgletal ved genkørsel i stedet for at oprette dubletter.
+  const hentEllerOpretNoegletal = async (navn: string, beskrivelse: string) => {
+    const [eksisterende] = await db
+      .select()
+      .from(noegletal)
+      .where(and(eq(noegletal.kategoriId, kategori.id), eq(noegletal.navn, navn)));
+    if (eksisterende) {
+      await db.update(noegletal).set({ beskrivelse }).where(eq(noegletal.id, eksisterende.id));
+      return eksisterende;
+    }
+    const [ny] = await db
+      .insert(noegletal)
+      .values({ kategoriId: kategori.id, navn, enhed: "kr.", retning: "lavere_bedre", beskrivelse })
+      .returning();
+    return ny;
+  };
 
-  const [gennemsnitNoegletal] = await db
-    .insert(noegletal)
-    .values({
-      kategoriId: kategori.id,
-      navn: GENNEMSNIT_NAVN,
-      enhed: "kr.",
-      retning: "lavere_bedre",
-    })
-    .returning();
+  const raaNoegletalRows: (typeof noegletal.$inferSelect)[] = [];
+  for (const { navn, beskrivelse } of RAA_NOEGLETAL) {
+    raaNoegletalRows.push(await hentEllerOpretNoegletal(navn, beskrivelse));
+  }
+  const gennemsnitNoegletal = await hentEllerOpretNoegletal(GENNEMSNIT_NAVN, GENNEMSNIT_BESKRIVELSE);
 
   const indsaettelser: { kommuneKode: string; noegletalId: number; vaerdi: string }[] = [];
 

@@ -15,6 +15,7 @@ type Kilde = {
   navn: string;
   enhed: string;
   retning: "hoejere_bedre" | "lavere_bedre";
+  beskrivelse: string;
   navneKolonne: number;
   vaerdiKolonne: number;
 };
@@ -25,6 +26,8 @@ const KILDER: Kilde[] = [
     navn: "Erhvervsfrekvens (16-64 år)",
     enhed: "%",
     retning: "hoejere_bedre",
+    beskrivelse:
+      "Andelen af 16-64-årige, der er i arbejdsstyrken (i job eller ledige), opgjort ultimo november 2024 (Danmarks Statistik, RAS200). En højere andel giver en højere score.",
     navneKolonne: 4,
     vaerdiKolonne: 5,
   },
@@ -33,6 +36,8 @@ const KILDER: Kilde[] = [
     navn: "Job pr. 1.000 indbyggere",
     enhed: "job",
     retning: "hoejere_bedre",
+    beskrivelse:
+      "Antal arbejdspladser i kommunen ultimo november 2024 pr. 1.000 indbyggere (Danmarks Statistik, ERHV2 og FOLK1AM). Tallet viser, hvor mange job der ligger i kommunen, ikke hvor indbyggerne arbejder. Flere job giver en højere score.",
     navneKolonne: 0,
     vaerdiKolonne: 3,
   },
@@ -41,6 +46,8 @@ const KILDER: Kilde[] = [
     navn: "Ledighed (fuldtidsledige)",
     enhed: "%",
     retning: "lavere_bedre",
+    beskrivelse:
+      "Fuldtidsledige i procent af arbejdsstyrken i 2024 (Danmarks Statistik, AULP01). En lavere ledighed giver en højere score.",
     navneKolonne: 2,
     vaerdiKolonne: 3,
   },
@@ -105,8 +112,14 @@ async function main() {
           navn: kilde.navn,
           enhed: kilde.enhed,
           retning: kilde.retning,
+          beskrivelse: kilde.beskrivelse,
         })
         .returning();
+    } else {
+      await db
+        .update(noegletal)
+        .set({ beskrivelse: kilde.beskrivelse })
+        .where(eq(noegletal.id, noegletalRow.id));
     }
 
     for (const kommune of alleKommuner) {

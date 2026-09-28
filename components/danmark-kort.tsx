@@ -36,6 +36,7 @@ import {
   IconHome,
   IconLayoutGrid,
   IconLayoutColumns,
+  IconArrowRight,
   IconHelpCircle,
   IconMap,
   IconMinus,
@@ -52,6 +53,7 @@ import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 import { KategoriIkon } from "@/components/ikon";
 import { REGION_NAVNE } from "@/lib/kommuner/regioner";
 import { polygonArealKm2 } from "@/lib/kommuner/areal";
+import { navnePunkt } from "@/lib/kommuner/navne-punkt";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import {
   byggKategoriFordelinger,
@@ -67,6 +69,29 @@ type Kommune = {
 };
 
 const PRIORITET_STANDARD = 50;
+
+// Kategorier, hvor man under Prioritet kan vælge, hvilke nøgletal der tæller (efter
+// kategoriens slug). Alle er valgt fra start, og så tæller kategorien som normalt.
+// Kommuner uden en værdi for de valgte nøgletal springes over i kategorien i stedet
+// for at få bundscoren; deres samlede score regnes så ud fra de øvrige kategorier.
+// noegletal er nøgletallets navn i databasen; forklaring vises ved mus over knappen.
+type NoegletalValg = { id: string; label: string; forklaring: string; noegletal: string };
+const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
+  boligpriser: [
+    {
+      id: "hus",
+      label: "Parcel/Rækkehus",
+      forklaring: "Parcelhuse (villaer) og rækkehuse",
+      noegletal: "Parcel-/rækkehus",
+    },
+    {
+      id: "lejlighed",
+      label: "Ejerlejlighed",
+      forklaring: "Ejerlejligheder",
+      noegletal: "Ejerlejlighed",
+    },
+  ],
+};
 
 type Visning = "kort" | "oversigt" | "regneark";
 
@@ -131,9 +156,10 @@ function opdelIKommuneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureColl
   return { type: "FeatureCollection", features: dele };
 }
 
-// Kun kommunens største landdel, så navnet står én gang (på fastlandet) og ikke på
-// hver ø. MapLibre placerer teksten midt inde i polygonen.
-function kommuneNavneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+// Ét punkt pr. kommune midt i dens største landdel, så navnet står én gang (på
+// fastlandet) og ikke på hver ø. Et punkt og ikke selve polygonen: MapLibre deler
+// GeoJSON op i fliser og sætter ellers et navn i hver flise, når man zoomer ind.
+function kommuneNavnePunkter(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
   const stoerste = new Map<string, GeoJSON.Feature>();
   for (const del of opdelIKommuneDele(data).features) {
     const kode = del.properties?.kode as string;
@@ -148,8 +174,12 @@ function kommuneNavneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureColle
   return {
     type: "FeatureCollection",
     features: [...stoerste.values()].map((del) => ({
-      ...del,
+      type: "Feature",
       properties: { ...del.properties, navn: navnPrKode.get(del.properties?.kode as string) },
+      geometry: {
+        type: "Point",
+        coordinates: navnePunkt((del.geometry as GeoJSON.Polygon).coordinates),
+      },
     })),
   };
 }
@@ -260,6 +290,8 @@ function byggKommuneFyldFarve(farver: readonly string[]): any {
     ["boolean", ["feature-state", "valgt"], false],
     KORT_FARVE_VALGT,
     ["boolean", ["feature-state", "udenforFilter"], false],
+    LAND_FARVE,
+    ["boolean", ["feature-state", "ingenData"], false],
     LAND_FARVE,
     [
       "step",
@@ -421,29 +453,103 @@ function RegionAfkrydsning() {
   );
 }
 
-function PrioritetInfo() {
+// "Læs mere" nederst i infoboksene. Åbner i en ny fane, så kortet og ens valg bevares.
+function LaesMere({ href }: { href: string }) {
   return (
-    <Tooltip delay={150}>
-      <Tooltip.Trigger aria-label="Hvad er Prioritet?">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground">
-          <IconHelpCircle className="h-4 w-4" />
-        </span>
-      </Tooltip.Trigger>
-      <Tooltip.Content
-        showArrow
-        placement="right"
-        shouldFlip={false}
-        className="w-64 break-normal"
-      >
-        <Tooltip.Arrow />
-        <p className="text-sm text-pretty">
-          Justér, hvor vigtig hver kategori er for dig. En højere vægt
-          betyder, at kommunernes score i den pågældende kategori får større
-          betydning for den samlede rangering. Det ændrer ikke kommunernes
-          score, men kun hvordan de vægtes og sorteres.
-        </p>
-      </Tooltip.Content>
-    </Tooltip>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener"
+      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+    >
+      Læs mere
+      <IconArrowRight className="h-3 w-3" />
+    </a>
+  );
+}
+
+// Infoboksen til venstre for Prioritet-panelet. Den ligger inde i panelet (ikke som en
+// tooltip i body), fordi panelet er modalt: alt uden for det er inert, og et klik
+// udenfor lukker det. Så kan man føre musen hen til boksen og klikke på "Læs mere".
+type PanelInfoId = "prioritet" | number;
+const PANEL_INFO_ID = "prioritet-info";
+const PANEL_INFO_VIS_FORSINKELSE = 150;
+// Tid til at føre musen fra ?-ikonet over panelet og ind i boksen.
+const PANEL_INFO_LUK_FORSINKELSE = 400;
+
+function usePanelInfo() {
+  const [aktiv, setAktiv] = useState<PanelInfoId | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const annuller = () => clearTimeout(timer.current);
+  const skjulSnart = () => {
+    annuller();
+    timer.current = setTimeout(() => setAktiv(null), PANEL_INFO_LUK_FORSINKELSE);
+  };
+  const luk = () => {
+    annuller();
+    setAktiv(null);
+  };
+
+  const knapProps = (id: PanelInfoId) => ({
+    "aria-expanded": aktiv === id,
+    "aria-controls": aktiv === id ? PANEL_INFO_ID : undefined,
+    onPointerEnter: (e: React.PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      annuller();
+      // Er en boks allerede åben, skiftes der med det samme.
+      timer.current = setTimeout(() => setAktiv(id), aktiv === null ? PANEL_INFO_VIS_FORSINKELSE : 0);
+    },
+    onPointerLeave: skjulSnart,
+    onFocus: () => {
+      annuller();
+      setAktiv(id);
+    },
+    onBlur: skjulSnart,
+    // Til touch; boksen lukker igen, når man trykker et andet sted.
+    onClick: () => {
+      annuller();
+      setAktiv(id);
+    },
+  });
+
+  const boksProps = {
+    id: PANEL_INFO_ID,
+    onPointerEnter: annuller,
+    onPointerLeave: skjulSnart,
+    onFocus: annuller,
+    onBlur: skjulSnart,
+  };
+
+  return { aktiv, knapProps, boksProps, luk };
+}
+
+function InfoKnap({ label, ...props }: { label: string } & ReturnType<ReturnType<typeof usePanelInfo>["knapProps"]>) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      {...props}
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground ${
+        props["aria-expanded"] ? "bg-surface-secondary text-foreground" : "text-muted"
+      }`}
+    >
+      <IconHelpCircle className="h-4 w-4" />
+    </button>
+  );
+}
+
+function PrioritetInfoIndhold() {
+  return (
+    <>
+      <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
+      <p className="mt-1.5 text-sm text-pretty text-muted">
+        Justér, hvor vigtig hver kategori er for dig. En højere vægt
+        betyder, at kommunernes score i den pågældende kategori får større
+        betydning for den samlede rangering. Det ændrer ikke kommunernes
+        score, men kun hvordan de vægtes og sorteres.
+      </p>
+      <LaesMere href="/saadan-virker-det#beregning" />
+    </>
   );
 }
 
@@ -493,49 +599,84 @@ function erGennemsnit(navn: string) {
   return navn.toLowerCase().includes("gennemsnit");
 }
 
-function KategoriInfo({ kategori }: { kategori: KategoriMeta }) {
+function KategoriInfoIndhold({ kategori }: { kategori: KategoriMeta }) {
   const gennemsnit = kategori.noegletal.find((n) => erGennemsnit(n.navn));
   const restNoegletal = gennemsnit
     ? kategori.noegletal.filter((n) => n !== gennemsnit)
     : kategori.noegletal;
 
   return (
-    <Tooltip delay={150}>
-      <Tooltip.Trigger aria-label={`Hvad indgår i ${kategori.navn}?`}>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground">
-          <IconHelpCircle className="h-4 w-4" />
-        </span>
-      </Tooltip.Trigger>
-      <Tooltip.Content
-        showArrow
-        placement="right"
-        shouldFlip={false}
-        className="w-64 break-normal"
-      >
-        <Tooltip.Arrow />
-        <p className="text-sm font-medium text-foreground">
-          {gennemsnit
-            ? `${kategori.navn} dækker ${gennemsnit.navn.toLowerCase()} for:`
-            : `${kategori.navn} dækker over:`}
+    <>
+      <p className="text-sm font-medium text-foreground">
+        {gennemsnit
+          ? `${kategori.navn} dækker ${gennemsnit.navn.toLowerCase()} for:`
+          : `${kategori.navn} dækker over:`}
+      </p>
+      {restNoegletal.length > 0 ? (
+        <ul className="mt-1.5 flex flex-col gap-1.5 text-sm text-pretty text-muted">
+          {restNoegletal.map((n) => (
+            <li key={n.navn}>
+              · {n.navn}
+              {n.beskrivelse && (
+                <span className="mt-0.5 block pl-2.5 text-xs">{n.beskrivelse}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1.5 text-sm text-pretty text-muted">
+          Ingen nøgletal oprettet endnu.
         </p>
-        {restNoegletal.length > 0 ? (
-          <ul className="mt-1.5 flex flex-col gap-0.5 text-sm text-pretty text-muted">
-            {restNoegletal.map((n) => (
-              <li key={n.navn}>
-                · {n.navn}
-                {n.beskrivelse && (
-                  <span className="mt-0.5 block pl-2.5 text-xs">{n.beskrivelse}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1.5 text-sm text-pretty text-muted">
-            Ingen nøgletal oprettet endnu.
-          </p>
-        )}
-      </Tooltip.Content>
-    </Tooltip>
+      )}
+      <LaesMere href={`/kilder#${kategori.slug}`} />
+    </>
+  );
+}
+
+// Vælger under Prioritet for kategorier i NOEGLETAL_VALG, fx Parcel/Rækkehus og Ejerlejlighed i
+// Boligpriser. Mindst ét nøgletal skal være valgt.
+function NoegletalVaelger({
+  kategori,
+  valg,
+  valgteIder,
+  aktiv,
+  antalUdenData,
+  onVaelg,
+}: {
+  kategori: KategoriMeta;
+  valg: NoegletalValg[];
+  valgteIder: string[];
+  aktiv: boolean;
+  antalUdenData: number;
+  onVaelg: (ider: string[]) => void;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}>
+      <ToggleButtonGroup
+        aria-label={`Hvad tæller i ${kategori.navn}?`}
+        size="sm"
+        fullWidth
+        selectionMode="multiple"
+        disallowEmptySelection
+        isDisabled={!aktiv}
+        selectedKeys={valgteIder}
+        onSelectionChange={(keys) => onVaelg([...keys].map(String))}
+      >
+        {valg.map((v, i) => (
+          // Mindre end standard "sm", så vælgeren ikke fylder mere end slideren over den.
+          <ToggleButton key={v.id} id={v.id} className="h-6 min-h-0 px-2 text-xs">
+            {i > 0 && <ToggleButtonGroup.Separator />}
+            <span title={v.forklaring}>{v.label}</span>
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+      {antalUdenData > 0 && (
+        <p className="text-[11px] leading-snug text-muted">
+          {antalUdenData} {antalUdenData === 1 ? "kommune" : "kommuner"} har for få handler til en
+          pris; {kategori.navn} tæller ikke med for dem.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -642,16 +783,61 @@ function FilterBadge({ antal }: { antal: number }) {
   );
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const rundet = Math.round(score);
+// null: kommunen har ingen data i de kategorier, der tæller med lige nu.
+function ScoreBadge({ score }: { score: number | null }) {
+  const rundet = score === null ? "–" : Math.round(score);
 
   return (
     <div
-      title={`Score: ${rundet} ud af 100`}
+      title={score === null ? "Ingen data for det valgte" : `Score: ${rundet} ud af 100`}
       className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full bg-surface-secondary px-2 text-sm font-bold tabular-nums text-foreground ring-1 ring-inset ring-border/50"
     >
       {rundet}
     </div>
+  );
+}
+
+// Kolonneoverskrift i Regneark, der sorterer tabellen ved klik.
+function SorterbarOverskrift({
+  felt,
+  label,
+  ikon,
+  sortFelt,
+  sortRetning,
+  onSorter,
+  hoejre = false,
+  inaktiv = false,
+}: {
+  felt: SortFelt;
+  label: string;
+  ikon?: string | null;
+  sortFelt: SortFelt;
+  sortRetning: SortRetning;
+  onSorter: (felt: SortFelt) => void;
+  hoejre?: boolean;
+  inaktiv?: boolean;
+}) {
+  const aktiv = felt === sortFelt;
+  const SortIkon = sortRetning === "stigende" ? IconSortAscending : IconSortDescending;
+
+  return (
+    <th
+      aria-sort={aktiv ? (sortRetning === "stigende" ? "ascending" : "descending") : "none"}
+      className="px-4 py-3 font-medium"
+    >
+      <button
+        type="button"
+        onClick={() => onSorter(felt)}
+        title={inaktiv ? `${label} (slået fra under Prioritet)` : `Sortér efter ${label}`}
+        className={`items-center gap-1.5 rounded-md transition-colors duration-150 hover:text-foreground ${
+          hoejre ? "ml-auto flex" : "inline-flex"
+        } ${aktiv ? "text-foreground" : ""} ${inaktiv ? "opacity-50" : ""}`}
+      >
+        {ikon && <KategoriIkon navn={ikon} className="h-4 w-4 shrink-0" />}
+        {label}
+        <SortIkon className={`h-3.5 w-3.5 shrink-0 ${aktiv ? "" : "invisible"}`} />
+      </button>
+    </th>
   );
 }
 
@@ -734,7 +920,7 @@ function KommuneKort({
 }: {
   kommune: Kommune;
   rang: number;
-  score: number;
+  score: number | null;
   valgt?: boolean;
   profil?: KommuneProfil;
   // Lidt lavere billede i sidepanelet, så de øverste tre kort kan ses hele.
@@ -748,7 +934,7 @@ function KommuneKort({
         valgt ? "border-accent ring-2 ring-accent/40" : "border-border"
       }`}
     >
-      <button type="button" onClick={() => onVaelg(k)} className="flex-1 text-left">
+      <button type="button" onClick={() => onVaelg(k)} className="flex flex-1 flex-col justify-start text-left">
         <div
           className={`relative flex ${lavtBillede ? "h-24" : "h-28"} items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10`}
         >
@@ -797,6 +983,8 @@ function KommuneKort({
 
 // Sidepanelet viser kommunerne i bidder, så listen ikke bliver uendelig lang.
 const SIDEPANEL_BID = 10;
+// Oversigt viser kortene i et gitter med 2, 3 eller 4 kolonner; 12 går op i dem alle.
+const OVERSIGT_BID = 12;
 
 function VisFlere({
   vist,
@@ -866,6 +1054,8 @@ export function DanmarkKort({
   // "Vis flere" gælder én bestemt søgning/filtrering/sortering (listeNoegle nedenfor);
   // ændres den, starter listen forfra med første bid.
   const [visFlere, setVisFlere] = useState({ noegle: "", antal: SIDEPANEL_BID });
+  // Oversigt har sin egen "Vis flere", så de to visninger ikke påvirker hinanden.
+  const [oversigtVisFlere, setOversigtVisFlere] = useState({ noegle: "", antal: OVERSIGT_BID });
   const visningRef = useRef<Visning>(visning);
   // Samlet udstrækning af kommunerne i det aktive Område/Gruppe-filter (null = intet filter).
   const filterUdstraekningRef = useRef<[[number, number], [number, number]] | null>(null);
@@ -878,6 +1068,32 @@ export function DanmarkKort({
   const [aktiveKategorier, setAktiveKategorier] = useState<Record<number, boolean>>(() =>
     Object.fromEntries(kategorier.map((k) => [k.id, true])),
   );
+  // kategoriId -> valgte id'er fra NOEGLETAL_VALG; mangler den, er alle valgt.
+  const [noegletalValg, setNoegletalValg] = useState<Record<number, string[]>>({});
+
+  // Infoboksen ved Prioritet: undefined = lukket, null = om vægtene, ellers en kategori.
+  const panelInfo = usePanelInfo();
+  const panelInfoKategori =
+    panelInfo.aktiv === null
+      ? undefined
+      : panelInfo.aktiv === "prioritet"
+        ? null
+        : kategorier.find((k) => k.id === panelInfo.aktiv);
+
+  const valgteIder = (kat: KategoriMeta) =>
+    noegletalValg[kat.id] ?? (NOEGLETAL_VALG[kat.slug] ?? []).map((v) => v.id);
+
+  // Id'er på de nøgletal, der tæller i kategorien, eller undefined når alle er valgt,
+  // så kategorien tæller som normalt.
+  const valgteNoegletalIder = (kat: KategoriMeta) => {
+    const valg = NOEGLETAL_VALG[kat.slug];
+    if (!valg) return undefined;
+    const ider = valgteIder(kat);
+    if (valg.every((v) => ider.includes(v.id))) return undefined;
+    return valg
+      .filter((v) => ider.includes(v.id))
+      .flatMap((v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.id ?? []);
+  };
   const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
   const [museOverAktiv, setMuseOverAktiv] = useState(true);
   const [klikFremhaevAktiv, setKlikFremhaevAktiv] = useState(false);
@@ -1016,7 +1232,7 @@ export function DanmarkKort({
 
       // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
       // at overlappe hinanden (MapLibre skjuler automatisk dem, der ikke er plads til).
-      map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavneDele(data) });
+      map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavnePunkter(data) });
       map.addLayer({
         id: "kommune-navne",
         type: "symbol",
@@ -1316,11 +1532,13 @@ export function DanmarkKort({
   const nulstilPrioriteter = () => {
     setPrioriteter(Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])));
     setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, true])));
+    setNoegletalValg({});
   };
   const antalAendredePrioriteter = kategorier.filter(
     (k) =>
       (prioriteter[k.id] ?? PRIORITET_STANDARD) !== PRIORITET_STANDARD ||
-      !(aktiveKategorier[k.id] ?? true),
+      !(aktiveKategorier[k.id] ?? true) ||
+      valgteNoegletalIder(k) !== undefined,
   ).length;
   const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
@@ -1350,25 +1568,50 @@ export function DanmarkKort({
     );
   }, [kategorier, kommuneScores]);
 
-  const vaegtetScore = (kode: string) => {
-    const kategoriScorer = kategoriScorerPrKommune.get(kode);
-    if (!kategoriScorer) return PRIORITET_STANDARD;
+  const noegletalScorerPrKommune = useMemo(
+    () => new Map(kommuneScores.map((s) => [s.kode, s.noegletal])),
+    [kommuneScores],
+  );
+
+  // Kommunens score i kategorien: gennemsnittet af de valgte nøgletal, som kommunen har
+  // værdier for (ligesom kategoriscoren på serveren). null = ingen data for dem.
+  const kategoriScore = (kode: string, kat: KategoriMeta): number | null => {
+    const noegletalIder = valgteNoegletalIder(kat);
+    if (noegletalIder === undefined) {
+      return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? PRIORITET_STANDARD;
+    }
+    const scorer = noegletalIder.flatMap((id) => noegletalScorerPrKommune.get(kode)?.[id] ?? []);
+    return scorer.length > 0 ? scorer.reduce((a, b) => a + b, 0) / scorer.length : null;
+  };
+
+  // null når kommunen ikke har data i nogen af de kategorier, der tæller med.
+  const vaegtetScore = (kode: string): number | null => {
+    if (!kategoriScorerPrKommune.has(kode)) return PRIORITET_STANDARD;
 
     let sumVaegtetScore = 0;
     let sumVaegt = 0;
+    let harVaegt = false;
     for (const kat of kategorier) {
       if (aktiveKategorier[kat.id] === false) continue;
       const vaegt = prioriteter[kat.id] ?? PRIORITET_STANDARD;
       if (vaegt <= 0) continue;
-      const score = kategoriScorer[kat.id] ?? PRIORITET_STANDARD;
+      harVaegt = true;
+      const score = kategoriScore(kode, kat);
+      if (score === null) continue;
       sumVaegtetScore += score * vaegt;
       sumVaegt += vaegt;
     }
-    return sumVaegt > 0 ? sumVaegtetScore / sumVaegt : PRIORITET_STANDARD;
+    if (sumVaegt > 0) return sumVaegtetScore / sumVaegt;
+    return harVaegt ? null : PRIORITET_STANDARD;
   };
 
+  // Kommuner uden data sorteres sidst.
+  const sammenlignScorer = (a: number | null, b: number | null) =>
+    (b ?? -Infinity) - (a ?? -Infinity) || 0;
+
   const sorterEfterScore = (a: Kommune, b: Kommune) =>
-    vaegtetScore(b.kode) - vaegtetScore(a.kode) || a.navn.localeCompare(b.navn, "da");
+    sammenlignScorer(vaegtetScore(a.kode), vaegtetScore(b.kode)) ||
+    a.navn.localeCompare(b.navn, "da");
 
 
   const forslag = useMemo(() => {
@@ -1395,6 +1638,7 @@ export function DanmarkKort({
     kategorier,
     prioriteter,
     aktiveKategorier,
+    noegletalValg,
   ]);
 
   const kommunerRegionFiltreret = useMemo(
@@ -1407,6 +1651,7 @@ export function DanmarkKort({
       kategorier,
       prioriteter,
       aktiveKategorier,
+      noegletalValg,
     ],
   );
 
@@ -1417,18 +1662,23 @@ export function DanmarkKort({
     // Farv efter placering: placeringen blandt de viste kommuner omsættes til en
     // "farvescore" på 50-100, så palettens 12 trin hver dækker lige mange kommuner,
     // uanset hvor tæt scorerne ligger. Kommuner uden for filtret er grå alligevel.
-    const antal = kommunerRegionFiltreret.length;
-    const farveScore = (kode: string) => {
-      if (!farvEfterPlacering) return vaegtetScore(kode);
+    // Kommuner uden data tæller ikke med i placeringen og farves grå.
+    const medData = kommunerRegionFiltreret.filter((k) => vaegtetScore(k.kode) !== null);
+    const antal = medData.length;
+    const farveScore = (score: number) => {
+      if (!farvEfterPlacering) return score;
       if (antal <= 1) return 100;
       // Lige scorer deler placering, så de også får samme farve.
-      const score = vaegtetScore(kode);
-      const bedreEnd = kommunerRegionFiltreret.filter((k) => vaegtetScore(k.kode) > score).length;
+      const bedreEnd = medData.filter((k) => vaegtetScore(k.kode)! > score).length;
       return 50 + (1 - bedreEnd / (antal - 1)) * 50;
     };
 
     kommuner.forEach((k) => {
-      map.setFeatureState({ source: SOURCE_ID, id: k.kode }, { score: farveScore(k.kode) });
+      const score = vaegtetScore(k.kode);
+      map.setFeatureState(
+        { source: SOURCE_ID, id: k.kode },
+        { score: score === null ? null : farveScore(score), ingenData: score === null },
+      );
     });
   }, [
     klar,
@@ -1437,6 +1687,7 @@ export function DanmarkKort({
     kategorier,
     prioriteter,
     aktiveKategorier,
+    noegletalValg,
     farvEfterPlacering,
     valgteRegioner,
     valgteGrupper,
@@ -1455,22 +1706,37 @@ export function DanmarkKort({
     setSortRetning(felt === "navn" ? "stigende" : "faldende");
   };
 
+  // Regnearkets overskrifter: ny kolonne sorteres som i sidepanelet, samme kolonne vender retningen.
+  const sorterEfterKolonne = (felt: SortFelt) => {
+    if (felt === sortFelt) {
+      setSortRetning((r) => (r === "stigende" ? "faldende" : "stigende"));
+    } else {
+      vaelgSortFelt(felt);
+    }
+  };
+
   const sidepanelKommuner = useMemo(() => {
     const vaerdi = (k: Kommune) => {
       if (sortFelt === "score") return vaegtetScore(k.kode);
       const id = Number(sortFelt.slice(4));
-      return kategoriScorerPrKommune.get(k.kode)?.[id] ?? 0;
+      const kat = kategorier.find((kat) => kat.id === id);
+      return kat ? kategoriScore(k.kode, kat) : null;
     };
     // Placeringen er højeste score først og ved lige score A-Å. Faldende følger den
     // rækkefølge, og stigende vender den helt, så placeringstallene altid står i orden.
+    // Kommuner uden data står sidst i begge retninger.
     const retning = sortRetning === "stigende" ? 1 : -1;
     const navnOrden = (a: Kommune, b: Kommune) => a.navn.localeCompare(b.navn, "da");
-    return [...kommunerFiltreret].sort((a, b) =>
-      sortFelt === "navn"
-        ? retning * navnOrden(a, b)
-        : retning * (vaerdi(a) - vaerdi(b)) || -retning * navnOrden(a, b),
-    );
-  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune]);
+    return [...kommunerFiltreret].sort((a, b) => {
+      if (sortFelt === "navn") return retning * navnOrden(a, b);
+      const va = vaerdi(a);
+      const vb = vaerdi(b);
+      if (va === null || vb === null) {
+        return va === vb ? navnOrden(a, b) : va === null ? 1 : -1;
+      }
+      return retning * (va - vb) || -retning * navnOrden(a, b);
+    });
+  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune, noegletalValg]);
 
   // Ny søgning, filtrering eller sortering starter listen forfra med første bid.
   const noegleFor = (valg: Selection) => (valg === "all" ? "all" : [...valg].sort().join(","));
@@ -1482,17 +1748,23 @@ export function DanmarkKort({
     sortRetning,
   ].join("|");
   const antalVist = visFlere.noegle === listeNoegle ? visFlere.antal : SIDEPANEL_BID;
+  const oversigtAntalVist =
+    oversigtVisFlere.noegle === listeNoegle ? oversigtVisFlere.antal : OVERSIGT_BID;
 
   const rangAf = (kode: string) =>
     kommunerRegionFiltreret.findIndex((k) => k.kode === kode) + 1;
 
   // Laveste og højeste score blandt kommunerne i Område/Gruppe-filtret (listen er
   // sorteret med højeste score først).
+  // Kommuner uden data er sorteret sidst og tæller ikke med.
+  const scorerMedData = kommunerRegionFiltreret
+    .map((k) => vaegtetScore(k.kode))
+    .filter((s): s is number => s !== null);
   const scoreSpaend =
-    kommunerRegionFiltreret.length > 0
+    scorerMedData.length > 0
       ? {
-          hoejeste: Math.round(vaegtetScore(kommunerRegionFiltreret[0].kode)),
-          laveste: Math.round(vaegtetScore(kommunerRegionFiltreret.at(-1)!.kode)),
+          hoejeste: Math.round(scorerMedData[0]),
+          laveste: Math.round(scorerMedData.at(-1)!),
         }
       : null;
 
@@ -1694,7 +1966,7 @@ export function DanmarkKort({
             </Dropdown.Popover>
           </Dropdown>
 
-          <Dropdown>
+          <Dropdown onOpenChange={(aaben) => !aaben && panelInfo.luk()}>
             <Button
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
@@ -1703,12 +1975,34 @@ export function DanmarkKort({
               Prioritet
               {antalAendredePrioriteter > 0 && <FilterBadge antal={antalAendredePrioriteter} />}
             </Button>
-            <Dropdown.Popover className={kategorier.length > 1 ? "w-[580px] max-w-[calc(100vw-2rem)]" : "min-w-[280px]"}>
-              <div className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto p-3">
+            {/* overflow-visible, så infoboksen kan stå uden for panelet; selve indholdet scroller
+                i stedet (max-h-[inherit] arver panelets max-højde). */}
+            <Dropdown.Popover
+              className={`overflow-visible ${kategorier.length > 1 ? "w-[580px] max-w-[calc(100vw-2rem)]" : "min-w-[280px]"}`}
+            >
+              {panelInfoKategori !== undefined && (
+                <div
+                  {...panelInfo.boksProps}
+                  role="region"
+                  aria-label={
+                    panelInfoKategori ? `Om ${panelInfoKategori.navn}` : "Om vægt pr. kategori"
+                  }
+                  // Til venstre for panelet med toppen i flugt; på smalle skærme er der ikke
+                  // plads, så den lægger sig over panelets top i stedet.
+                  className="absolute inset-x-0 top-0 z-10 rounded-2xl border border-border bg-overlay p-3 shadow-(--overlay-shadow) sm:inset-x-auto sm:right-full sm:mr-2 sm:w-72"
+                >
+                  {panelInfoKategori ? (
+                    <KategoriInfoIndhold kategori={panelInfoKategori} />
+                  ) : (
+                    <PrioritetInfoIndhold />
+                  )}
+                </div>
+              )}
+              <div className="flex max-h-[inherit] flex-col gap-4 overflow-y-auto p-3">
                 {/* Nulstilling sker med "Nulstil filtre" i værktøjslinjen. */}
                 <div className="flex items-center gap-1">
                   <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
-                  <PrioritetInfo />
+                  <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
                 </div>
 
                 {antalAktiveKategorier === 1 && kategorier.length > 1 && (
@@ -1717,11 +2011,8 @@ export function DanmarkKort({
                   </p>
                 )}
 
-                {/* To kolonner, der fyldes oppefra og ned: først venstre kolonne, så højre. */}
-                <div
-                  className="grid gap-3 sm:grid-flow-col sm:grid-cols-2"
-                  style={{ gridTemplateRows: `repeat(${Math.ceil(kategorier.length / 2)}, auto)` }}
-                >
+                {/* To kolonner, der fyldes række for række, så den sidste kategori står nederst. */}
+                <div className="grid gap-3 sm:grid-cols-2">
                 {kategorier.map((kat) => {
                   const aktiv = aktiveKategorier[kat.id] ?? true;
                   // Mindst én kategori skal tælle med, ellers er der ingen score at vise.
@@ -1741,7 +2032,10 @@ export function DanmarkKort({
                         >
                           <KategoriIkon navn={kat.ikon} className="h-4 w-4 shrink-0 text-muted" />
                           <Label className="truncate">{kat.navn}</Label>
-                          <KategoriInfo kategori={kat} />
+                          <InfoKnap
+                            label={`Hvad indgår i ${kat.navn}?`}
+                            {...panelInfo.knapProps(kat.id)}
+                          />
                         </div>
                         <Switch
                           size="sm"
@@ -1814,6 +2108,19 @@ export function DanmarkKort({
                           className="w-9 shrink-0 rounded-md border border-border bg-surface px-1 py-1 text-right text-xs tabular-nums text-foreground outline-none transition-colors focus:border-accent disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       </div>
+
+                      {NOEGLETAL_VALG[kat.slug] && (
+                        <NoegletalVaelger
+                          kategori={kat}
+                          valg={NOEGLETAL_VALG[kat.slug]}
+                          valgteIder={valgteIder(kat)}
+                          aktiv={aktiv}
+                          antalUdenData={
+                            kommuneScores.filter((s) => kategoriScore(s.kode, kat) === null).length
+                          }
+                          onVaelg={(ider) => setNoegletalValg((v) => ({ ...v, [kat.id]: ider }))}
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -2173,7 +2480,7 @@ export function DanmarkKort({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-2">
           {/* Kortene har Styrker/Fokusområder i to kolonner, så de skal have en vis bredde. */}
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {kommunerFiltreret.map((k) => (
+            {kommunerFiltreret.slice(0, oversigtAntalVist).map((k) => (
               <KommuneKort
               key={k.kode}
               kommune={k}
@@ -2185,6 +2492,20 @@ export function DanmarkKort({
             ))}
 
             {kommunerFiltreret.length === 0 && ingenKommuner}
+          </div>
+
+          <div className="mx-auto mt-3 max-w-sm pb-2">
+            <VisFlere
+              vist={oversigtAntalVist}
+              ialt={kommunerFiltreret.length}
+              bid={OVERSIGT_BID}
+              onVisFlere={() =>
+                setOversigtVisFlere({
+                  noegle: listeNoegle,
+                  antal: oversigtAntalVist + OVERSIGT_BID,
+                })
+              }
+            />
           </div>
         </div>
         <div className="h-5 shrink-0" />
@@ -2200,35 +2521,110 @@ export function DanmarkKort({
         {/* Luft over og under scrollområdet, så scrollbaren holder sig fri af de runde
             hjørner (som i Oversigt). */}
         <div className="h-5 shrink-0" />
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-surface">
+        <div className="min-h-0 flex-1 overflow-auto">
+          {/* Samme sortering som sidepanelet i Kort: klik på en overskrift sorterer efter
+              den, og et klik mere vender retningen. */}
+          <table className="w-full whitespace-nowrap text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-surface">
               <tr className="border-b border-border text-muted">
-                <th className="px-5 py-3 font-medium">Kommune</th>
-                <th className="px-5 py-3 font-medium">Kode</th>
-                <th className="px-5 py-3 font-medium">Region</th>
+                <th className="w-16 px-4 py-3 font-medium">#</th>
+                <SorterbarOverskrift
+                  felt="navn"
+                  label="Kommune"
+                  sortFelt={sortFelt}
+                  sortRetning={sortRetning}
+                  onSorter={sorterEfterKolonne}
+                />
+                <th className="px-4 py-3 font-medium">Region</th>
+                <SorterbarOverskrift
+                  felt="score"
+                  label="Samlet score"
+                  sortFelt={sortFelt}
+                  sortRetning={sortRetning}
+                  onSorter={sorterEfterKolonne}
+                  hoejre
+                />
+                {kategorier.map((kat) => (
+                  <SorterbarOverskrift
+                    key={kat.id}
+                    felt={`kat-${kat.id}`}
+                    label={kat.navn}
+                    ikon={kat.ikon}
+                    sortFelt={sortFelt}
+                    sortRetning={sortRetning}
+                    onSorter={sorterEfterKolonne}
+                    hoejre
+                    inaktiv={aktiveKategorier[kat.id] === false}
+                  />
+                ))}
+                <th className="px-4 py-3">
+                  <span className="sr-only">Rapport</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {kommunerFiltreret.map((k) => (
-                <tr
-                  key={k.kode}
-                  onClick={() => vaelgKommune(k)}
-                  className={`cursor-pointer border-b border-border/60 transition-colors duration-150 ${
-                    valgtKode === k.kode ? "bg-accent/10" : "hover:bg-surface-secondary"
-                  }`}
-                >
-                  <td className="px-5 py-2.5 font-medium text-foreground">{k.navn}</td>
-                  <td className="px-5 py-2.5 text-muted">{k.kode}</td>
-                  <td className="px-5 py-2.5 text-muted">
-                    {REGION_NAVNE[k.regionskode] ?? "Ukendt"}
-                  </td>
-                </tr>
-              ))}
+              {sidepanelKommuner.map((k) => {
+                const rang = rangAf(k.kode);
+                return (
+                  <tr
+                    key={k.kode}
+                    onClick={() => vaelgFraOversigt(k)}
+                    className={`cursor-pointer border-b border-border/60 transition-colors duration-150 ${
+                      valgtKode === k.kode ? "bg-accent/10" : "hover:bg-surface-secondary"
+                    }`}
+                  >
+                    <td className="px-4 py-2">
+                      {rang > 0 && (
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${rankFarve(
+                            rang,
+                          )}`}
+                        >
+                          {rang}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 font-medium text-foreground">{k.navn}</td>
+                    <td className="px-4 py-2 text-muted">
+                      {REGION_NAVNE[k.regionskode] ?? "Ukendt"}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex justify-end">
+                        <ScoreBadge score={vaegtetScore(k.kode)} />
+                      </div>
+                    </td>
+                    {kategorier.map((kat) => {
+                      const score = kategoriScore(k.kode, kat);
+                      return (
+                        <td
+                          key={kat.id}
+                          className={`px-4 py-2 text-right tabular-nums ${
+                            aktiveKategorier[kat.id] === false ? "text-muted/50" : "text-foreground"
+                          }`}
+                        >
+                          {score === null ? "–" : Math.round(score)}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-2 text-right">
+                      <a
+                        href={`/kommune/${kommuneSlug(k.navn)}`}
+                        target="_blank"
+                        rel="noopener"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors duration-150 hover:bg-accent/10"
+                      >
+                        <IconFileText className="h-3.5 w-3.5" />
+                        Rapport
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })}
 
-              {kommunerFiltreret.length === 0 && (
+              {sidepanelKommuner.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-5 py-12 text-sm text-muted">
+                  <td colSpan={kategorier.length + 5} className="px-5 py-12 text-sm text-muted">
                     {klar ? (
                       "Ingen kommuner matcher."
                     ) : (

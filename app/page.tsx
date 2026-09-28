@@ -21,7 +21,7 @@ export default function Home() {
               </h1>
 
               <p className="mt-7 max-w-xl text-lg leading-8 text-muted sm:text-xl">
-                Danmarkskortet hjælper dig med at udforske danske byer og
+                TestProjekt hjælper dig med at udforske danske byer og
                 områder, så du kan finde et sted, der føles rigtigt for dig.
               </p>
 
@@ -118,7 +118,7 @@ export default function Home() {
 
             <p className="mt-5 text-lg leading-8 text-muted">
               Når man overvejer en ny by eller et nyt område, handler det om
-              mere end én enkelt faktor. Danmarkskortet samler oplevelsen,
+              mere end én enkelt faktor. TestProjekt samler oplevelsen,
               så du kan se det større billede.
             </p>
           </div>
@@ -255,7 +255,7 @@ export default function Home() {
             <Card.Content className="p-8 sm:p-12 lg:p-16">
               <div className="max-w-2xl">
                 <p className="text-sm font-medium tracking-wide text-accent">
-                  Danmarkskortet
+                  TestProjekt
                 </p>
 
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">

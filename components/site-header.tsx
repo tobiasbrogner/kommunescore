@@ -17,7 +17,7 @@ export function SiteHeader() {
   const bredde = usePathname().startsWith("/kort") ? "max-w-[1600px]" : "max-w-7xl";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-md">
+    <header data-skjul-ved-print className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-md">
       <nav
         aria-label="Primær navigation"
         className={`mx-auto flex h-18 ${bredde} items-center justify-between px-4 sm:px-6 lg:px-8`}

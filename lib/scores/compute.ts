@@ -13,7 +13,7 @@ export type KategoriMeta = {
   standardvaegt: number;
   venlighed: number;
   ikon: string | null;
-  noegletal: { navn: string; enhed: string; beskrivelse: string | null }[];
+  noegletal: { id: number; navn: string; enhed: string; beskrivelse: string | null }[];
 };
 
 export type KommuneScore = {
@@ -21,6 +21,9 @@ export type KommuneScore = {
   navn: string;
   samlet: number;
   kategorier: Record<number, number>; // kategoriId -> score 50-100
+  // noegletalId -> score 50-100, kun for nøgletal kommunen har en værdi for. Bruges,
+  // når man på /kort vælger ét bestemt nøgletal i en kategori (fx kun ejerlejligheder).
+  noegletal: Record<number, number>;
 };
 
 const SCORE_MIN = 50;
@@ -78,6 +81,7 @@ export function beregnScores(
 
   // kommuneKode -> kategoriId -> liste af normaliserede nøgletal-scores
   const kategoriScorerPrKommune = new Map<string, Map<number, number[]>>();
+  const noegletalScorerPrKommune = new Map<string, Record<number, number>>();
 
   for (const [noegletalId, vaerdier] of perNoegletal) {
     const retning = retningPrNoegletal.get(noegletalId)!;
@@ -86,6 +90,9 @@ export function beregnScores(
     const normaliseret = normaliserNoegletal(vaerdier, retning, venlighedTilEksponent(venlighed));
 
     for (const [kommuneKode, score] of normaliseret) {
+      if (!noegletalScorerPrKommune.has(kommuneKode)) noegletalScorerPrKommune.set(kommuneKode, {});
+      noegletalScorerPrKommune.get(kommuneKode)![noegletalId] = Math.round(score * 10) / 10;
+
       if (!kategoriScorerPrKommune.has(kommuneKode)) {
         kategoriScorerPrKommune.set(kommuneKode, new Map());
       }
@@ -116,6 +123,7 @@ export function beregnScores(
       navn: kommune.navn,
       samlet: Math.round((samletSum / samletVaegt) * 10) / 10,
       kategorier: kategoriScores,
+      noegletal: noegletalScorerPrKommune.get(kommune.kode) ?? {},
     };
   });
 }

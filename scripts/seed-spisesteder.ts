@@ -11,7 +11,7 @@ const KATEGORI_NAVN = "Spisesteder";
 const KATEGORI_SLUG = "spisesteder";
 const NOEGLETAL_NAVN = "Spisesteder pr. 1.000 indbyggere";
 const NOEGLETAL_BESKRIVELSE =
-  "Konferencecentre, ferieboliger, campingpladser, andre overnatningsfaciliteter, restauranter, pizzeriaer, grillbarer, isbarer, event catering, anden restaurationsvirksomhed, caféer, værtshuse og diskoteker.";
+  "Antal firmaer i 2024 inden for restauration og overnatning pr. 1.000 indbyggere (Danmarks Statistik, GF12 og FOLK1AM). Omfatter restauranter, pizzeriaer, grillbarer, isbarer, caféer, værtshuse, diskoteker, event catering, anden restaurationsvirksomhed, konferencecentre, ferieboliger, campingpladser og andre overnatningsfaciliteter. Flere steder giver en højere score.";
 
 // GF12 (Danmarks Statistik): antal firmaer pr. branche. Efter aftale summeres
 // ALLE branche-kolonner i filen, uanset hvilke der er med — også overgruppen

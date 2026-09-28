@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Danmarkskortet",
+  title: "TestProjekt",
   description:
     "Find et sted i Danmark, der passer til dit liv.",
 };

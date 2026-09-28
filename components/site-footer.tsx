@@ -9,6 +9,8 @@ const linkGrupper: { href: string; label: string }[][] = [
   [
     { href: "/", label: "Forside" },
     { href: "/kort", label: "Udforsk kortet" },
+    { href: "/saadan-virker-det", label: "Sådan virker det" },
+    { href: "/kilder", label: "Kilder" },
   ],
 ];
 
@@ -35,7 +37,7 @@ export function SiteFooter() {
           <div className="grid gap-10 py-12 sm:grid-cols-[minmax(0,12rem)_1fr] lg:pr-10">
             <div className="flex flex-col justify-between gap-8">
               <div>
-                <p className="text-base font-semibold tracking-tight">Danmarkskortet</p>
+                <p className="text-base font-semibold tracking-tight">TestProjekt</p>
                 <p className="mt-2 text-sm leading-relaxed text-white/80">
                   Find et sted i Danmark, der passer til dit liv.
                 </p>
@@ -110,10 +112,10 @@ export function SiteFooter() {
       <div className="border-t border-border bg-background">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm sm:px-6 lg:px-8">
           <p>
-            <span className="font-semibold text-accent">Danmarkskortet</span>
+            <span className="font-semibold text-accent">TestProjekt</span>
             <span className="text-muted"> – find et sted, der passer til dit liv</span>
           </p>
-          <p className="text-xs text-muted">© {aar} Danmarkskortet</p>
+          <p className="text-xs text-muted">© {aar} TestProjekt</p>
         </div>
       </div>
     </footer>

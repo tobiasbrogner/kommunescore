@@ -9,6 +9,8 @@ import {
   IconTrendingUp,
 } from "@tabler/icons-react";
 import { KategoriIkon } from "@/components/ikon";
+import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
+import { kommuneSlug } from "@/lib/kommuner/slug";
 import {
   hentKommuneRapport,
   slugForKommuneKode,
@@ -218,9 +220,6 @@ function NoegletalRaekke({ n }: { n: NoegletalRapport }) {
       <td className="py-3 pr-4">
         <p className="font-medium text-foreground">{n.navn}</p>
         {n.beskrivelse && <p className="mt-0.5 text-xs leading-snug text-muted">{n.beskrivelse}</p>}
-        <p className="mt-0.5 text-xs text-muted">
-          {n.retning === "hoejere_bedre" ? "Højere er bedre" : "Lavere er bedre"}
-        </p>
       </td>
       <td className="whitespace-nowrap py-3 pr-4 text-right tabular-nums">
         <span className="font-semibold text-foreground">{formaterTal(n.vaerdi)}</span>{" "}
@@ -349,13 +348,17 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-      <NextLink
-        href="/kort"
-        className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
-      >
-        <IconArrowLeft className="h-4 w-4" />
-        Til kortet
-      </NextLink>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <NextLink
+          href="/kort"
+          data-skjul-ved-print
+          className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
+        >
+          <IconArrowLeft className="h-4 w-4" />
+          Til kortet
+        </NextLink>
+        <RapportVaerktoejer kommunenavn={rapport.navn} slug={kommuneSlug(rapport.navn)} />
+      </div>
 
       {/* Overblik */}
       <header className="mt-4 overflow-hidden rounded-3xl border border-border bg-surface">
