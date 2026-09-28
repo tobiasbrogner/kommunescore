@@ -20,6 +20,7 @@
     "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@heroui/react": "^3.2.5",
     "@heroui/styles": "^3.2.5",
     "@next/env": "^16.3.6",

@@ -61,7 +61,7 @@ function sammenlign(vaerdi: number, alle: number[], hoejereErBedre = true): Samm
 // Region og areal står kun i kortets geojson; filen læses én gang pr. serverproces.
 type GeoFakta = { regionskode: string; arealKm2: number };
 let geoFakta: Promise<Map<string, GeoFakta>> | null = null;
-function hentGeoFakta() {
+export function hentGeoFakta() {
   geoFakta ??= readFile(path.join(process.cwd(), "public/data/kommuner.geojson"), "utf8").then(
     (tekst) => {
       const data = JSON.parse(tekst) as GeoJSON.FeatureCollection;

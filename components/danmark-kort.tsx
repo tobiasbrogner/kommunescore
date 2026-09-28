@@ -50,8 +50,16 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
+import { AiChat } from "@/components/ai-chat";
 import { KategoriIkon } from "@/components/ikon";
 import { REGION_NAVNE } from "@/lib/kommuner/regioner";
+import {
+  GRUPPE_BESKRIVELSE,
+  GRUPPE_NAVNE,
+  LANDSDEL_NAVNE,
+  kommuneMatcherFilterId,
+  kommuneMatcherGruppeId,
+} from "@/lib/kommuner/omraader";
 import { polygonArealKm2 } from "@/lib/kommuner/areal";
 import { navnePunkt } from "@/lib/kommuner/navne-punkt";
 import { kommuneSlug } from "@/lib/kommuner/slug";
@@ -300,89 +308,6 @@ function byggKommuneFyldFarve(farver: readonly string[]): any {
       ...taerskler.flatMap((taerskel, i) => [taerskel, farver[i + 1]]),
     ],
   ];
-}
-
-const LANDSDEL_NAVNE: Record<string, string> = {
-  jylland: "Jylland",
-  fyn: "Fyn",
-  sjaelland: "Sjælland",
-};
-
-// Region Syddanmark (1083) dækker både Jylland og Fyn, så de fynske
-// kommuner skal udpeges eksplicit for at kunne udlede landsdelen.
-const FYN_KOMMUNE_KODER = new Set([
-  "0410", // Middelfart
-  "0420", // Assens
-  "0430", // Faaborg-Midtfyn
-  "0440", // Kerteminde
-  "0450", // Nyborg
-  "0461", // Odense
-  "0479", // Svendborg
-  "0480", // Nordfyns
-  "0482", // Langeland
-  "0492", // Ærø
-]);
-
-function landsdelForKommune(kode: string, regionskode: string): string {
-  if (regionskode === "1081" || regionskode === "1082") return "jylland";
-  if (regionskode === "1083") return FYN_KOMMUNE_KODER.has(kode) ? "fyn" : "jylland";
-  return "sjaelland";
-}
-
-function kommuneMatcherFilterId(kode: string, regionskode: string, filterId: string) {
-  if (filterId in REGION_NAVNE) return regionskode === filterId;
-  return landsdelForKommune(kode, regionskode) === filterId;
-}
-
-// Danmarks Statistiks kommunegruppering, se
-// https://www.dst.dk/da/Statistik/dokumentation/nomenklaturer/kommunegrupper
-const GRUPPE_NAVNE: Record<string, string> = {
-  "1": "Hovedstadskommuner",
-  "2": "Storbykommuner",
-  "3": "Provinsbykommuner",
-  "4": "Oplandskommuner",
-  "5": "Landkommuner",
-};
-
-const GRUPPE_BESKRIVELSE: Record<string, string> = {
-  "1": "Kommuner med meget høj adgang til arbejdspladser.",
-  "2": "Største by har mindst 100.000 indbyggere.",
-  "3": "Største by har mindst 30.000 indbyggere.",
-  "4": "Mindre største by, men relativt god adgang til arbejdspladser.",
-  "5": "Mindre største by og relativt lav adgang til arbejdspladser.",
-};
-
-const GRUPPE_KOMMUNE_KODER: Record<string, string[]> = {
-  "1": [
-    "0101", "0147", "0151", "0153", "0155", "0157", "0159", "0161", "0163",
-    "0165", "0167", "0169", "0173", "0175", "0183", "0185", "0187", "0190",
-    "0201", "0223", "0230", "0240", "0253", "0269",
-  ],
-  "2": ["0461", "0751", "0851"],
-  "3": [
-    "0217", "0219", "0259", "0265", "0330", "0370", "0561", "0607", "0615",
-    "0621", "0630", "0657", "0661", "0730", "0740", "0791",
-  ],
-  "4": [
-    "0210", "0250", "0260", "0270", "0316", "0320", "0329", "0336", "0340",
-    "0350", "0410", "0420", "0430", "0440", "0450", "0480", "0575", "0706",
-    "0710", "0727", "0746", "0756", "0766", "0840",
-  ],
-  "5": [
-    "0306", "0326", "0360", "0376", "0390", "0400", "0479", "0482", "0492",
-    "0510", "0530", "0540", "0550", "0563", "0573", "0580", "0665", "0671",
-    "0707", "0741", "0760", "0773", "0779", "0787", "0810", "0813", "0820",
-    "0825", "0846", "0849", "0860",
-  ],
-};
-
-const KOMMUNE_GRUPPE_ID = new Map<string, string>();
-Object.entries(GRUPPE_KOMMUNE_KODER).forEach(([gruppeId, koder]) => {
-  koder.forEach((kode) => KOMMUNE_GRUPPE_ID.set(kode, gruppeId));
-});
-
-function kommuneMatcherGruppeId(kode: string, gruppeId: string) {
-  return KOMMUNE_GRUPPE_ID.get(kode) === gruppeId;
 }
 
 const DANMARK_BOUNDS: [[number, number], [number, number]] = [
@@ -930,7 +855,7 @@ function KommuneKort({
   return (
     <div
       data-kode={k.kode}
-      className={`flex shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${
+      className={`@container flex shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${
         valgt ? "border-accent ring-2 ring-accent/40" : "border-border"
       }`}
     >
@@ -958,7 +883,9 @@ function KommuneKort({
         </div>
 
         {profil && (profil.styrker.length > 0 || profil.fokus.length > 0) && (
-          <div className="mx-3.5 grid grid-cols-2 gap-3 border-t border-border py-3">
+          // Er kortet smalt (fx i sidepanelet på mindre skærme), står Styrker og
+          // Fokusområder under hinanden, så ordene ikke brydes midt over.
+          <div className="mx-3.5 grid grid-cols-1 gap-3 border-t border-border py-3 @xs:grid-cols-2">
             <ProfilKolonne
               titel="Styrker"
               Ikon={IconTrendingUp}
@@ -966,7 +893,7 @@ function KommuneKort({
               punkter={profil.styrker}
             />
             <ProfilKolonne
-              className="border-l border-border pl-3"
+              className="border-t border-border pt-3 @xs:border-t-0 @xs:border-l @xs:pt-0 @xs:pl-3"
               titel="Fokusområder"
               Ikon={IconTarget}
               farve="text-accent"
@@ -2254,7 +2181,7 @@ export function DanmarkKort({
           Oversigt, sorteret efter score og filtreret af søgning og Område/Gruppe. */}
       <aside
         aria-label="Kommuner"
-        className={`hidden w-1/4 shrink-0 overflow-y-auto border-r border-border bg-surface ${
+        className={`hidden w-1/5 shrink-0 overflow-y-auto border-r border-border bg-surface ${
           sidepanelSkjult ? "" : "lg:block"
         }`}
       >
@@ -2367,6 +2294,7 @@ export function DanmarkKort({
 
       <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
         <div ref={containerRef} className="h-full w-full" />
+        <AiChat />
         {zoomIkonPladser && createPortal(<IconPlus className="h-5 w-5" />, zoomIkonPladser.ind)}
         {zoomIkonPladser && createPortal(<IconMinus className="h-5 w-5" />, zoomIkonPladser.ud)}
         {!klar && (
