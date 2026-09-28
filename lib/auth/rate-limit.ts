@@ -54,8 +54,10 @@ function opretKvote(graense: number, vindueMs: number) {
   };
 }
 
-// AI-chat: hvert kald koster penge, så der er både en kvote pr. IP og et samlet
+// AI-chat: hvert kald koster penge, så der er både en kvote pr. besøgende og et samlet
 // loft for hele sitet pr. døgn (kaldes med en fast nøgle). Den hårde grænse for
 // udgiften er beløbsgrænsen i Anthropic Console; disse holder den fordelt.
-export const chatKvote = opretKvote(10, 24 * 60 * 60 * 1000);
+// Besøgende uden login tælles pr. IP; indloggede pr. konto med en større kvote.
+export const chatKvoteGaest = opretKvote(5, 24 * 60 * 60 * 1000);
+export const chatKvoteBruger = opretKvote(10, 24 * 60 * 60 * 1000);
 export const erChatLoftNaaet = opretRateLimiter(500, 24 * 60 * 60 * 1000);

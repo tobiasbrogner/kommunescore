@@ -16,7 +16,7 @@ const MAKS_TEGN = 500;
 const FORSLAG = [
   "Hvor er det billigst at bo med børn?",
   "Hvordan bruger jeg Prioritet?",
-  "Fortæl mig om Aarhus",
+  "Hvordan regnes scoren ud?",
 ];
 
 // Botten skriver lidt markdown: **fed**, punktlister og links til sidens egne sider.

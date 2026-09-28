@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { chatKvote, erChatLoftNaaet } from "@/lib/auth/rate-limit";
+import { verifySession } from "@/lib/auth/dal";
+import { chatKvoteBruger, chatKvoteGaest, erChatLoftNaaet } from "@/lib/auth/rate-limit";
 import { byggSystemPrompt } from "@/lib/chat/system-prompt";
 import { CHAT_VAERKTOEJER, koerVaerktoej } from "@/lib/chat/vaerktoejer";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
@@ -18,6 +19,10 @@ const MAKS_RUNDER = 4;
 const MAKS_BESKEDER = 16;
 const MAKS_BRUGER_TEGN = 500;
 const MAKS_BOT_TEGN = 4000;
+// Haiku 4.5-priser i dollar pr. million tokens, kun til at anslå prisen i loggen.
+// Cache-skrivning koster 1,25x input og cache-læsning 0,1x.
+const PRIS_INPUT = 1;
+const PRIS_OUTPUT = 5;
 
 type IndBesked = { rolle: "bruger" | "assistent"; tekst: string };
 
@@ -47,10 +52,19 @@ function ipFra(request: Request) {
   return request.headers.get("x-forwarded-for") ?? "ukendt";
 }
 
+// Indloggede tælles pr. konto med den store kvote, alle andre pr. IP med den lille.
+async function kvoteFor(request: Request) {
+  const bruger = await verifySession();
+  return bruger
+    ? { kvote: chatKvoteBruger, noegle: String(bruger.id) }
+    : { kvote: chatKvoteGaest, noegle: ipFra(request) };
+}
+
 // Hvor mange beskeder brugeren har tilbage i dag. Bruger ikke af kvoten.
 export async function GET(request: Request) {
+  const { kvote, noegle } = await kvoteFor(request);
   return NextResponse.json(
-    { tilbage: chatKvote.tilbage(ipFra(request)), maks: chatKvote.graense },
+    { tilbage: kvote.tilbage(noegle), maks: kvote.graense },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -66,8 +80,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ fejl: beskeder }, { status: 400 });
   }
 
-  const ip = ipFra(request);
-  if (!chatKvote.brug(ip)) {
+  const { kvote, noegle } = await kvoteFor(request);
+  if (!kvote.brug(noegle)) {
     return NextResponse.json(
       { fejl: "Du har brugt dagens beskeder til chatten. Prøv igen i morgen.", tilbage: 0 },
       { status: 429 },
@@ -94,6 +108,8 @@ export async function POST(request: Request) {
     async start(controller) {
       const skriv = (tekst: string) => controller.enqueue(encoder.encode(tekst));
       let harSkrevet = false;
+      // Tokenforbrug for hele beskeden, summeret over alle værktøjsrunder.
+      const forbrug = { runder: 0, input: 0, cacheSkriv: 0, cacheLaes: 0, output: 0 };
 
       try {
         for (let runde = 0; runde < MAKS_RUNDER; runde++) {
@@ -121,6 +137,12 @@ export async function POST(request: Request) {
           });
 
           const besked = await svar.finalMessage();
+          forbrug.runder += 1;
+          forbrug.input += besked.usage.input_tokens;
+          forbrug.cacheSkriv += besked.usage.cache_creation_input_tokens ?? 0;
+          forbrug.cacheLaes += besked.usage.cache_read_input_tokens ?? 0;
+          forbrug.output += besked.usage.output_tokens;
+
           const vaerktoejskald = besked.content.filter(
             (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
           );
@@ -169,6 +191,20 @@ export async function POST(request: Request) {
             : "Der skete en fejl. Prøv igen om lidt.";
         skriv(`${harSkrevet ? "\n\n" : ""}${tekst}`);
         controller.close();
+      } finally {
+        if (forbrug.runder > 0) {
+          const dollar =
+            (forbrug.input * PRIS_INPUT +
+              forbrug.cacheSkriv * PRIS_INPUT * 1.25 +
+              forbrug.cacheLaes * PRIS_INPUT * 0.1 +
+              forbrug.output * PRIS_OUTPUT) /
+            1_000_000;
+          console.log(
+            `Chat-forbrug: ${forbrug.runder} runde(r), ${beskeder.length} beskeder i samtalen, ` +
+              `input ${forbrug.input}, cache skrevet ${forbrug.cacheSkriv}, cache læst ${forbrug.cacheLaes}, ` +
+              `output ${forbrug.output}, ca. $${dollar.toFixed(5)}`,
+          );
+        }
       }
     },
   });
@@ -178,7 +214,7 @@ export async function POST(request: Request) {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
       // Resterende beskeder i dag, så chatten kan vise det.
-      "X-Chat-Tilbage": String(chatKvote.tilbage(ip)),
+      "X-Chat-Tilbage": String(kvote.tilbage(noegle)),
     },
   });
 }
