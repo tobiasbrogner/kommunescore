@@ -17,6 +17,8 @@
     "db:seed:spisesteder": "tsx scripts/seed-spisesteder.ts",
     "db:seed:indbyggertal": "tsx scripts/seed-indbyggertal.ts",
     "db:seed:boligpriser": "tsx scripts/seed-boligpriser.ts",
+    "db:seed:kommuneskat": "tsx scripts/seed-kommuneskat.ts",
+    "db:seed:tryghed": "tsx scripts/seed-tryghed.ts",
     "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"
   },
   "dependencies": {
