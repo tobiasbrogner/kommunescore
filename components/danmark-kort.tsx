@@ -31,6 +31,9 @@ import {
   IconChevronDown,
   IconFileText,
   IconFilterOff,
+  IconHeart,
+  IconHeartFilled,
+  IconLink,
   IconWorldMap,
   IconChevronsDown,
   IconHome,
@@ -52,6 +55,7 @@ import {
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 import { AiChat } from "@/components/ai-chat";
 import { KategoriIkon } from "@/components/ikon";
+import { useFavoritter } from "@/components/use-favoritter";
 import { REGION_NAVNE } from "@/lib/kommuner/regioner";
 import {
   GRUPPE_BESKRIVELSE,
@@ -99,12 +103,27 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Ejerlejlighed",
     },
   ],
+  // Grundskyld betales kun af boligejere, så lejere kan fravælge den.
+  kommuneskat: [
+    {
+      id: "kommuneskat",
+      label: "Kommuneskat",
+      forklaring: "Kommunal udskrivningsprocent (skat af indkomst)",
+      noegletal: "Kommuneskat",
+    },
+    {
+      id: "grundskyld",
+      label: "Grundskyld",
+      forklaring: "Grundskyldspromille; betales kun af boligejere",
+      noegletal: "Grundskyldspromille",
+    },
+  ],
 };
 
 type Visning = "kort" | "oversigt" | "regneark";
 
 // Sidepanelets sortering: samlet score, navn eller en enkelt kategoris score ("kat-<id>").
-type SortFelt = "score" | "navn" | `kat-${number}`;
+type SortFelt = "score" | "navn" | "favoritter" | `kat-${number}`;
 type SortRetning = "stigende" | "faldende";
 
 const KOMMUNER_URL = "/data/kommuner.geojson";
@@ -834,6 +853,36 @@ function RapportLink({ navn }: { navn: string }) {
   );
 }
 
+// Hjertet øverst til højre på kommunekortene. Hvid rund baggrund, så det kan ses på
+// både lyse og mørke billeder.
+function FavoritKnap({
+  navn,
+  favorit,
+  onSkift,
+  className = "",
+}: {
+  navn: string;
+  favorit: boolean;
+  onSkift: () => void;
+  className?: string;
+}) {
+  const Ikon = favorit ? IconHeartFilled : IconHeart;
+  return (
+    <button
+      type="button"
+      onClick={onSkift}
+      aria-pressed={favorit}
+      aria-label={favorit ? `Fjern ${navn} fra favoritter` : `Tilføj ${navn} til favoritter`}
+      title={favorit ? "Fjern fra favoritter" : "Tilføj til favoritter"}
+      className={`z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm transition-transform duration-150 hover:scale-110 ${
+        favorit ? "text-red-500" : "text-gray-600 hover:text-red-500"
+      } ${className}`}
+    >
+      <Ikon className="h-4.5 w-4.5" />
+    </button>
+  );
+}
+
 function KommuneKort({
   kommune: k,
   rang,
@@ -841,6 +890,8 @@ function KommuneKort({
   valgt = false,
   profil,
   lavtBillede = false,
+  favorit,
+  onFavorit,
   onVaelg,
 }: {
   kommune: Kommune;
@@ -850,15 +901,24 @@ function KommuneKort({
   profil?: KommuneProfil;
   // Lidt lavere billede i sidepanelet, så de øverste tre kort kan ses hele.
   lavtBillede?: boolean;
+  favorit: boolean;
+  onFavorit: (k: Kommune) => void;
   onVaelg: (k: Kommune) => void;
 }) {
   return (
     <div
       data-kode={k.kode}
-      className={`@container flex shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${
+      className={`@container relative flex shrink-0 flex-col overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:-translate-y-1 hover:shadow-sm ${
         valgt ? "border-accent ring-2 ring-accent/40" : "border-border"
       }`}
     >
+      {/* Uden for kortets knap, da en knap ikke må ligge inde i en anden. */}
+      <FavoritKnap
+        navn={k.navn}
+        favorit={favorit}
+        onSkift={() => onFavorit(k)}
+        className="absolute right-2 top-2"
+      />
       <button type="button" onClick={() => onVaelg(k)} className="flex flex-1 flex-col justify-start text-left">
         <div
           className={`relative flex ${lavtBillede ? "h-24" : "h-28"} items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10`}
@@ -978,6 +1038,12 @@ export function DanmarkKort({
   const sidepanelKontrolRef = useRef<SidepanelKontrol | null>(null);
   const [sortFelt, setSortFelt] = useState<SortFelt>("score");
   const [sortRetning, setSortRetning] = useState<SortRetning>("faldende");
+  const { favoritter, skiftFavorit, delLink, fraLink } = useFavoritter(kommuneScores);
+  // Sidepanelet viser kun favoritterne. Indtil brugeren selv vælger, er det slået til,
+  // hvis siden blev åbnet fra et delt link.
+  const [kunFavoritterValg, setKunFavoritter] = useState<boolean | null>(null);
+  const kunFavoritter = kunFavoritterValg ?? fraLink;
+  const [linkKopieret, setLinkKopieret] = useState(false);
   // "Vis flere" gælder én bestemt søgning/filtrering/sortering (listeNoegle nedenfor);
   // ændres den, starter listen forfra med første bid.
   const [visFlere, setVisFlere] = useState({ noegle: "", antal: SIDEPANEL_BID });
@@ -1623,6 +1689,7 @@ export function DanmarkKort({
   const sortFeltNavn = (felt: SortFelt) => {
     if (felt === "score") return "Samlet score";
     if (felt === "navn") return "Navn";
+    if (felt === "favoritter") return "Favoritter først";
     const id = Number(felt.slice(4));
     return kategorier.find((kat) => kat.id === id)?.navn ?? "Kategori";
   };
@@ -1644,7 +1711,7 @@ export function DanmarkKort({
 
   const sidepanelKommuner = useMemo(() => {
     const vaerdi = (k: Kommune) => {
-      if (sortFelt === "score") return vaegtetScore(k.kode);
+      if (sortFelt === "score" || sortFelt === "favoritter") return vaegtetScore(k.kode);
       const id = Number(sortFelt.slice(4));
       const kat = kategorier.find((kat) => kat.id === id);
       return kat ? kategoriScore(k.kode, kat) : null;
@@ -1656,6 +1723,11 @@ export function DanmarkKort({
     const navnOrden = (a: Kommune, b: Kommune) => a.navn.localeCompare(b.navn, "da");
     return [...kommunerFiltreret].sort((a, b) => {
       if (sortFelt === "navn") return retning * navnOrden(a, b);
+      // Favoritter først (i begge retninger); ellers efter samlet score.
+      if (sortFelt === "favoritter") {
+        const aFavorit = favoritter.includes(a.kode);
+        if (aFavorit !== favoritter.includes(b.kode)) return aFavorit ? -1 : 1;
+      }
       const va = vaerdi(a);
       const vb = vaerdi(b);
       if (va === null || vb === null) {
@@ -1663,7 +1735,25 @@ export function DanmarkKort({
       }
       return retning * (va - vb) || -retning * navnOrden(a, b);
     });
-  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune, noegletalValg]);
+  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune, noegletalValg, favoritter]);
+
+  // Kun sidepanelet har Favoritter-knappen, så filtret gælder kun der (ikke Oversigt
+  // og Regneark). Placeringerne er stadig blandt alle kommuner i Område/Gruppe.
+  const sidepanelListe = kunFavoritter
+    ? sidepanelKommuner.filter((k) => favoritter.includes(k.kode))
+    : sidepanelKommuner;
+
+  const delFavoritter = async () => {
+    const link = delLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkKopieret(true);
+      setTimeout(() => setLinkKopieret(false), 2000);
+    } catch {
+      // Udklipsholderen kræver https og tilladelse; ellers kan linket kopieres herfra.
+      window.prompt("Kopiér linket til dine favoritter:", link);
+    }
+  };
 
   // Ny søgning, filtrering eller sortering starter listen forfra med første bid.
   const noegleFor = (valg: Selection) => (valg === "all" ? "all" : [...valg].sort().join(","));
@@ -1674,7 +1764,8 @@ export function DanmarkKort({
     sortFelt,
     sortRetning,
   ].join("|");
-  const antalVist = visFlere.noegle === listeNoegle ? visFlere.antal : SIDEPANEL_BID;
+  const sidepanelNoegle = `${listeNoegle}|${kunFavoritter}`;
+  const antalVist = visFlere.noegle === sidepanelNoegle ? visFlere.antal : SIDEPANEL_BID;
   const oversigtAntalVist =
     oversigtVisFlere.noegle === listeNoegle ? oversigtVisFlere.antal : OVERSIGT_BID;
 
@@ -2185,15 +2276,18 @@ export function DanmarkKort({
           sidepanelSkjult ? "" : "lg:block"
         }`}
       >
-        <div className="sticky top-0 z-20 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
-          <div className="flex items-center gap-2">
+        <div className="@container sticky top-0 z-20 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
+          <div className="flex items-center gap-1.5">
             <Dropdown>
               <Button
                 variant="outline"
-                className="h-10 shrink-0 gap-1.5 rounded-lg text-sm"
+                // Må krympe, så der er plads til Favoritter-knapperne i det smalle panel.
+                className="h-10 min-w-0 shrink gap-1.5 rounded-lg px-3 text-sm"
               >
                 <span className="truncate">
-                  <span className="text-muted">Sortér:</span> {sortFeltNavn(sortFelt)}
+                  {/* "Sortér:" skjules i det smalle panel, så der er plads til knapperne. */}
+                  <span className="hidden text-muted @xs:inline">Sortér: </span>
+                  {sortFeltNavn(sortFelt)}
                 </span>
                 <IconChevronDown className="h-4 w-4 shrink-0" />
               </Button>
@@ -2218,6 +2312,10 @@ export function DanmarkKort({
                       <Label>Navn</Label>
                       <Dropdown.ItemIndicator />
                     </Dropdown.Item>
+                    <Dropdown.Item id="favoritter" textValue="Favoritter først">
+                      <Label>Favoritter først</Label>
+                      <Dropdown.ItemIndicator />
+                    </Dropdown.Item>
                   </Dropdown.Section>
                   {kategorier.length > 0 && <Separator />}
                   {kategorier.length > 0 && (
@@ -2238,7 +2336,7 @@ export function DanmarkKort({
             <Button
               isIconOnly
               variant="outline"
-              className="h-10 w-10 shrink-0 rounded-lg"
+              className="h-10 w-9 min-w-9 shrink-0 rounded-lg"
               aria-label={
                 sortRetning === "stigende"
                   ? "Sorteret stigende – vend til faldende"
@@ -2253,20 +2351,57 @@ export function DanmarkKort({
               )}
             </Button>
 
-            {/* Vises kun, når søgning eller filtre har skåret kommuner fra. */}
-            <p className="ml-auto min-w-0 text-right text-xs leading-tight text-muted" aria-live="polite">
-              {kommuner.length > 0 && sidepanelKommuner.length < kommuner.length && (
-                <>
-                  <span className="font-semibold text-foreground">{sidepanelKommuner.length}</span>{" "}
-                  ud af {kommuner.length} kommuner fundet
-                </>
+            <Button
+              isIconOnly
+              variant={kunFavoritter ? "primary" : "outline"}
+              className="relative h-10 w-9 min-w-9 shrink-0 rounded-lg"
+              aria-pressed={kunFavoritter}
+              aria-label={kunFavoritter ? "Vis alle kommuner" : "Vis kun favoritter"}
+              onPress={() => setKunFavoritter(!kunFavoritter)}
+            >
+              {kunFavoritter ? (
+                <IconHeartFilled className="h-4 w-4" />
+              ) : (
+                <IconHeart className="h-4 w-4" />
               )}
-            </p>
+              {favoritter.length > 0 && <FilterBadge antal={favoritter.length} />}
+            </Button>
+
+            {/* Del-knappen vises kun sammen med favoritterne, så rækken ikke bliver for trang. */}
+            {kunFavoritter && (
+              <Button
+                isIconOnly
+                variant="outline"
+                className="h-10 w-9 min-w-9 shrink-0 rounded-lg"
+                isDisabled={favoritter.length === 0}
+                aria-label={linkKopieret ? "Link kopieret" : "Del favoritter"}
+                onPress={delFavoritter}
+              >
+                {linkKopieret ? (
+                  <IconCheck className="h-4 w-4 text-success" />
+                ) : (
+                  <IconLink className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
+
+          {/* Vises kun, når søgning, filtre eller favoritter har skåret kommuner fra. */}
+          {kommuner.length > 0 && sidepanelListe.length < kommuner.length && (
+            <p className="mt-2 text-xs leading-tight text-muted" aria-live="polite">
+              <span className="font-semibold text-foreground">{sidepanelListe.length}</span> ud af{" "}
+              {kommuner.length} kommuner {kunFavoritter ? "blandt dine favoritter" : "fundet"}
+            </p>
+          )}
+          {linkKopieret && (
+            <p className="mt-2 text-xs text-success" role="status">
+              Link til dine favoritter er kopieret.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 p-4">
-          {sidepanelKommuner.slice(0, antalVist).map((k) => (
+          {sidepanelListe.slice(0, antalVist).map((k) => (
             <KommuneKort
               key={k.kode}
               kommune={k}
@@ -2275,20 +2410,30 @@ export function DanmarkKort({
               valgt={valgtKode === k.kode}
               profil={kommuneProfiler.get(k.kode)}
               lavtBillede
+              favorit={favoritter.includes(k.kode)}
+              onFavorit={(k) => skiftFavorit(k.kode)}
               onVaelg={vaelgFraSidepanel}
             />
           ))}
 
           <VisFlere
             vist={antalVist}
-            ialt={sidepanelKommuner.length}
+            ialt={sidepanelListe.length}
             bid={SIDEPANEL_BID}
             onVisFlere={() =>
-              setVisFlere({ noegle: listeNoegle, antal: antalVist + SIDEPANEL_BID })
+              setVisFlere({ noegle: sidepanelNoegle, antal: antalVist + SIDEPANEL_BID })
             }
           />
 
-          {kommunerFiltreret.length === 0 && ingenKommuner}
+          {kunFavoritter && favoritter.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted">
+              Du har ingen favoritter endnu. Tryk på{" "}
+              <IconHeart className="inline h-4 w-4 align-text-bottom" aria-label="hjertet" /> på en
+              kommune for at gemme den her.
+            </p>
+          ) : (
+            sidepanelListe.length === 0 && ingenKommuner
+          )}
         </div>
       </aside>
 
@@ -2383,6 +2528,12 @@ export function DanmarkKort({
               >
                 <IconX className="h-4 w-4" />
               </button>
+              <FavoritKnap
+                navn={valgtKommune.navn}
+                favorit={favoritter.includes(valgtKommune.kode)}
+                onSkift={() => skiftFavorit(valgtKommune.kode)}
+                className="absolute right-10 top-2 h-7! w-7!"
+              />
             </div>
             <div className="flex items-center justify-between gap-2 p-3.5 pl-16">
               <div className="min-w-0">
@@ -2415,6 +2566,8 @@ export function DanmarkKort({
               rang={rangAf(k.kode)}
               score={vaegtetScore(k.kode)}
               profil={kommuneProfiler.get(k.kode)}
+              favorit={favoritter.includes(k.kode)}
+              onFavorit={(k) => skiftFavorit(k.kode)}
               onVaelg={vaelgFraOversigt}
             />
             ))}

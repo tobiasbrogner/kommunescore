@@ -48,7 +48,7 @@ Bemærk: Kategorien Børn handler om priser på børnepasning (lavere pris giver
 - Visninger: "Kort" (Danmarkskort farvet efter score med en kommuneliste til venstre), "Oversigt" (kommunerne som kort med billeder, styrker og fokusområder) og "Regneark" (tabel med alle kategoriscorer; klik på en kolonneoverskrift for at sortere).
 - Område: vælg en eller flere regioner eller landsdele (Jylland, Fyn, Sjælland). Ændrer ikke scoren, kun hvilke kommuner der vises og rangeres.
 - Gruppe: vælg kommunetyper efter Danmarks Statistik. Ændrer heller ikke scoren.
-- Prioritet: en skyder (0-100) pr. kategori, der bestemmer hvor meget den vejer i den samlede score. En kontakt pr. kategori slår den helt fra. Under Boligpriser kan man vælge kun Parcel/Rækkehus eller kun Ejerlejlighed.
+- Prioritet: en skyder (0-100) pr. kategori, der bestemmer hvor meget den vejer i den samlede score. En kontakt pr. kategori slår den helt fra. Under Boligpriser kan man vælge kun Parcel/Rækkehus eller kun Ejerlejlighed. Under Kommuneskat kan man fravælge Grundskyld (fx som lejer, da kun boligejere betaler grundskyld).
 - Nulstil filtre: dukker op, når noget er ændret, og sætter alt tilbage.
 - Sortér (over kommunelisten til venstre i Kort-visning): efter samlet score, navn eller én kategori, og knappen ved siden af vender rækkefølgen.
 - Indstillinger: fremhæv kommune ved mus eller klik, farv kortet efter score eller placering, og vælg farvepalet.
