@@ -109,10 +109,10 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
 }
 
 // Nøglerne bumpes, når payloadens form ændres, så en gammel cache ikke genbruges.
-export const getCachedKommuneScores = unstable_cache(hentOgBeregn, ["kommune-scores-v2"], {
+export const getCachedKommuneScores = unstable_cache(hentOgBeregn, ["kommune-scores-v3"], {
   tags: [KOMMUNE_SCORES_TAG],
 });
 
-export const getCachedRapportData = unstable_cache(hentOgBeregnAlt, ["kommune-rapport-data-v2"], {
+export const getCachedRapportData = unstable_cache(hentOgBeregnAlt, ["kommune-rapport-data-v3"], {
   tags: [KOMMUNE_SCORES_TAG],
 });

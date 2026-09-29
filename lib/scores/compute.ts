@@ -24,6 +24,8 @@ export type KommuneScore = {
   // noegletalId -> score 50-100, kun for nøgletal kommunen har en værdi for. Bruges,
   // når man på /kort vælger ét bestemt nøgletal i en kategori (fx kun ejerlejligheder).
   noegletal: Record<number, number>;
+  // noegletalId -> rå værdi i nøgletallets enhed (fx kr./m²), til at vise selve tallene.
+  vaerdier: Record<number, number>;
 };
 
 const SCORE_MIN = 50;
@@ -82,6 +84,12 @@ export function beregnScores(
   // kommuneKode -> kategoriId -> liste af normaliserede nøgletal-scores
   const kategoriScorerPrKommune = new Map<string, Map<number, number[]>>();
   const noegletalScorerPrKommune = new Map<string, Record<number, number>>();
+  const vaerdierPrKommune = new Map<string, Record<number, number>>();
+
+  for (const r of raaVaerdier) {
+    if (!vaerdierPrKommune.has(r.kommuneKode)) vaerdierPrKommune.set(r.kommuneKode, {});
+    vaerdierPrKommune.get(r.kommuneKode)![r.noegletalId] = r.vaerdi;
+  }
 
   for (const [noegletalId, vaerdier] of perNoegletal) {
     const retning = retningPrNoegletal.get(noegletalId)!;
@@ -124,6 +132,7 @@ export function beregnScores(
       samlet: Math.round((samletSum / samletVaegt) * 10) / 10,
       kategorier: kategoriScores,
       noegletal: noegletalScorerPrKommune.get(kommune.kode) ?? {},
+      vaerdier: vaerdierPrKommune.get(kommune.kode) ?? {},
     };
   });
 }

@@ -18,6 +18,7 @@ import {
   type KommuneRapport,
   type NoegletalRapport,
 } from "@/lib/scores/kommune-rapport";
+import { formaterTal } from "@/lib/scores/formater";
 import type { ProfilPunkt } from "@/lib/scores/profil";
 import { officieltKommunenavn } from "@/lib/kommuner/navn";
 
@@ -36,12 +37,6 @@ export async function generateMetadata(props: PageProps<"/kommune/[slug]">): Pro
 }
 
 const heltal = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
-const decimaltal = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 2 });
-
-// Store tal (fx indbyggere) uden decimaler, små tal (fx pr. 1.000) med op til to.
-function formaterTal(v: number) {
-  return Math.abs(v) >= 100 ? heltal.format(v) : decimaltal.format(v);
-}
 
 function Placering({ rang, antal }: { rang: number; antal: number }) {
   return (

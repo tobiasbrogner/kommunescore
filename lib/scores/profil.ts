@@ -39,7 +39,7 @@ function styrkeTekst(rang: number, antal: number, overGennemsnit: boolean) {
 function fokusTekst(overGennemsnit: boolean) {
   return overGennemsnit
     ? "Over snittet, men mindre stærk end resten"
-    : "Under landsgennemsnittet";
+    : "Svagere end landsgennemsnittet";
 }
 
 export function byggKommuneProfil(
