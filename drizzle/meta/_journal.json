@@ -43,6 +43,13 @@
       "when": 1790420458148,
       "tag": "0005_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790768948820,
+      "tag": "0006_noegletal_skala_standardvalgt",
+      "breakpoints": true
     }
   ]
 }

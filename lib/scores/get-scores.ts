@@ -52,6 +52,8 @@ async function hentOgBeregnAlt(): Promise<RapportPayload> {
         id: noegletal.id,
         kategoriId: noegletal.kategoriId,
         retning: noegletal.retning,
+        skala: noegletal.skala,
+        standardValgt: noegletal.standardValgt,
         navn: noegletal.navn,
         enhed: noegletal.enhed,
         beskrivelse: noegletal.beskrivelse,
@@ -92,7 +94,14 @@ async function hentOgBeregnAlt(): Promise<RapportPayload> {
     ikon: k.ikon,
     noegletal: alleNoegletal
       .filter((n) => n.kategoriId === k.id)
-      .map((n) => ({ id: n.id, navn: n.navn, enhed: n.enhed, beskrivelse: n.beskrivelse })),
+      .map((n) => ({
+        id: n.id,
+        navn: n.navn,
+        enhed: n.enhed,
+        beskrivelse: n.beskrivelse,
+        skala: n.skala,
+        standardValgt: n.standardValgt,
+      })),
   }));
 
   return {
@@ -108,11 +117,12 @@ async function hentOgBeregn(): Promise<KommuneScoresPayload> {
   return { kategorier, kommuner };
 }
 
-// Nøglerne bumpes, når payloadens form ændres, så en gammel cache ikke genbruges.
-export const getCachedKommuneScores = unstable_cache(hentOgBeregn, ["kommune-scores-v3"], {
+// Nøglerne bumpes, når payloadens form eller beregningen ændres, så en gammel cache ikke
+// genbruges.
+export const getCachedKommuneScores = unstable_cache(hentOgBeregn, ["kommune-scores-v5"], {
   tags: [KOMMUNE_SCORES_TAG],
 });
 
-export const getCachedRapportData = unstable_cache(hentOgBeregnAlt, ["kommune-rapport-data-v3"], {
+export const getCachedRapportData = unstable_cache(hentOgBeregnAlt, ["kommune-rapport-data-v5"], {
   tags: [KOMMUNE_SCORES_TAG],
 });

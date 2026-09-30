@@ -14,9 +14,10 @@ const NOEGLETAL_BESKRIVELSE =
   "Antal indbyggere i kommunen pr. 1. december 2024 (Danmarks Statistik, FOLK1AM). Flere indbyggere giver en højere score.";
 
 // Befolkningstal er meget skævt fordelt (København har ~40 gange så mange indbyggere
-// som medianen), så en lineær skala ville presse næsten alle kommuner ned mod 50.
-// Venlighed 50 løfter de mellemstore kommuner; kan justeres i admin-panelet.
-const VENLIGHED = 50;
+// som medianen), men normaliseringen beskærer ved 5. og 95. percentil (se
+// lib/scores/compute.ts), så de mellemstore kommuner ikke presses ned mod 50. En
+// venlighed over 0 ville derfor løfte næsten alle; kan justeres i admin-panelet.
+const VENLIGHED = 0;
 
 // FOLK1AM: befolkningen 1. december 2024 (samme fil som Spisesteder bruger).
 const BEFOLKNING_KILDE = "data/kilder/befolkning-folk1am.xlsx";

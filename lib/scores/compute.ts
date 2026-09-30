@@ -13,14 +13,25 @@ export type KategoriMeta = {
   standardvaegt: number;
   venlighed: number;
   ikon: string | null;
-  noegletal: { id: number; navn: string; enhed: string; beskrivelse: string | null }[];
+  noegletal: {
+    id: number;
+    navn: string;
+    enhed: string;
+    beskrivelse: string | null;
+    skala: Skala;
+    // Tæller med i kategoriens score; ellers et tilvalg på /kort (se lib/db/schema.ts).
+    standardValgt: boolean;
+  }[];
 };
+
+export type Skala = "lineaer" | "logaritmisk";
 
 export type KommuneScore = {
   kode: string;
   navn: string;
   samlet: number;
-  kategorier: Record<number, number>; // kategoriId -> score 50-100
+  // kategoriId -> score 50-100: gennemsnittet af kategoriens standardvalgte nøgletal.
+  kategorier: Record<number, number>;
   // noegletalId -> score 50-100, kun for nøgletal kommunen har en værdi for. Bruges,
   // når man på /kort vælger ét bestemt nøgletal i en kategori (fx kun ejerlejligheder).
   noegletal: Record<number, number>;
@@ -40,21 +51,40 @@ export function venlighedTilEksponent(venlighed: number) {
   return Math.pow(2, -Math.min(100, Math.max(0, venlighed)) / 50);
 }
 
-/** Min-max-normaliserer ét nøgletals værdier på tværs af alle kommuner til 50-100,
- * og vender skalaen om når lavere værdi er bedst. */
+/** Skalaen for hvert nøgletal går fra denne percentil til den modsatte (5 → 5.-95.).
+ * Kommuner uden for dem får bund- eller topscoren. Ellers presser få ekstreme kommuner
+ * (fx boligpriserne i hovedstadsområdet) alle andre sammen i den ene ende af skalaen. */
+const BESKAER_PERCENTIL = 5;
+
+/** Værdien ved percentilen p (0-100) i en sorteret liste, med lineær interpolation. */
+function percentil(sorteret: number[], p: number) {
+  const pos = ((sorteret.length - 1) * p) / 100;
+  const under = Math.floor(pos);
+  const over = Math.ceil(pos);
+  return sorteret[under] + (sorteret[over] - sorteret[under]) * (pos - under);
+}
+
+/** Normaliserer ét nøgletals værdier på tværs af alle kommuner til 50-100 mellem
+ * 5. og 95. percentil (se BESKAER_PERCENTIL), og vender skalaen om når lavere værdi
+ * er bedst. Med logaritmisk skala sammenlignes logaritmen af værdierne, så fx en
+ * fordobling tæller lige meget i bunden og toppen; det kræver positive værdier. */
 function normaliserNoegletal(
   vaerdier: { kommuneKode: string; vaerdi: number }[],
   retning: "hoejere_bedre" | "lavere_bedre",
   eksponent = 1,
+  skala: Skala = "lineaer",
 ) {
-  const tal = vaerdier.map((v) => v.vaerdi);
-  const min = Math.min(...tal);
-  const maks = Math.max(...tal);
+  const logaritmisk = skala === "logaritmisk" && vaerdier.every((v) => v.vaerdi > 0);
+  const omregn = (vaerdi: number) => (logaritmisk ? Math.log(vaerdi) : vaerdi);
+  const sorteret = vaerdier.map((v) => omregn(v.vaerdi)).sort((a, b) => a - b);
+  const min = percentil(sorteret, BESKAER_PERCENTIL);
+  const maks = percentil(sorteret, 100 - BESKAER_PERCENTIL);
   const spaend = maks - min;
 
   const resultat = new Map<string, number>();
   for (const { kommuneKode, vaerdi } of vaerdier) {
-    let andel = spaend === 0 ? 1 : (vaerdi - min) / spaend;
+    const beskaaret = Math.min(maks, Math.max(min, omregn(vaerdi)));
+    let andel = spaend === 0 ? 1 : (beskaaret - min) / spaend;
     if (retning === "lavere_bedre") andel = 1 - andel;
     andel = Math.pow(andel, eksponent);
     resultat.set(kommuneKode, SCORE_MIN + andel * (SCORE_MAKS - SCORE_MIN));
@@ -80,6 +110,19 @@ export function beregnScores(
   }
 
   const venlighedPrKategori = new Map(kategorier.map((k) => [k.id, k.venlighed]));
+  const skalaPrNoegletal = new Map(
+    kategorier.flatMap((k) => k.noegletal.map((n) => [n.id, n.skala] as const)),
+  );
+  // Tilvalgte nøgletal, der ikke tæller i kategoriens score. Har en kategori ingen
+  // standardvalgte nøgletal, tæller de alle, så kategorien ikke står uden score.
+  // Nøgletal uden metadata (fx admin-panelets forhåndsvisning) tæller altid.
+  const taellerIkke = new Set(
+    kategorier.flatMap((k) =>
+      k.noegletal.some((n) => n.standardValgt)
+        ? k.noegletal.filter((n) => !n.standardValgt).map((n) => n.id)
+        : [],
+    ),
+  );
 
   // kommuneKode -> kategoriId -> liste af normaliserede nøgletal-scores
   const kategoriScorerPrKommune = new Map<string, Map<number, number[]>>();
@@ -95,11 +138,17 @@ export function beregnScores(
     const retning = retningPrNoegletal.get(noegletalId)!;
     const kategoriId = kategoriPrNoegletal.get(noegletalId)!;
     const venlighed = venlighedPrKategori.get(kategoriId) ?? 0;
-    const normaliseret = normaliserNoegletal(vaerdier, retning, venlighedTilEksponent(venlighed));
+    const normaliseret = normaliserNoegletal(
+      vaerdier,
+      retning,
+      venlighedTilEksponent(venlighed),
+      skalaPrNoegletal.get(noegletalId),
+    );
 
     for (const [kommuneKode, score] of normaliseret) {
       if (!noegletalScorerPrKommune.has(kommuneKode)) noegletalScorerPrKommune.set(kommuneKode, {});
       noegletalScorerPrKommune.get(kommuneKode)![noegletalId] = Math.round(score * 10) / 10;
+      if (taellerIkke.has(noegletalId)) continue;
 
       if (!kategoriScorerPrKommune.has(kommuneKode)) {
         kategoriScorerPrKommune.set(kommuneKode, new Map());

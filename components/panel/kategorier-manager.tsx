@@ -13,6 +13,7 @@ import {
   NumberField,
   Separator,
   Slider,
+  Switch,
   TextField,
 } from "@heroui/react";
 import { AlleVaerdierTabel } from "@/components/panel/alle-vaerdier-tabel";
@@ -24,6 +25,8 @@ type Noegletal = {
   navn: string;
   enhed: string;
   retning: "hoejere_bedre" | "lavere_bedre";
+  skala: "lineaer" | "logaritmisk";
+  standardValgt: boolean;
 };
 
 type Kategori = {
@@ -44,6 +47,31 @@ const RETNING_LABEL: Record<Noegletal["retning"], string> = {
   hoejere_bedre: "Højere er bedre",
   lavere_bedre: "Lavere er bedre",
 };
+
+function NoegletalSwitch({
+  label,
+  forklaring,
+  valgt,
+  onChange,
+}: {
+  label: string;
+  forklaring: string;
+  valgt: boolean;
+  onChange: (valgt: boolean) => void;
+}) {
+  return (
+    <Switch size="sm" isSelected={valgt} onChange={onChange}>
+      <Switch.Content>
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+        <Label title={forklaring} className="text-xs">
+          {label}
+        </Label>
+      </Switch.Content>
+    </Switch>
+  );
+}
 
 async function kald(url: string, method: string, body?: unknown) {
   const res = await fetch(url, {
@@ -203,7 +231,8 @@ function KategoriKort({
     }));
     if (raa.length === 0) return null;
     const median = (vl: number) => {
-      const meta = [{ id: kategori.id, navn: "", slug: "", standardvaegt: 1, venlighed: vl, ikon: null, noegletal: [] }];
+      const noegletal = kategori.noegletal.map((n) => ({ ...n, beskrivelse: null }));
+      const meta = [{ id: kategori.id, navn: "", slug: "", standardvaegt: 1, venlighed: vl, ikon: null, noegletal }];
       const scores = beregnScores(kommuner, meta, raa)
         .map((s) => s.kategorier[kategori.id])
         .sort((a, b) => a - b);
@@ -332,6 +361,30 @@ function KategoriKort({
                 <p className="text-muted">
                   {n.enhed} · {RETNING_LABEL[n.retning]}
                 </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <NoegletalSwitch
+                  label="Logaritmisk skala"
+                  forklaring="Til meget skæve tal, der spænder over flere størrelsesordener (fx befolkningstæthed)."
+                  valgt={n.skala === "logaritmisk"}
+                  onChange={(valgt) =>
+                    forsoeg(() =>
+                      kald(`/api/admin/noegletal/${n.id}`, "PATCH", {
+                        skala: valgt ? "logaritmisk" : "lineaer",
+                      }),
+                    )
+                  }
+                />
+                <NoegletalSwitch
+                  label="Tæller i standardscoren"
+                  forklaring="Slået fra er nøgletallet et tilvalg under Prioritet på kortet og tæller ikke på forsiden eller i rapporterne."
+                  valgt={n.standardValgt}
+                  onChange={(valgt) =>
+                    forsoeg(() =>
+                      kald(`/api/admin/noegletal/${n.id}`, "PATCH", { standardValgt: valgt }),
+                    )
+                  }
+                />
               </div>
               <Button
                 size="sm"

@@ -13,6 +13,10 @@ import {
 
 export const retningEnum = pgEnum("retning", ["hoejere_bedre", "lavere_bedre"]);
 
+// Logaritmisk til meget skæve tal, der spænder over flere størrelsesordener (fx
+// befolkningstæthed fra 15 til 12.000 pr. km²); se lib/scores/compute.ts.
+export const skalaEnum = pgEnum("skala", ["lineaer", "logaritmisk"]);
+
 export const feedbackTypeEnum = pgEnum("feedback_type", ["fejl", "oenske", "mangel", "andet"]);
 
 export const kommuner = pgTable("kommuner", {
@@ -44,6 +48,10 @@ export const noegletal = pgTable("noegletal", {
   navn: varchar("navn", { length: 150 }).notNull(),
   enhed: varchar("enhed", { length: 30 }).notNull(),
   retning: retningEnum("retning").notNull(),
+  skala: skalaEnum("skala").notNull().default("lineaer"),
+  // Tæller med i kategoriens standardscore (forsiden, rapporter og /kort fra start).
+  // Nøgletal der ikke gør, er tilvalg, som man kan slå til under Prioritet på /kort.
+  standardValgt: boolean("standard_valgt").notNull().default(true),
   // Valgfri forklaring, vist i kategoriens tooltip på /kort.
   beskrivelse: varchar("beskrivelse", { length: 500 }),
 });

@@ -11,11 +11,14 @@ const KATEGORI_NAVN = "Tryghed";
 const KATEGORI_SLUG = "tryghed";
 const NOEGLETAL_NAVN = "Anmeldte forbrydelser pr. 1.000 indbyggere";
 const NOEGLETAL_BESKRIVELSE =
-  "Antal anmeldte forbrydelser i alt i hele 2025 (alle fire kvartaler lagt sammen) pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). Tæller hvor forbrydelsen er begået, så fx lufthavne og bymidter trækker op. Anmeldelser uden oplyst kommune er ikke med. Færre anmeldelser giver en højere score.";
+  "Antal anmeldte straffelovsforbrydelser (fx vold, indbrud og tyveri) i hele 2025 (alle fire kvartaler lagt sammen) pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). Særlove som narko-, våben- og udlændingeloven er ikke med, fordi de mest afspejler politiets kontroller ved fx grænser og lufthavne. Tæller hvor forbrydelsen er begået, så fx bymidter trækker op. Anmeldelser uden oplyst kommune er ikke med. Færre anmeldelser giver en højere score.";
 
-// STRAF11: anmeldte forbrydelser (overtrædelsens art i alt) pr. kvartal i 2025.
-// Kvartalerne lægges sammen til et helt år.
+// STRAF11: anmeldte forbrydelser pr. kvartal i 2025, opdelt på overtrædelsens art.
+// Kun afsnittet FORBRYDELSE_ART bruges; kvartalerne lægges sammen til et helt år.
+// Filen har artens navn i første kolonne på afsnittets første række og tom derefter.
 const FORBRYDELSE_KILDE = "data/kilder/anmeldte-forbrydelser-straf11.xlsx";
+const FORBRYDELSE_ART = "Straffelov i alt";
+const FORBRYDELSE_ARTKOLONNE = 0;
 const FORBRYDELSE_NAVNEKOLONNE = 1;
 const AAR = "2025";
 const KVARTALER = ["K1", "K2", "K3", "K4"].map((k) => `${AAR}${k}`);
@@ -45,7 +48,8 @@ function laesTal(fil: string, navnekolonne: number, vaerdikolonne: number): Map<
   return tal;
 }
 
-/** Årets anmeldte forbrydelser pr. område-navn; kun rækker med tal for alle fire kvartaler. */
+/** Årets anmeldte forbrydelser af arten FORBRYDELSE_ART pr. område-navn; kun rækker med
+ * tal for alle fire kvartaler. */
 function laesForbrydelser(): Map<string, number> {
   const raa = laesArk(FORBRYDELSE_KILDE);
   const overskrift = raa.find((linje) => linje.includes(KVARTALER[0]));
@@ -55,13 +59,20 @@ function laesForbrydelser(): Map<string, number> {
   }
 
   const antal = new Map<string, number>();
+  let art: string | null = null;
   for (const linje of raa) {
+    const artCelle = linje[FORBRYDELSE_ARTKOLONNE];
+    if (typeof artCelle === "string" && artCelle.trim()) art = artCelle.trim();
+    if (art !== FORBRYDELSE_ART) continue;
     const navn = linje[FORBRYDELSE_NAVNEKOLONNE];
     if (typeof navn !== "string") continue;
     const tal = kolonner.map((i) => linje[i]);
     if (tal.every((t): t is number => typeof t === "number")) {
       antal.set(navn.trim(), tal.reduce((a, b) => a + b, 0));
     }
+  }
+  if (antal.size === 0) {
+    throw new Error(`${FORBRYDELSE_KILDE}: fandt ingen rækker for "${FORBRYDELSE_ART}".`);
   }
   return antal;
 }

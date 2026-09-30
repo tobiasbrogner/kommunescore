@@ -79,8 +79,10 @@ export function hentGeoFakta() {
   return geoFakta;
 }
 
-// Indbyggertallet hentes fra kategorien "Indbyggertal", hvis den findes.
+// Indbyggertallet hentes fra nøgletallet "Indbyggere" i kategorien "Indbyggertal", hvis
+// det findes (kategorien har også befolkningstætheden).
 const INDBYGGER_KATEGORI_SLUG = "indbyggertal";
+const INDBYGGER_NOEGLETAL_NAVN = "Indbyggere";
 
 // Adressen for en kommunekode, fx "0751" → "aarhus". Bruges til at sende gamle
 // adresser med kommunekode videre til den nye adresse med navn.
@@ -103,7 +105,9 @@ export async function hentKommuneRapport(slug: string): Promise<KommuneRapport |
     .where(eq(kommuner.kode, kode));
 
   const indbyggerKategori = data.kategorier.find((k) => k.slug === INDBYGGER_KATEGORI_SLUG);
-  const indbyggerNoegletal = data.noegletal.find((n) => n.kategoriId === indbyggerKategori?.id);
+  const indbyggerNoegletal = data.noegletal.find(
+    (n) => n.kategoriId === indbyggerKategori?.id && n.navn === INDBYGGER_NOEGLETAL_NAVN,
+  );
   const indbyggere =
     data.vaerdier.find((v) => v.noegletalId === indbyggerNoegletal?.id && v.kommuneKode === kode)
       ?.vaerdi ?? null;

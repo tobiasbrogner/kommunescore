@@ -35,16 +35,16 @@ export default function SaadanVirkerDetSide() {
         <ul className="mt-3 flex max-w-2xl list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-muted">
           <li>
             Hvert nøgletal omregnes til en score fra 50 til 100 ved at sammenligne alle 98
-            kommuner: den bedste får 100 og den dårligste 50. For fx priser og ledighed er det
-            laveste tal det bedste.
+            kommuner. For fx priser og ledighed er det laveste tal det bedste.
+          </li>
+          <li>
+            Skalaen går fra de 5 % dårligste til de 5 % bedste kommuner: de mest ekstreme får
+            50 eller 100, og resten fordeles jævnt imellem. Så presser få ekstreme kommuner, fx
+            boligpriserne i hovedstadsområdet, ikke alle andre sammen i den ene ende.
           </li>
           <li>
             En kategoris score er gennemsnittet af dens nøgletal. Mangler en kommune et tal,
             fordi det ikke er opgjort, tæller de andre nøgletal i kategorien.
-          </li>
-          <li>
-            I kategorier med meget skæve tal, fx indbyggertal, løftes de mellemste kommuner lidt,
-            så få ekstreme kommuner ikke presser alle andre ned. Rækkefølgen ændres ikke.
           </li>
           <li>
             Den samlede score er et vægtet gennemsnit af kategorierne. Under Prioritet på kortet

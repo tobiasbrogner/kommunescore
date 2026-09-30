@@ -8,6 +8,7 @@ import { KOMMUNE_SCORES_TAG } from "@/lib/scores/get-scores";
 
 type Context = { params: Promise<{ id: string }> };
 const GYLDIGE_RETNINGER = ["hoejere_bedre", "lavere_bedre"] as const;
+const GYLDIGE_SKALAER = ["lineaer", "logaritmisk"] as const;
 
 export async function PATCH(request: Request, { params }: Context) {
   const administrator = await verifySession();
@@ -32,6 +33,13 @@ export async function PATCH(request: Request, { params }: Context) {
     }
     opdatering.retning = body.retning;
   }
+  if (body?.skala !== undefined) {
+    if (!GYLDIGE_SKALAER.includes(body.skala)) {
+      return NextResponse.json({ fejl: "Ugyldig skala." }, { status: 400 });
+    }
+    opdatering.skala = body.skala;
+  }
+  if (typeof body?.standardValgt === "boolean") opdatering.standardValgt = body.standardValgt;
 
   const [opdateret] = await db
     .update(noegletal)

@@ -16,6 +16,7 @@
     "db:seed:jobmuligheder": "tsx scripts/seed-jobmuligheder.ts",
     "db:seed:spisesteder": "tsx scripts/seed-spisesteder.ts",
     "db:seed:indbyggertal": "tsx scripts/seed-indbyggertal.ts",
+    "db:seed:befolkningstaethed": "tsx scripts/seed-befolkningstaethed.ts",
     "db:seed:boligpriser": "tsx scripts/seed-boligpriser.ts",
     "db:seed:kommuneskat": "tsx scripts/seed-kommuneskat.ts",
     "db:seed:tryghed": "tsx scripts/seed-tryghed.ts",

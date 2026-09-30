@@ -12,6 +12,7 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   Button,
+  Description,
   Dropdown,
   Header,
   Label,
@@ -40,7 +41,15 @@ import {
   IconLayoutGrid,
   IconLayoutColumns,
   IconArrowRight,
+  IconBabyCarriage,
+  IconBuildingSkyscraper,
+  IconPigMoney,
+  IconTrees,
   IconHelpCircle,
+  IconKey,
+  IconOld,
+  IconCar,
+  IconUserCircle,
   IconMap,
   IconMinus,
   IconPlus,
@@ -90,6 +99,21 @@ const PRIORITET_STANDARD = 50;
 // noegletal er nøgletallets navn i databasen; forklaring vises ved mus over knappen.
 type NoegletalValg = { id: string; label: string; forklaring: string; noegletal: string };
 const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
+  // Antal siger mest om kommunens størrelse; tætheden skelner byer fra store landkommuner.
+  indbyggertal: [
+    {
+      id: "antal",
+      label: "Antal",
+      forklaring: "Antal indbyggere i kommunen",
+      noegletal: "Indbyggere",
+    },
+    {
+      id: "taethed",
+      label: "Tæthed",
+      forklaring: "Indbyggere pr. km²; skelner byer fra store landkommuner",
+      noegletal: "Indbyggere pr. km²",
+    },
+  ],
   boligpriser: [
     {
       id: "hus",
@@ -121,6 +145,129 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
   ],
 };
 
+// Færdige profiler, der sætter Prioritet med ét klik (efter kategoriens slug). Kategorier,
+// der ikke står i vaegte, får standardvægten; noegletal vælger id'er fra NOEGLETAL_VALG
+// (mangler den for en kategori, gælder valget fra start). Alle kategorier er slået til.
+type Profil = {
+  id: string;
+  navn: string;
+  beskrivelse: string;
+  ikon: typeof IconHome;
+  vaegte: Record<string, number>;
+  noegletal?: Record<string, string[]>;
+};
+const PROFILER: Profil[] = [
+  {
+    id: "boernefamilie",
+    navn: "Børnefamilie",
+    beskrivelse: "Billig børnepasning, tryghed og hus",
+    ikon: IconBabyCarriage,
+    vaegte: {
+      boern: 100,
+      tryghed: 80,
+      boligpriser: 70,
+      jobmuligheder: 60,
+      kommuneskat: 50,
+      indbyggertal: 20,
+      spisesteder: 20,
+    },
+    noegletal: { boligpriser: ["hus"] },
+  },
+  {
+    id: "pensionist",
+    navn: "Pensionist",
+    beskrivelse: "Tryghed og lav skat – job og børn tæller ikke",
+    ikon: IconOld,
+    vaegte: {
+      tryghed: 100,
+      kommuneskat: 80,
+      spisesteder: 60,
+      boligpriser: 50,
+      indbyggertal: 40,
+      jobmuligheder: 0,
+      boern: 0,
+    },
+  },
+  {
+    id: "pendler",
+    navn: "Pendler",
+    beskrivelse: "Mange job og en større kommune",
+    ikon: IconCar,
+    vaegte: {
+      jobmuligheder: 100,
+      indbyggertal: 80,
+      boligpriser: 60,
+      kommuneskat: 50,
+      spisesteder: 40,
+      tryghed: 40,
+      boern: 30,
+    },
+  },
+  {
+    id: "foerstegangskoeber",
+    navn: "Førstegangskøber",
+    beskrivelse: "Lave boligpriser, job og byliv",
+    ikon: IconKey,
+    vaegte: {
+      boligpriser: 100,
+      jobmuligheder: 80,
+      spisesteder: 60,
+      indbyggertal: 60,
+      kommuneskat: 50,
+      tryghed: 40,
+      boern: 20,
+    },
+  },
+  {
+    id: "storbyliv",
+    navn: "Storbyliv",
+    beskrivelse: "Spisesteder, job og mange mennesker",
+    ikon: IconBuildingSkyscraper,
+    vaegte: {
+      spisesteder: 100,
+      indbyggertal: 90,
+      jobmuligheder: 80,
+      tryghed: 40,
+      kommuneskat: 40,
+      boligpriser: 30,
+      boern: 0,
+    },
+    // Tætheden skelner byer fra store landkommuner med mange indbyggere.
+    noegletal: { indbyggertal: ["antal", "taethed"] },
+  },
+  {
+    id: "landliv",
+    navn: "Landliv og ro",
+    beskrivelse: "Billige huse, tryghed og lav skat",
+    ikon: IconTrees,
+    vaegte: {
+      boligpriser: 100,
+      tryghed: 90,
+      kommuneskat: 70,
+      boern: 50,
+      jobmuligheder: 30,
+      spisesteder: 10,
+      indbyggertal: 0,
+    },
+    noegletal: { boligpriser: ["hus"] },
+  },
+  {
+    id: "laveste-udgifter",
+    navn: "Laveste udgifter",
+    beskrivelse: "Billig bolig, lav skat og børnepasning",
+    ikon: IconPigMoney,
+    vaegte: {
+      boligpriser: 100,
+      kommuneskat: 100,
+      boern: 60,
+      jobmuligheder: 30,
+      tryghed: 30,
+      spisesteder: 0,
+      indbyggertal: 0,
+    },
+  },
+];
+
 // Det tal, der står ved en kategori under Styrker og Fokusområder på kommunekortene
 // (efter kategoriens slug). Kun nøgletal, der tæller under Prioritet og har en værdi,
 // kan vises; valgte man fx kun ejerlejligheder, vises lejlighedsprisen. Er der flere,
@@ -130,7 +277,10 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
 // noegletal er nøgletallets navn i databasen; v er værdien, allerede formateret.
 type KortNoegletal = { noegletal: string; tekst: (v: string) => string };
 const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
-  indbyggertal: [{ noegletal: "Indbyggere", tekst: (v) => `${v} indbyggere` }],
+  indbyggertal: [
+    { noegletal: "Indbyggere", tekst: (v) => `${v} indbyggere` },
+    { noegletal: "Indbyggere pr. km²", tekst: (v) => `${v} pr. km²` },
+  ],
   boern: [{ noegletal: "Gennemsnitspris årligt", tekst: (v) => `${v} kr./år i snit` }],
   // Ikke ledigheden: en lav ledighed ved siden af "Svagere end landsgennemsnittet" (fordi der
   // er få job) ser ud som en modsigelse.
@@ -340,9 +490,30 @@ function kortScoreTaerskler(antalFarver: number) {
   );
 }
 
-// En scores placering (0-100 %) på farveskalaen, der går fra 50 til 100.
-function scoreTilProcent(score: number) {
-  return Math.min(100, Math.max(0, ((score - 50) / 50) * 100));
+// Den samlede score er et vægtet gennemsnit, så kommunerne ligger tæt (typisk 10-20 point).
+// Farveskalaen strækkes derfor over de viste kommuners faktiske spænd i stedet for 50-100.
+// Er spændet under FARVESKALA_MIN_SPAEND, udvides det om midten, så små forskelle (fx når
+// filtret kun viser få kommuner) ikke ser store ud.
+const FARVESKALA_MIN_SPAEND = 10;
+type FarveSkala = { fra: number; til: number };
+function byggFarveSkala(scorer: number[]): FarveSkala {
+  if (scorer.length === 0) return { fra: 50, til: 100 };
+  let fra = Math.min(...scorer);
+  let til = Math.max(...scorer);
+  const mangler = FARVESKALA_MIN_SPAEND - (til - fra);
+  if (mangler > 0) {
+    fra -= mangler / 2;
+    til += mangler / 2;
+    // Hold skalaen inden for 50-100 ved at skubbe den ind fra kanten.
+    if (fra < 50) [fra, til] = [50, til + (50 - fra)];
+    if (til > 100) [fra, til] = [fra - (til - 100), 100];
+  }
+  return { fra, til };
+}
+
+// En scores placering (0-100 %) på farveskalaen.
+function scoreTilProcent(score: number, skala: FarveSkala) {
+  return Math.min(100, Math.max(0, ((score - skala.fra) / (skala.til - skala.fra)) * 100));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
@@ -562,11 +733,17 @@ function ScoreInfo({ farvEfterPlacering }: { farvEfterPlacering: boolean }) {
             kommuner der er med. Spændet og placeringerne gælder kun de viste kommuner.
           </p>
           <p>Søgefeltet påvirker hverken score eller spænd.</p>
-          {farvEfterPlacering && (
+          {farvEfterPlacering ? (
             <p>
               <strong>Farverne</strong> viser placering: hver farve dækker lige mange af de viste
               kommuner, fra de laveste (rød) til de bedste (grøn). Tallet på kommunen er stadig
               selve scoren.
+            </p>
+          ) : (
+            <p>
+              <strong>Farverne</strong> strækkes over de viste kommuners spænd, så forskellene
+              kan ses, selvom scorerne ligger tæt. Skalaen dækker dog mindst{" "}
+              {FARVESKALA_MIN_SPAEND} point.
             </p>
           )}
         </div>
@@ -1188,16 +1365,28 @@ export function DanmarkKort({
         ? null
         : kategorier.find((k) => k.id === panelInfo.aktiv);
 
-  const valgteIder = (kat: KategoriMeta) =>
-    noegletalValg[kat.id] ?? (NOEGLETAL_VALG[kat.slug] ?? []).map((v) => v.id);
+  // Valgene fra start: dem, hvis nøgletal tæller i standardscoren (tilvalg som
+  // befolkningstæthed er ikke med). Er ingen standardvalgt, er alle valgt, som på serveren.
+  const standardIder = (kat: KategoriMeta) => {
+    const valg = NOEGLETAL_VALG[kat.slug] ?? [];
+    const valgte = valg.filter(
+      (v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.standardValgt !== false,
+    );
+    return (valgte.length > 0 ? valgte : valg).map((v) => v.id);
+  };
 
-  // Id'er på de nøgletal, der tæller i kategorien, eller undefined når alle er valgt,
-  // så kategorien tæller som normalt.
+  const valgteIder = (kat: KategoriMeta) => noegletalValg[kat.id] ?? standardIder(kat);
+
+  // Id'er på de nøgletal, der tæller i kategorien, eller undefined når valget er som fra
+  // start, så kategorien tæller som normalt (serverens kategoriscore).
   const valgteNoegletalIder = (kat: KategoriMeta) => {
     const valg = NOEGLETAL_VALG[kat.slug];
     if (!valg) return undefined;
     const ider = valgteIder(kat);
-    if (valg.every((v) => ider.includes(v.id))) return undefined;
+    const standard = standardIder(kat);
+    if (ider.length === standard.length && standard.every((id) => ider.includes(id))) {
+      return undefined;
+    }
     return valg
       .filter((v) => ider.includes(v.id))
       .flatMap((v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.id ?? []);
@@ -1650,6 +1839,36 @@ export function DanmarkKort({
   ).length;
   const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
+  const vaelgProfil = (profil: Profil) => {
+    setPrioriteter(
+      Object.fromEntries(
+        kategorier.map((k) => [k.id, profil.vaegte[k.slug] ?? PRIORITET_STANDARD]),
+      ),
+    );
+    setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, true])));
+    setNoegletalValg(
+      Object.fromEntries(
+        kategorier.flatMap((k) => (profil.noegletal?.[k.slug] ? [[k.id, profil.noegletal[k.slug]]] : [])),
+      ),
+    );
+  };
+
+  // Profilen, som Prioritet står på lige nu; ændrer man en vægt bagefter, er ingen valgt.
+  const samme = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((id) => b.includes(id));
+  const aktivProfil = PROFILER.find((profil) =>
+    kategorier.every(
+      (k) =>
+        (aktiveKategorier[k.id] ?? true) &&
+        (prioriteter[k.id] ?? PRIORITET_STANDARD) ===
+          (profil.vaegte[k.slug] ?? PRIORITET_STANDARD) &&
+        samme(
+          valgteIder(k),
+          profil.noegletal?.[k.slug] ?? standardIder(k),
+        ),
+    ),
+  );
+
   const matcherRegion = (k: Kommune) =>
     !regionFilterAktiv ||
     [...valgteRegioner].some((id) =>
@@ -1702,8 +1921,17 @@ export function DanmarkKort({
     });
   };
 
-  // Reserve, når kategorien ikke står i KORT_NOEGLETAL: første nøgletal med databasens enhed.
+  // Reserve, når der ikke er et tal fra KORT_NOEGLETAL at vise. Er kun nogle af kategoriens
+  // nøgletal valgt (fx kun ejerlejligheder), og mangler kommunen dem, siges det i stedet for
+  // at vise et andet tal (fx husprisen), som ikke tæller med. Ellers: første nøgletal med
+  // databasens enhed.
   const foersteNoegletalTekst = (kode: string, kat: KategoriMeta): string | null => {
+    const valg = NOEGLETAL_VALG[kat.slug];
+    if (valg && valgteNoegletalIder(kat) !== undefined) {
+      const valgte = valg.filter((v) => valgteIder(kat).includes(v.id));
+      if (valgte.length === 0) return null;
+      return `Ingen tal for ${valgte.map((v) => v.label.toLowerCase()).join(" og ")}`;
+    }
     const vaerdier = vaerdierPrKommune.get(kode);
     if (!vaerdier) return null;
     const noegletal = kat.noegletal.find((n) => vaerdier[n.id] !== undefined);
@@ -1814,14 +2042,16 @@ export function DanmarkKort({
     const map = mapRef.current;
     if (!map || !klar) return;
 
-    // Farv efter placering: placeringen blandt de viste kommuner omsættes til en
-    // "farvescore" på 50-100, så palettens 12 trin hver dækker lige mange kommuner,
-    // uanset hvor tæt scorerne ligger. Kommuner uden for filtret er grå alligevel.
-    // Kommuner uden data tæller ikke med i placeringen og farves grå.
+    // Farvelagen forventer en "farvescore" på 50-100. Efter score strækkes de viste
+    // kommuners spænd over hele paletten (se byggFarveSkala). Efter placering omsættes
+    // placeringen, så palettens 12 trin hver dækker lige mange kommuner, uanset hvor tæt
+    // scorerne ligger. Kommuner uden for filtret er grå alligevel.
+    // Kommuner uden data tæller ikke med og farves grå.
     const medData = kommunerRegionFiltreret.filter((k) => vaegtetScore(k.kode) !== null);
     const antal = medData.length;
+    const skala = byggFarveSkala(medData.map((k) => vaegtetScore(k.kode)!));
     const farveScore = (score: number) => {
-      if (!farvEfterPlacering) return score;
+      if (!farvEfterPlacering) return 50 + scoreTilProcent(score, skala) / 2;
       if (antal <= 1) return 100;
       // Lige scorer deler placering, så de også får samme farve.
       const bedreEnd = medData.filter((k) => vaegtetScore(k.kode)! > score).length;
@@ -1946,6 +2176,8 @@ export function DanmarkKort({
           laveste: Math.round(scorerMedData.at(-1)!),
         }
       : null;
+  // Samme skala som farvelagen på kortet.
+  const farveSkala = byggFarveSkala(scorerMedData);
 
   const valgtKommune = kommuner.find((k) => k.kode === valgtKode) ?? null;
   const valgtKommuneRang = valgtKommune ? rangAf(valgtKommune.kode) : 0;
@@ -2306,6 +2538,60 @@ export function DanmarkKort({
             </Dropdown.Popover>
           </Dropdown>
 
+          {kategorier.length > 1 && (
+            <Dropdown>
+              <Button
+                variant={aktivProfil ? "primary" : "outline"}
+                className="h-10 gap-1.5 rounded-lg text-sm"
+              >
+                {aktivProfil ? (
+                  <aktivProfil.ikon className="h-4 w-4" />
+                ) : (
+                  <IconUserCircle className="h-4 w-4" />
+                )}
+                {aktivProfil?.navn ?? "Profil"}
+              </Button>
+              <Dropdown.Popover className="w-84 max-w-[calc(100vw-2rem)]">
+                <Dropdown.Menu
+                  aria-label="Vælg en profil"
+                  selectionMode="single"
+                  selectedKeys={aktivProfil ? new Set([aktivProfil.id]) : new Set<string>()}
+                  onSelectionChange={(valgte) => {
+                    const id = valgte === "all" ? undefined : [...valgte][0];
+                    const profil = PROFILER.find((p) => p.id === id);
+                    if (profil) vaelgProfil(profil);
+                  }}
+                >
+                  <Dropdown.Section>
+                    <Header>Sæt Prioritet efter en profil</Header>
+                    {PROFILER.map((profil) => (
+                      // Blød baggrund i stedet for den kraftige fokusramme, som vises, så snart
+                      // menuen åbner; tastaturfokus kan stadig ses.
+                      <Dropdown.Item
+                        key={profil.id}
+                        id={profil.id}
+                        textValue={profil.navn}
+                        className="data-[focus-visible=true]:bg-default data-[focus-visible=true]:ring-0! data-[focus-visible=true]:ring-offset-0! focus-visible:bg-default focus-visible:ring-0! focus-visible:ring-offset-0!"
+                      >
+                        <div className="flex h-8 items-start justify-center pt-px">
+                          <profil.ikon className="h-4 w-4 shrink-0 text-muted" />
+                        </div>
+                        <div className="flex min-w-0 flex-col">
+                          <Label>{profil.navn}</Label>
+                          <Description>{profil.beskrivelse}</Description>
+                        </div>
+                        <Dropdown.ItemIndicator className="ms-auto" />
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Section>
+                </Dropdown.Menu>
+                <p className="border-t border-border px-4 py-2.5 text-xs text-muted">
+                  Profilen er et udgangspunkt – du kan finjustere vægtene under Prioritet.
+                </p>
+              </Dropdown.Popover>
+            </Dropdown>
+          )}
+
           <Dropdown onOpenChange={(aaben) => !aaben && panelInfo.luk()}>
             <Button
               variant="outline"
@@ -2541,7 +2827,7 @@ export function DanmarkKort({
                   <p className="text-xs leading-snug text-muted">
                     {farvEfterPlacering
                       ? "Hver farve dækker lige mange kommuner, fra de laveste til de bedste."
-                      : "Farven følger scoren på en fast skala fra 50 til 100."}
+                      : "Farven følger scoren, fra de viste kommuners laveste til højeste. Afstande mellem kommunerne bevares."}
                   </p>
                 </div>
 
@@ -2649,19 +2935,20 @@ export function DanmarkKort({
             aria-label={
               farvEfterPlacering
                 ? `Farveskala efter placering, fra laveste til bedste. Kommunerne ligger mellem ${scoreSpaend.laveste} og ${scoreSpaend.hoejeste}.`
-                : `Farveskala fra 50 til 100. Kommunerne ligger mellem ${scoreSpaend.laveste} og ${scoreSpaend.hoejeste}.`
+                : `Farveskala fra ${Math.round(farveSkala.fra)} til ${Math.round(farveSkala.til)}. Kommunerne ligger mellem ${scoreSpaend.laveste} og ${scoreSpaend.hoejeste}.`
             }
             className="absolute left-4 top-4 z-10 flex flex-col gap-1.5 rounded-xl border border-border px-3 py-2 shadow-lg"
           >
             <span className="text-left text-xs leading-tight font-medium text-muted">
               {farvEfterPlacering ? "Placering" : "Score"}
             </span>
-            {/* Fast skala: farverne følger scoren 50-100, og rammen viser, hvor kommunerne
-                i det aktuelle filter ligger. Efter placering: hele paletten fordeles ligeligt
-                på kommunerne, så rammen omkranser hele skalaen. */}
+            {/* Efter score: skalaen følger de viste kommuners spænd (mindst
+                FARVESKALA_MIN_SPAEND point), og rammen viser, hvor kommunerne ligger på den.
+                Efter placering: hele paletten fordeles ligeligt på kommunerne, så rammen
+                omkranser hele skalaen. */}
             <div className="flex items-center gap-2" aria-hidden="true">
               <span className="text-xs tabular-nums text-muted">
-                {farvEfterPlacering ? "Laveste" : "50"}
+                {farvEfterPlacering ? "Laveste" : Math.round(farveSkala.fra)}
               </span>
               <span className="relative w-36 sm:w-44">
                 <span className="flex h-2.5 overflow-hidden rounded-full">
@@ -2675,14 +2962,14 @@ export function DanmarkKort({
                     farvEfterPlacering
                       ? { left: 0, right: 0 }
                       : {
-                          left: `${scoreTilProcent(scoreSpaend.laveste)}%`,
-                          right: `${100 - scoreTilProcent(scoreSpaend.hoejeste)}%`,
+                          left: `${scoreTilProcent(scorerMedData.at(-1)!, farveSkala)}%`,
+                          right: `${100 - scoreTilProcent(scorerMedData[0], farveSkala)}%`,
                         }
                   }
                 />
               </span>
               <span className="text-xs tabular-nums text-muted">
-                {farvEfterPlacering ? "Bedste" : "100"}
+                {farvEfterPlacering ? "Bedste" : Math.round(farveSkala.til)}
               </span>
             </div>
             <div className="flex items-center gap-1">
