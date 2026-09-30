@@ -124,7 +124,8 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
 // Det tal, der står ved en kategori under Styrker og Fokusområder på kommunekortene
 // (efter kategoriens slug). Kun nøgletal, der tæller under Prioritet og har en værdi,
 // kan vises; valgte man fx kun ejerlejligheder, vises lejlighedsprisen. Er der flere,
-// vises kommunens bedste under Styrker og dens svageste under Fokusområder. Kategorier,
+// vises kommunens bedste under Styrker og dens svageste under Fokusområder, mens boksen
+// for den valgte kommune på kortet viser dem alle, så kommunerne kan sammenlignes. Kategorier,
 // der ikke står her, viser deres første nøgletal med enheden fra databasen.
 // noegletal er nøgletallets navn i databasen; v er værdien, allerede formateret.
 type KortNoegletal = { noegletal: string; tekst: (v: string) => string };
@@ -150,7 +151,7 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   tryghed: [
     {
       noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
-      tekst: (v) => `${v} anmeldelser pr. 1.000`,
+      tekst: (v) => `${v} anmeldelser pr. 1.000 indb.`,
     },
   ],
 };
@@ -937,6 +938,16 @@ function ValgtKommuneKategorier({ raekker }: { raekker: ValgtKategori[] }) {
   );
 }
 
+// Forklaring til stregen på kategoriernes bjælker, vist nederst i boksen over rapportlinket.
+function GennemsnitForklaring() {
+  return (
+    <p className="flex items-center justify-center gap-1.5 border-t border-border px-3.5 py-2 text-xs text-muted">
+      <span aria-hidden className="h-2.5 w-0.5 rounded-full bg-foreground/60" />
+      Landsgennemsnit
+    </p>
+  );
+}
+
 // Åbner kommunens rapport (/kommune/[navn], fx /kommune/aarhus) i en ny fane, så kortet og ens valg bevares.
 function RapportLink({ navn }: { navn: string }) {
   return (
@@ -1679,24 +1690,42 @@ export function DanmarkKort({
   // kategorien flere nøgletal at vælge imellem, vises det, der forklarer placeringen:
   // kommunens bedste under Styrker og dens svageste under Fokusområder.
   // null = kommunen har ingen værdi at vise.
-  const noegletalTekst = (kode: string, kat: KategoriMeta, styrke: boolean): string | null => {
+  // De nøgletal fra KORT_NOEGLETAL, som tæller under Prioritet og har en værdi for kommunen.
+  const visbareNoegletal = (kode: string, kat: KategoriMeta) => {
+    const vaerdier = vaerdierPrKommune.get(kode) ?? {};
+    const talteIder = valgteNoegletalIder(kat);
+    return (KORT_NOEGLETAL[kat.slug] ?? []).flatMap((valg) => {
+      const id = kat.noegletal.find((n) => n.navn === valg.noegletal)?.id;
+      if (id === undefined || vaerdier[id] === undefined) return [];
+      if (talteIder && !talteIder.includes(id)) return [];
+      return [{ id, tekst: valg.tekst(formaterTal(vaerdier[id], 1)) }];
+    });
+  };
+
+  // Reserve, når kategorien ikke står i KORT_NOEGLETAL: første nøgletal med databasens enhed.
+  const foersteNoegletalTekst = (kode: string, kat: KategoriMeta): string | null => {
     const vaerdier = vaerdierPrKommune.get(kode);
     if (!vaerdier) return null;
-    const scorer = noegletalScorerPrKommune.get(kode) ?? {};
-    const talteIder = valgteNoegletalIder(kat);
-    let bedst: { id: number; valg: KortNoegletal } | null = null;
-    for (const valg of KORT_NOEGLETAL[kat.slug] ?? []) {
-      const id = kat.noegletal.find((n) => n.navn === valg.noegletal)?.id;
-      if (id === undefined || vaerdier[id] === undefined) continue;
-      if (talteIder && !talteIder.includes(id)) continue;
-      // Ved lige scorer vinder det første i KORT_NOEGLETAL.
-      if (!bedst || (styrke ? scorer[id] > scorer[bedst.id] : scorer[id] < scorer[bedst.id])) {
-        bedst = { id, valg };
-      }
-    }
-    if (bedst) return bedst.valg.tekst(formaterTal(vaerdier[bedst.id], 1));
     const noegletal = kat.noegletal.find((n) => vaerdier[n.id] !== undefined);
     return noegletal ? `${formaterTal(vaerdier[noegletal.id], 1)} ${noegletal.enhed}` : null;
+  };
+
+  const noegletalTekst = (kode: string, kat: KategoriMeta, styrke: boolean): string | null => {
+    const scorer = noegletalScorerPrKommune.get(kode) ?? {};
+    let bedst: { id: number; tekst: string } | null = null;
+    for (const n of visbareNoegletal(kode, kat)) {
+      // Ved lige scorer vinder det første i KORT_NOEGLETAL.
+      if (!bedst || (styrke ? scorer[n.id] > scorer[bedst.id] : scorer[n.id] < scorer[bedst.id])) {
+        bedst = n;
+      }
+    }
+    return bedst ? bedst.tekst : foersteNoegletalTekst(kode, kat);
+  };
+
+  // Alle kategoriens viste nøgletal (fx både hus og lejlighed), så kommunerne kan sammenlignes.
+  const alleNoegletalTekst = (kode: string, kat: KategoriMeta): string | null => {
+    const tekster = visbareNoegletal(kode, kat).map((n) => n.tekst);
+    return tekster.length > 0 ? tekster.join(" · ") : foersteNoegletalTekst(kode, kat);
   };
 
   // Kommunens score i kategorien: gennemsnittet af de valgte nøgletal, som kommunen har
@@ -1935,12 +1964,7 @@ export function DanmarkKort({
             kategori: kat,
             score,
             gennemsnit,
-            // Under gennemsnittet vises kategoriens svageste nøgletal, ellers det bedste.
-            tal: noegletalTekst(
-              valgtKommune.kode,
-              kat,
-              score === null || gennemsnit === null || score >= gennemsnit,
-            ),
+            tal: alleNoegletalTekst(valgtKommune.kode, kat),
             aktiv: aktiveKategorier[kat.id] !== false && vaegt > 0,
             vaegt,
           };
@@ -2720,6 +2744,7 @@ export function DanmarkKort({
               <ValgtKommuneKategorier raekker={valgtKommuneKategorier} />
             </div>
             <div className="shrink-0">
+              <GennemsnitForklaring />
               <RapportLink navn={valgtKommune.navn} />
             </div>
           </div>
