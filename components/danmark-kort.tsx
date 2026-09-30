@@ -1930,9 +1930,12 @@ export function DanmarkKort({
     const vaerdier = vaerdierPrKommune.get(kode) ?? {};
     const talteIder = valgteNoegletalIder(kat);
     return (KORT_NOEGLETAL[kat.slug] ?? []).flatMap((valg) => {
-      const id = kat.noegletal.find((n) => n.navn === valg.noegletal)?.id;
+      const noegletal = kat.noegletal.find((n) => n.navn === valg.noegletal);
+      const id = noegletal?.id;
       if (id === undefined || vaerdier[id] === undefined) return [];
       if (talteIder && !talteIder.includes(id)) return [];
+      // Valget er som fra start: tilvalg (fx befolkningstæthed) tæller ikke og vises ikke.
+      if (!talteIder && noegletal?.standardValgt === false) return [];
       return [{ id, tekst: valg.tekst(formaterTal(vaerdier[id], 1)) }];
     });
   };
