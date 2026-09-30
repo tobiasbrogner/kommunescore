@@ -114,6 +114,21 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Indbyggere pr. km²",
     },
   ],
+  // Pr. indbygger alene giver små turistkommuner topscore; antallet viser bylivet.
+  spisesteder: [
+    {
+      id: "pr-indbygger",
+      label: "Pr. indbygger",
+      forklaring: "Spisesteder pr. 1.000 indbyggere",
+      noegletal: "Spisesteder pr. 1.000 indbyggere",
+    },
+    {
+      id: "antal",
+      label: "Antal",
+      forklaring: "Spisesteder i alt i kommunen; viser hvor meget byliv der er",
+      noegletal: "Spisesteder i alt",
+    },
+  ],
   boligpriser: [
     {
       id: "hus",
@@ -289,6 +304,7 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   ],
   spisesteder: [
     { noegletal: "Spisesteder pr. 1.000 indbyggere", tekst: (v) => `${v} pr. 1.000 indb.` },
+    { noegletal: "Spisesteder i alt", tekst: (v) => `${v} i alt` },
   ],
   boligpriser: [
     { noegletal: "Parcel-/rækkehus", tekst: (v) => `${v} kr./m² (hus)` },

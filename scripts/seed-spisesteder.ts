@@ -13,6 +13,13 @@ const NOEGLETAL_NAVN = "Spisesteder pr. 1.000 indbyggere";
 const NOEGLETAL_BESKRIVELSE =
   "Antal firmaer i 2024 inden for restauration og overnatning pr. 1.000 indbyggere (Danmarks Statistik, GF12 og FOLK1AM). Omfatter restauranter, pizzeriaer, grillbarer, isbarer, caféer, værtshuse, diskoteker, event catering, anden restaurationsvirksomhed, konferencecentre, ferieboliger, campingpladser og andre overnatningsfaciliteter. Flere steder giver en højere score.";
 
+// Pr. indbygger alene giver små turistkommuner (fx Fanø og Ærø) topscore for få
+// spisesteder til mange turister; antallet i alt viser, hvor meget byliv der er. Begge
+// tæller i kategorien. Antallet spænder fra ca. 10 til 5.000, så det er logaritmisk.
+const I_ALT_NAVN = "Spisesteder i alt";
+const I_ALT_BESKRIVELSE =
+  "Antal firmaer i 2024 inden for restauration og overnatning i kommunen (Danmarks Statistik, GF12), samme brancher som pr. 1.000 indbyggere. Viser hvor meget byliv der er; flere steder giver en højere score.";
+
 // GF12 (Danmarks Statistik): antal firmaer pr. branche. Efter aftale summeres
 // ALLE branche-kolonner i filen, uanset hvilke der er med — også overgruppen
 // "56000 Restauranter", selvom den overlapper de detaljerede 56xxxx-brancher.
@@ -70,6 +77,39 @@ function laesBefolkning(): Map<string, number> {
   return befolkning;
 }
 
+/** Opretter eller opdaterer kategoriens nøgletal; genbruges ved genkørsel. */
+async function gemNoegletal(
+  kategoriId: number,
+  n: { navn: string; enhed: string; beskrivelse: string; skala: "lineaer" | "logaritmisk" },
+) {
+  const [eksisterende] = await db
+    .select()
+    .from(noegletal)
+    .where(and(eq(noegletal.kategoriId, kategoriId), eq(noegletal.navn, n.navn)));
+  if (eksisterende) {
+    await db
+      .update(noegletal)
+      .set({ beskrivelse: n.beskrivelse, skala: n.skala })
+      .where(eq(noegletal.id, eksisterende.id));
+    return eksisterende;
+  }
+  const [ny] = await db
+    .insert(noegletal)
+    .values({ kategoriId, ...n, retning: "hoejere_bedre", standardValgt: true })
+    .returning();
+  return ny;
+}
+
+async function gemVaerdi(kommuneKode: string, noegletalId: number, vaerdi: string) {
+  await db
+    .insert(kommuneNoegletal)
+    .values({ kommuneKode, noegletalId, vaerdi })
+    .onConflictDoUpdate({
+      target: [kommuneNoegletal.kommuneKode, kommuneNoegletal.noegletalId],
+      set: { vaerdi: sql`excluded.vaerdi` },
+    });
+}
+
 async function main() {
   const alleKommuner = await db.select({ kode: kommuner.kode, navn: kommuner.navn }).from(kommuner);
   const spisesteder = laesSpisesteder();
@@ -94,46 +134,30 @@ async function main() {
     .onConflictDoUpdate({ target: kategorier.slug, set: { navn: sql`excluded.navn` } })
     .returning();
 
-  // Genbrug eksisterende nøgletal ved genkørsel i stedet for at oprette dubletter.
-  let [noegletalRow] = await db
-    .select()
-    .from(noegletal)
-    .where(and(eq(noegletal.kategoriId, kategori.id), eq(noegletal.navn, NOEGLETAL_NAVN)));
-  if (!noegletalRow) {
-    [noegletalRow] = await db
-      .insert(noegletal)
-      .values({
-        kategoriId: kategori.id,
-        navn: NOEGLETAL_NAVN,
-        enhed: "spisesteder",
-        retning: "hoejere_bedre",
-        beskrivelse: NOEGLETAL_BESKRIVELSE,
-      })
-      .returning();
-  } else {
-    await db
-      .update(noegletal)
-      .set({ beskrivelse: NOEGLETAL_BESKRIVELSE })
-      .where(eq(noegletal.id, noegletalRow.id));
-  }
+  const prTusindRow = await gemNoegletal(kategori.id, {
+    navn: NOEGLETAL_NAVN,
+    enhed: "spisesteder",
+    beskrivelse: NOEGLETAL_BESKRIVELSE,
+    skala: "lineaer",
+  });
+  const iAltRow = await gemNoegletal(kategori.id, {
+    navn: I_ALT_NAVN,
+    enhed: "spisesteder",
+    beskrivelse: I_ALT_BESKRIVELSE,
+    skala: "logaritmisk",
+  });
 
   for (const kommune of alleKommuner) {
-    const prTusind = (spisesteder.get(kommune.navn)! / befolkning.get(kommune.navn)!) * 1000;
-    await db
-      .insert(kommuneNoegletal)
-      .values({
-        kommuneKode: kommune.kode,
-        noegletalId: noegletalRow.id,
-        vaerdi: prTusind.toFixed(2),
-      })
-      .onConflictDoUpdate({
-        target: [kommuneNoegletal.kommuneKode, kommuneNoegletal.noegletalId],
-        set: { vaerdi: sql`excluded.vaerdi` },
-      });
+    const antal = spisesteder.get(kommune.navn)!;
+    const prTusind = (antal / befolkning.get(kommune.navn)!) * 1000;
+    await gemVaerdi(kommune.kode, prTusindRow.id, prTusind.toFixed(2));
+    await gemVaerdi(kommune.kode, iAltRow.id, String(antal));
   }
 
+
+
   console.log(
-    `Oprettede kategorien "${KATEGORI_NAVN}" med nøgletallet "${NOEGLETAL_NAVN}" for ${alleKommuner.length} kommuner.`,
+    `Oprettede kategorien "${KATEGORI_NAVN}" med nøgletallene "${NOEGLETAL_NAVN}" og "${I_ALT_NAVN}" for ${alleKommuner.length} kommuner.`,
   );
   await revaliderScores();
   process.exit(0);
