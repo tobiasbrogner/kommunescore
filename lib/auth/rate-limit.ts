@@ -27,6 +27,10 @@ export const erRateLimited = opretRateLimiter(5, 15 * 60 * 1000);
 // Feedback: 5 indsendelser pr. 10 minutter — nok til ærlig brug, dæmper spam.
 export const erFeedbackRateLimited = opretRateLimiter(5, 10 * 60 * 1000);
 
+// Adressesøgning: 60 opslag pr. minut. Feltet søger, mens man skriver, men skåner den
+// gratis adressetjeneste, vi slår op i.
+export const erAdresseRateLimited = opretRateLimiter(60, 60 * 1000);
+
 // Som opretRateLimiter, men man kan også se, hvor meget der er tilbage uden at bruge
 // af det, så brugeren kan få vist sin resterende kvote.
 function opretKvote(graense: number, vindueMs: number) {

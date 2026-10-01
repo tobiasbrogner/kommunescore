@@ -61,7 +61,9 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
+import { AdresseFelt, type Adresse } from "@/components/adresse-felt";
 import { AiChat } from "@/components/ai-chat";
+import kommunePunkter from "@/data/kommune-punkter.json";
 import { KategoriIkon } from "@/components/ikon";
 import { useFavoritter } from "@/components/use-favoritter";
 import { REGION_NAVNE } from "@/lib/kommuner/regioner";
@@ -93,6 +95,71 @@ const PRIORITET_STANDARD = 50;
 
 // Kommunegruppernes id'er i Område-menuen, hvor de deler valg med regionerne og landsdelene.
 const GRUPPE_PRAEFIKS = "gruppe-";
+
+// Personlig pendling: skriver man en adresse i Pendling under Prioritet (fx sin
+// arbejdsplads), får Pendling et ekstra nøgletal med afstanden i fugleflugt fra
+// kommunernes største by (se data/kommune-punkter.json), som kan vælges i stedet for
+// gennemsnittet. Nøgletallet findes kun i browseren og har et negativt id, så det ikke
+// støder ind i nøgletallene fra databasen. Adressen gemmes i localStorage.
+const PENDLING_SLUG = "pendling";
+const AFSTAND_NOEGLETAL_ID = -1;
+const AFSTAND_NOEGLETAL = "Afstand til din adresse";
+const AFSTAND_VALG_ID = "min-adresse";
+const ADRESSE_LAGER = "kommuna-adresse";
+// Afstande herunder (km) tæller som "i samme by" og giver fuld score.
+const AFSTAND_NAER = 3;
+
+/** Afstand i km i fugleflugt mellem to punkter (haversine). */
+function afstandKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  const rad = (g: number) => (g * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Pendling med afstanden til adressen som et ekstra nøgletal, der kan vælges til. */
+function medAfstandsNoegletal(kategori: KategoriMeta, adresse: Adresse): KategoriMeta {
+  return {
+    ...kategori,
+    noegletal: [
+      ...kategori.noegletal,
+      {
+        id: AFSTAND_NOEGLETAL_ID,
+        navn: AFSTAND_NOEGLETAL,
+        enhed: "km",
+        beskrivelse: `Afstand i fugleflugt fra kommunens største by til ${adresse.tekst}. Den faktiske rejsevej er længere. Kortere afstand giver en højere score. Adressen gemmes kun i din browser.`,
+        // Logaritmisk, så forskellen på 5 og 20 km tæller mere end på 200 og 215 km.
+        skala: "logaritmisk",
+        standardValgt: false,
+      },
+    ],
+  };
+}
+
+/** Kommunernes scorer med afstanden til adressen lagt på som nøgletal under Pendling. */
+function medAfstand(scorer: KommuneScore[], adresse: Adresse): KommuneScore[] {
+  const punkter = kommunePunkter as Record<string, { lat: number; lon: number }>;
+  const km = new Map(
+    scorer.flatMap((s) => (punkter[s.kode] ? [[s.kode, afstandKm(punkter[s.kode], adresse)] as const] : [])),
+  );
+  // Logaritmisk skala fra 100 (inden for AFSTAND_NAER km) til 50 (den fjerneste kommune),
+  // så forskellen på 5 og 20 km tæller mere end på 200 og 215 km. Uden den fælles
+  // percentil-beskæring, som ellers giver de nærmeste kommuner samme topscore.
+  const log = (d: number) => Math.log(Math.max(d, AFSTAND_NAER));
+  const spaend = log(Math.max(...km.values())) - log(0);
+  return scorer.map((s) => {
+    const d = km.get(s.kode);
+    if (d === undefined) return s;
+    const andel = spaend > 0 ? (log(d) - log(0)) / spaend : 0;
+    const afrundet = Math.round((100 - 50 * andel) * 10) / 10;
+    return {
+      ...s,
+      noegletal: { ...s.noegletal, [AFSTAND_NOEGLETAL_ID]: afrundet },
+      vaerdier: { ...s.vaerdier, [AFSTAND_NOEGLETAL_ID]: Math.round(d) },
+    };
+  });
+}
 
 // Kategorier, hvor man under Prioritet kan vælge, hvilke nøgletal der tæller (efter
 // kategoriens slug). Alle er valgt fra start, og så tæller kategorien som normalt.
@@ -174,6 +241,21 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       label: "Pr. indbygger",
       forklaring: "Kvadratmeter natur pr. indbygger; tyndt befolkede kommuner ligger højt",
       noegletal: "Natur pr. indbygger",
+    },
+  ],
+  // "Min adresse" findes kun, når man har skrevet en adresse i Pendling (se medAfstand).
+  [PENDLING_SLUG]: [
+    {
+      id: "gennemsnit",
+      label: "Gennemsnit",
+      forklaring: "Hvor langt de beskæftigede i kommunen pendler i gennemsnit",
+      noegletal: "Pendlingsafstand",
+    },
+    {
+      id: AFSTAND_VALG_ID,
+      label: "Min adresse",
+      forklaring: "Afstand i fugleflugt fra kommunens største by til din adresse",
+      noegletal: AFSTAND_NOEGLETAL,
     },
   ],
   // Foreningslivet og anlæggene kan vælges hver for sig; begge tæller fra start.
@@ -386,7 +468,10 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
     { noegletal: "Andel natur og grønne områder", tekst: (v) => `${v} % natur` },
     { noegletal: "Natur pr. indbygger", tekst: (v) => `${v} m² natur pr. indb.` },
   ],
-  pendling: [{ noegletal: "Pendlingsafstand", tekst: (v) => `${v} km til arbejde` }],
+  pendling: [
+    { noegletal: "Pendlingsafstand", tekst: (v) => `${v} km til arbejde` },
+    { noegletal: AFSTAND_NOEGLETAL, tekst: (v) => `${v} km til din adresse` },
+  ],
   sundhed: [
     { noegletal: "Middellevetid", tekst: (v) => `${v} års levetid` },
     { noegletal: "Afstand til nærmeste læge", tekst: (v) => `${v} km til læge` },
@@ -844,6 +929,16 @@ function ScoreInfo({ farvEfterPlacering }: { farvEfterPlacering: boolean }) {
   );
 }
 
+/** Kategoriens valg fra NOEGLETAL_VALG, som den har nøgletal til (fx er "Min adresse" i
+ * Pendling der kun, når man har skrevet en adresse), eller undefined når der ikke er
+ * mindst to at vælge imellem. */
+function noegletalValgFor(kat: KategoriMeta): NoegletalValg[] | undefined {
+  const valg = (NOEGLETAL_VALG[kat.slug] ?? []).filter((v) =>
+    kat.noegletal.some((n) => n.navn === v.noegletal),
+  );
+  return valg.length > 1 ? valg : undefined;
+}
+
 function erGennemsnit(navn: string) {
   return navn.toLowerCase().includes("gennemsnit");
 }
@@ -877,6 +972,20 @@ function KategoriInfoIndhold({ kategori }: { kategori: KategoriMeta }) {
           Ingen nøgletal oprettet endnu.
         </p>
       )}
+      {/* Med en adresse står afstanden til den som nøgletal i listen ovenfor. */}
+      {kategori.slug === PENDLING_SLUG &&
+        !kategori.noegletal.some((n) => n.navn === AFSTAND_NOEGLETAL) && (
+          <ul className="mt-1.5 flex flex-col gap-1.5 text-sm text-pretty text-muted">
+            <li>
+              · Min adresse
+              <span className="mt-0.5 block pl-2.5 text-xs">
+                Skriv din arbejdsplads i feltet for at se afstanden i fugleflugt fra hver kommunes
+                største by. Så tæller den i stedet for gennemsnittet. Adressen gemmes kun i din
+                browser.
+              </span>
+            </li>
+          </ul>
+        )}
       <LaesMere href={`/kilder#${kategori.slug}`} />
     </>
   );
@@ -1398,14 +1507,58 @@ function VisFlere({
 }
 
 export function DanmarkKort({
-  kategorier,
-  kommuneScores,
+  kategorier: databaseKategorier,
+  kommuneScores: databaseScorer,
   kommunerMedBillede,
 }: {
   kategorier: KategoriMeta[];
   kommuneScores: KommuneScore[];
   kommunerMedBillede: string[];
 }) {
+  // Med en adresse i Pendling får kategorien et ekstra nøgletal for afstanden til den.
+  const [minAdresse, setMinAdresse] = useState<Adresse | null>(null);
+  // kategoriId -> valgte id'er fra NOEGLETAL_VALG; mangler den, er alle valgt.
+  const [noegletalValg, setNoegletalValg] = useState<Record<number, string[]>>({});
+  const pendlingId = databaseKategorier.find((k) => k.slug === PENDLING_SLUG)?.id;
+  // Vælger man en adresse, tæller afstanden til den i stedet for gennemsnittet; fjerner
+  // man den, tæller gennemsnittet igen.
+  const vaelgAdresse = (adresse: Adresse | null, gem = true) => {
+    setMinAdresse(adresse);
+    if (pendlingId !== undefined) {
+      setNoegletalValg((valg) => {
+        const nyt = { ...valg };
+        if (adresse) nyt[pendlingId] = [AFSTAND_VALG_ID];
+        else delete nyt[pendlingId];
+        return nyt;
+      });
+    }
+    if (!gem) return;
+    try {
+      if (adresse) localStorage.setItem(ADRESSE_LAGER, JSON.stringify(adresse));
+      else localStorage.removeItem(ADRESSE_LAGER);
+    } catch {}
+  };
+  useEffect(() => {
+    try {
+      const gemt = localStorage.getItem(ADRESSE_LAGER);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes kun i browseren.
+      if (gemt) vaelgAdresse(JSON.parse(gemt), false);
+    } catch {}
+    // Kun ved første visning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const kategorier = useMemo(
+    () =>
+      minAdresse
+        ? databaseKategorier.map((k) => (k.slug === PENDLING_SLUG ? medAfstandsNoegletal(k, minAdresse) : k))
+        : databaseKategorier,
+    [minAdresse, databaseKategorier],
+  );
+  const kommuneScores = useMemo(
+    () => (minAdresse ? medAfstand(databaseScorer, minAdresse) : databaseScorer),
+    [minAdresse, databaseScorer],
+  );
+
   const billedKoder = useMemo(() => new Set(kommunerMedBillede), [kommunerMedBillede]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -1458,8 +1611,6 @@ export function DanmarkKort({
   const [aktiveKategorier, setAktiveKategorier] = useState<Record<number, boolean>>(() =>
     Object.fromEntries(kategorier.map((k) => [k.id, true])),
   );
-  // kategoriId -> valgte id'er fra NOEGLETAL_VALG; mangler den, er alle valgt.
-  const [noegletalValg, setNoegletalValg] = useState<Record<number, string[]>>({});
 
   // Infoboksen ved Prioritet: undefined = lukket, null = om vægtene, ellers en kategori.
   const panelInfo = usePanelInfo();
@@ -1473,7 +1624,7 @@ export function DanmarkKort({
   // Valgene fra start: dem, hvis nøgletal tæller i standardscoren (tilvalg som
   // befolkningstæthed er ikke med). Er ingen standardvalgt, er alle valgt, som på serveren.
   const standardIder = (kat: KategoriMeta) => {
-    const valg = NOEGLETAL_VALG[kat.slug] ?? [];
+    const valg = noegletalValgFor(kat) ?? [];
     const valgte = valg.filter(
       (v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.standardValgt !== false,
     );
@@ -1485,7 +1636,7 @@ export function DanmarkKort({
   // Id'er på de nøgletal, der tæller i kategorien, eller undefined når valget er som fra
   // start, så kategorien tæller som normalt (serverens kategoriscore).
   const valgteNoegletalIder = (kat: KategoriMeta) => {
-    const valg = NOEGLETAL_VALG[kat.slug];
+    const valg = noegletalValgFor(kat);
     if (!valg) return undefined;
     const ider = valgteIder(kat);
     const standard = standardIder(kat);
@@ -2047,7 +2198,7 @@ export function DanmarkKort({
   // at vise et andet tal (fx husprisen), som ikke tæller med. Ellers: første nøgletal med
   // databasens enhed.
   const foersteNoegletalTekst = (kode: string, kat: KategoriMeta): string | null => {
-    const valg = NOEGLETAL_VALG[kat.slug];
+    const valg = noegletalValgFor(kat);
     if (valg && valgteNoegletalIder(kat) !== undefined) {
       const valgte = valg.filter((v) => valgteIder(kat).includes(v.id));
       if (valgte.length === 0) return null;
@@ -2886,10 +3037,10 @@ export function DanmarkKort({
                         />
                       </div>
 
-                      {NOEGLETAL_VALG[kat.slug] && (
+                      {noegletalValgFor(kat) && (
                         <NoegletalVaelger
                           kategori={kat}
-                          valg={NOEGLETAL_VALG[kat.slug]}
+                          valg={noegletalValgFor(kat)!}
                           valgteIder={valgteIder(kat)}
                           aktiv={aktiv}
                           antalUdenData={
@@ -2897,6 +3048,14 @@ export function DanmarkKort({
                           }
                           onVaelg={(ider) => setNoegletalValg((v) => ({ ...v, [kat.id]: ider }))}
                         />
+                      )}
+
+                      {kat.slug === PENDLING_SLUG && (
+                        <div
+                          className={`flex flex-col gap-1 transition-opacity duration-150 ${aktiv ? "" : "pointer-events-none opacity-40"}`}
+                        >
+                          <AdresseFelt adresse={minAdresse} onVaelg={vaelgAdresse} />
+                        </div>
                       )}
                     </div>
                   );
