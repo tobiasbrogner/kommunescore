@@ -58,7 +58,6 @@ import {
   IconSortDescending,
   IconTarget,
   IconTrendingUp,
-  IconUsers,
   IconX,
 } from "@tabler/icons-react";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
@@ -91,6 +90,9 @@ type Kommune = {
 };
 
 const PRIORITET_STANDARD = 50;
+
+// Kommunegruppernes id'er i Område-menuen, hvor de deler valg med regionerne og landsdelene.
+const GRUPPE_PRAEFIKS = "gruppe-";
 
 // Kategorier, hvor man under Prioritet kan vælge, hvilke nøgletal der tæller (efter
 // kategoriens slug). Alle er valgt fra start, og så tæller kategorien som normalt.
@@ -632,7 +634,7 @@ const DANMARK_BOUNDS: [[number, number], [number, number]] = [
   [15.3, 57.9],
 ];
 
-// Zoom til de valgte områder i Område/Gruppe-filtret: lidt luft om kanten, og aldrig
+// Zoom til de valgte områder i Område-filtret: lidt luft om kanten, og aldrig
 // tættere på end zoom 8, så en enkelt lille landsdel ikke fylder hele kortet.
 const FILTER_ZOOM_INDSTILLINGER = {
   padding: 48,
@@ -820,8 +822,7 @@ function ScoreInfo({ farvEfterPlacering }: { farvEfterPlacering: boolean }) {
             kategori, tæller den slet ikke med.
           </p>
           <p>
-            <strong>Område</strong> og <strong>Gruppe</strong> ændrer ikke scoren, men hvilke
-            kommuner der er med. Spændet og placeringerne gælder kun de viste kommuner.
+            <strong>Område</strong> ændrer ikke scoren, men hvilke kommuner der er med. Spændet og placeringerne gælder kun de viste kommuner.
           </p>
           <p>Søgefeltet påvirker hverken score eller spænd.</p>
           {farvEfterPlacering ? (
@@ -1446,7 +1447,7 @@ export function DanmarkKort({
   // Oversigt har sin egen "Vis flere", så de to visninger ikke påvirker hinanden.
   const [oversigtVisFlere, setOversigtVisFlere] = useState({ noegle: "", antal: OVERSIGT_BID });
   const visningRef = useRef<Visning>(visning);
-  // Samlet udstrækning af kommunerne i det aktive Område/Gruppe-filter (null = intet filter).
+  // Samlet udstrækning af kommunerne i det aktive Område-filter (null = intet filter).
   const filterUdstraekningRef = useRef<[[number, number], [number, number]] | null>(null);
   const filterNoegleRef = useRef("");
   const [valgteRegioner, setValgteRegioner] = useState<Selection>(new Set<string>());
@@ -1514,7 +1515,7 @@ export function DanmarkKort({
 
     laasKortTilDanmark(map);
     // Når kortet ændrer størrelse (vindue, eller kommunelisten skjules/vises), låses det
-    // til det nye udsnit; et aktivt Område/Gruppe-filter zoomes der ind på igen.
+    // til det nye udsnit; et aktivt Område-filter zoomes der ind på igen.
     // map.resize() udløser også hændelsen uden ændret størrelse; det springes over.
     let forrigeStoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
     map.on("resize", () => {
@@ -2249,7 +2250,7 @@ export function DanmarkKort({
     });
   }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune, noegletalValg, favoritter]);
 
-  // Listen i alle tre visninger. Placeringerne er stadig blandt alle kommuner i Område/Gruppe.
+  // Listen i alle tre visninger. Placeringerne er stadig blandt alle kommuner i Område.
   const sidepanelListe = kunFavoritter
     ? sidepanelKommuner.filter((k) => favoritter.includes(k.kode))
     : sidepanelKommuner;
@@ -2283,7 +2284,7 @@ export function DanmarkKort({
   const rangAf = (kode: string) =>
     kommunerRegionFiltreret.findIndex((k) => k.kode === kode) + 1;
 
-  // Laveste og højeste score blandt kommunerne i Område/Gruppe-filtret (listen er
+  // Laveste og højeste score blandt kommunerne i Område-filtret (listen er
   // sorteret med højeste score først).
   // Kommuner uden data er sorteret sidst og tæller ikke med.
   const scorerMedData = kommunerRegionFiltreret
@@ -2594,6 +2595,10 @@ export function DanmarkKort({
             </Button>
           )}
 
+          {/* Region/landsdel og kommunegruppe i én menu. De er stadig to filtre: inden for
+              hvert tæller en kommune med, hvis den matcher et af valgene, og en kommune skal
+              matche begge (fx landkommuner i Region Nordjylland). Gruppernes id'er får et
+              præfiks i menuen, så de kan skilles fra regionerne igen. */}
           <Dropdown>
             <Button
               variant="outline"
@@ -2601,13 +2606,38 @@ export function DanmarkKort({
             >
               <IconWorldMap className="h-4 w-4" />
               Område
-              {regionFilterAktiv && <FilterBadge antal={valgteRegioner.size} />}
+              {(regionFilterAktiv || gruppeFilterAktiv) && (
+                <FilterBadge
+                  antal={
+                    (regionFilterAktiv ? valgteRegioner.size : 0) +
+                    (gruppeFilterAktiv ? valgteGrupper.size : 0)
+                  }
+                />
+              )}
             </Button>
-            <Dropdown.Popover className="min-w-[220px]">
+            <Dropdown.Popover className="min-w-[260px]">
               <Dropdown.Menu
-                selectedKeys={valgteRegioner}
+                selectedKeys={
+                  new Set([
+                    ...(valgteRegioner === "all" ? [] : [...valgteRegioner].map(String)),
+                    ...(valgteGrupper === "all"
+                      ? []
+                      : [...valgteGrupper].map((id) => `${GRUPPE_PRAEFIKS}${id}`)),
+                  ])
+                }
                 selectionMode="multiple"
-                onSelectionChange={setValgteRegioner}
+                onSelectionChange={(valgte) => {
+                  if (valgte === "all") return;
+                  const ider = [...valgte].map(String);
+                  setValgteRegioner(new Set(ider.filter((id) => !id.startsWith(GRUPPE_PRAEFIKS))));
+                  setValgteGrupper(
+                    new Set(
+                      ider
+                        .filter((id) => id.startsWith(GRUPPE_PRAEFIKS))
+                        .map((id) => id.slice(GRUPPE_PRAEFIKS.length)),
+                    ),
+                  );
+                }}
               >
                 <Dropdown.Section>
                   <Header>Region</Header>
@@ -2628,32 +2658,21 @@ export function DanmarkKort({
                     </Dropdown.Item>
                   ))}
                 </Dropdown.Section>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-
-          <Dropdown>
-            <Button
-              variant="outline"
-              className="h-10 gap-1.5 rounded-lg text-sm"
-            >
-              <IconUsers className="h-4 w-4" />
-              Gruppe
-              {gruppeFilterAktiv && <FilterBadge antal={valgteGrupper.size} />}
-            </Button>
-            <Dropdown.Popover className="min-w-[260px]">
-              <Dropdown.Menu
-                selectedKeys={valgteGrupper}
-                selectionMode="multiple"
-                onSelectionChange={setValgteGrupper}
-              >
-                {Object.entries(GRUPPE_NAVNE).map(([id, navn]) => (
-                  <Dropdown.Item key={id} id={id} textValue={navn}>
-                    <RegionAfkrydsning />
-                    <Label>{navn}</Label>
-                    <GruppeInfo beskrivelse={GRUPPE_BESKRIVELSE[id]} />
-                  </Dropdown.Item>
-                ))}
+                <Separator />
+                <Dropdown.Section>
+                  <Header>Kommunetype</Header>
+                  {Object.entries(GRUPPE_NAVNE).map(([id, navn]) => (
+                    <Dropdown.Item
+                      key={`${GRUPPE_PRAEFIKS}${id}`}
+                      id={`${GRUPPE_PRAEFIKS}${id}`}
+                      textValue={navn}
+                    >
+                      <RegionAfkrydsning />
+                      <Label>{navn}</Label>
+                      <GruppeInfo beskrivelse={GRUPPE_BESKRIVELSE[id]} />
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
@@ -3009,7 +3028,7 @@ export function DanmarkKort({
         }
       >
       {/* Sidepanel til venstre for kortet (kun på store skærme): samme kommunekort som i
-          Oversigt, sorteret efter score og filtreret af søgning og Område/Gruppe. */}
+          Oversigt, sorteret efter score og filtreret af søgning og Område. */}
       <aside
         aria-label="Kommuner"
         className={`hidden w-1/5 shrink-0 overflow-y-auto border-r border-border bg-surface ${
