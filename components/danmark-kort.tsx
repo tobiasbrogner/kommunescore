@@ -158,6 +158,21 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Grundskyldspromille",
     },
   ],
+  // Andelen viser, hvor grøn kommunen er; pr. indbygger viser, hvor meget natur der er at dele.
+  natur: [
+    {
+      id: "andel",
+      label: "Andel",
+      forklaring: "Andel af kommunens areal, der er natur og grønne områder",
+      noegletal: "Andel natur og grønne områder",
+    },
+    {
+      id: "pr-indbygger",
+      label: "Pr. indbygger",
+      forklaring: "Kvadratmeter natur pr. indbygger; tyndt befolkede kommuner ligger højt",
+      noegletal: "Natur pr. indbygger",
+    },
+  ],
 };
 
 // Færdige profiler, der sætter Prioritet med ét klik (efter kategoriens slug). Kategorier,
@@ -319,6 +334,10 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
       noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
       tekst: (v) => `${v} anmeldelser pr. 1.000 indb.`,
     },
+  ],
+  natur: [
+    { noegletal: "Andel natur og grønne områder", tekst: (v) => `${v} % natur` },
+    { noegletal: "Natur pr. indbygger", tekst: (v) => `${v} m² natur pr. indb.` },
   ],
 };
 
