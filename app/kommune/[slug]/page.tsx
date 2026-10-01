@@ -8,7 +8,9 @@ import {
   IconTarget,
   IconTrendingUp,
 } from "@tabler/icons-react";
+import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
+import { billedKredit } from "@/lib/kommuner/billeder";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import {
@@ -340,6 +342,7 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
 
   const rapport = await hentKommuneRapport(slug);
   if (!rapport) notFound();
+  const kredit = billedKredit(rapport.kode);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
@@ -367,6 +370,11 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
             />
           ) : (
             <IconHome className="h-10 w-10 text-muted/50" />
+          )}
+          {rapport.harBillede && kredit && (
+            <p className="absolute right-2 bottom-2 rounded-md bg-black/55 px-2 py-0.5 text-[11px] text-white/90 backdrop-blur-sm print:hidden">
+              <BilledKreditTekst kredit={kredit} />
+            </p>
           )}
         </div>
         <div className="flex flex-wrap items-end justify-between gap-6 p-6 sm:p-8">

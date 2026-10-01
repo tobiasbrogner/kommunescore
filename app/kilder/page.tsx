@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
+import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
 import { dstTabeller, statistikbankenUrl } from "@/lib/kilder";
+import { alleBilledKreditter } from "@/lib/kommuner/billeder";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
@@ -14,7 +16,13 @@ export const metadata: Metadata = {
 // automatisk kommer med. Hver kategori har et anker (#slug), som tooltips på /kort
 // linker til.
 export default async function KilderSide() {
-  const { kategorier, noegletal } = await getCachedRapportData();
+  const { kategorier, noegletal, kommuner } = await getCachedRapportData();
+
+  // Krediteringen af kommunefotos, sorteret efter kommunenavn.
+  const kommunenavn = new Map(kommuner.map((k) => [k.kode, k.navn]));
+  const fotos = alleBilledKreditter()
+    .map(([kode, kredit]) => [kode, kommunenavn.get(kode) ?? kode, kredit] as const)
+    .sort(([, a], [, b]) => a.localeCompare(b, "da"));
 
   const noegletalPrKategori = new Map(
     kategorier.map((k) => [k.id, noegletal.filter((n) => n.kategoriId === k.id)]),
@@ -121,6 +129,24 @@ export default async function KilderSide() {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {fotos.length > 0 && (
+        <section id="fotos" className="mt-10 scroll-mt-24">
+          <h2 className="text-xl font-semibold text-foreground">Fotos</h2>
+          <p className="mt-1 text-sm text-muted">
+            Kommunernes fotos kommer fra Wikimedia Commons og er beskåret til siden. Klik på
+            fotografen for at se det oprindelige billede.
+          </p>
+          <ul className="mt-4 grid gap-x-6 gap-y-1.5 rounded-2xl border border-border bg-surface p-5 text-sm sm:grid-cols-2 sm:p-6">
+            {fotos.map(([kode, navn, kredit]) => (
+              <li key={kode} className="text-muted">
+                <span className="font-medium text-foreground">{navn}:</span>{" "}
+                <BilledKreditTekst kredit={kredit} />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </main>
