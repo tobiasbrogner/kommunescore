@@ -23,7 +23,7 @@ export function SiteHeader() {
         className={`mx-auto flex h-18 ${bredde} items-center justify-between px-4 sm:px-6 lg:px-8`}
       >
         <NextLink href="/" className="flex items-center text-foreground">
-          <Logo className="h-6.5" />
+          <Logo className="h-9" />
         </NextLink>
 
         <div className="flex items-center gap-3">
