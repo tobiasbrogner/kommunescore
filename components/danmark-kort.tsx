@@ -921,18 +921,21 @@ function rankFarve(rank: number) {
   return "bg-foreground text-surface";
 }
 
+// Har kommunen intet foto (eller fejler det), vises et hus-ikon i stedet.
 function KommuneBillede({
   kode,
   navn,
+  harBillede,
   ikonClassName,
 }: {
   kode: string;
   navn: string;
+  harBillede: boolean;
   ikonClassName: string;
 }) {
   const [fejlet, setFejlet] = useState(false);
 
-  if (fejlet) {
+  if (!harBillede || fejlet) {
     return <IconHome className={ikonClassName} />;
   }
 
@@ -1194,6 +1197,7 @@ function KommuneKort({
   profil,
   noegletalTekst,
   lavtBillede = false,
+  harBillede,
   favorit,
   onFavorit,
   onVaelg,
@@ -1202,6 +1206,7 @@ function KommuneKort({
   rang: number;
   score: number | null;
   valgt?: boolean;
+  harBillede: boolean;
   profil?: KommuneProfil;
   // Tallet ved en kategori i Styrker (styrke = true) og Fokusområder, fx "18.400 kr./m² (hus)".
   noegletalTekst: (kat: KategoriMeta, styrke: boolean) => string | null;
@@ -1229,7 +1234,12 @@ function KommuneKort({
         <div
           className={`relative flex ${lavtBillede ? "h-24" : "h-28"} items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10`}
         >
-          <KommuneBillede kode={k.kode} navn={k.navn} ikonClassName="h-8 w-8 text-muted/50" />
+          <KommuneBillede
+            kode={k.kode}
+            navn={k.navn}
+            harBillede={harBillede}
+            ikonClassName="h-8 w-8 text-muted/50"
+          />
           <span
             className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
               rang,
@@ -1314,10 +1324,13 @@ function VisFlere({
 export function DanmarkKort({
   kategorier,
   kommuneScores,
+  kommunerMedBillede,
 }: {
   kategorier: KategoriMeta[];
   kommuneScores: KommuneScore[];
+  kommunerMedBillede: string[];
 }) {
+  const billedKoder = useMemo(() => new Set(kommunerMedBillede), [kommunerMedBillede]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const hoveredKode = useRef<string | null>(null);
@@ -2918,6 +2931,7 @@ export function DanmarkKort({
               profil={kommuneProfiler.get(k.kode)}
               noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
               lavtBillede
+              harBillede={billedKoder.has(k.kode)}
               favorit={favoritter.includes(k.kode)}
               onFavorit={(k) => skiftFavorit(k.kode)}
               onVaelg={vaelgFraSidepanel}
@@ -3011,6 +3025,7 @@ export function DanmarkKort({
                 key={valgtKommune.kode}
                 kode={valgtKommune.kode}
                 navn={valgtKommune.navn}
+                harBillede={billedKoder.has(valgtKommune.kode)}
                 ikonClassName="h-7 w-7 text-muted/50"
               />
               {valgtKommuneRang > 0 && (
@@ -3077,6 +3092,7 @@ export function DanmarkKort({
               score={vaegtetScore(k.kode)}
               profil={kommuneProfiler.get(k.kode)}
               noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
+              harBillede={billedKoder.has(k.kode)}
               favorit={favoritter.includes(k.kode)}
               onFavorit={(k) => skiftFavorit(k.kode)}
               onVaelg={vaelgFraOversigt}

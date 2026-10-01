@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DanmarkKort } from "@/components/danmark-kort";
+import { kommunerMedBillede } from "@/lib/kommuner/billeder";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
@@ -13,7 +14,11 @@ export default async function KortSide() {
   return (
     <main>
       <h1 className="sr-only">Udforsk kortet</h1>
-      <DanmarkKort kategorier={kategorier} kommuneScores={kommuneScores} />
+      <DanmarkKort
+        kategorier={kategorier}
+        kommuneScores={kommuneScores}
+        kommunerMedBillede={kommunerMedBillede()}
+      />
     </main>
   );
 }
