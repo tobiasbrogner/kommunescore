@@ -2,38 +2,45 @@
 @import "@heroui/styles";
 
 :root {
-  --accent: oklch(0.5 0.16 255);
+  --accent: oklch(0.49 0.23 300);
   --accent-foreground: oklch(1 0 0);
 
   --background: oklch(0.985 0.004 95);
-  --foreground: oklch(0.19 0.01 255);
+  --foreground: oklch(0.19 0.012 285);
 
   --surface: oklch(1 0 0);
   --surface-secondary: oklch(0.965 0.008 95);
 
-  --muted: oklch(0.47 0.015 255);
+  --muted: oklch(0.47 0.015 285);
   --border: oklch(0.88 0.012 95);
 
-  /* Footerens blå bånd – mørkt i begge temaer, så hvid tekst altid har kontrast. */
-  --footer: oklch(0.42 0.15 258);
-  --footer-panel: oklch(0.47 0.155 258);
+  /* Footerens næsten sorte bånd – mørkt i begge temaer, så hvid tekst altid har kontrast. */
+  --footer: oklch(0.2 0.015 285);
+  --footer-panel: oklch(0.25 0.02 285);
+
+  /* Logoets farveovergang (kompasnålen). */
+  --logo-fra: #5b21e6;
+  --logo-til: #c026d3;
 }
 
 .dark {
-  --accent: oklch(0.72 0.14 255);
-  --accent-foreground: oklch(0.16 0.02 255);
+  --accent: oklch(0.74 0.16 305);
+  --accent-foreground: oklch(0.16 0.02 285);
 
-  --background: oklch(0.17 0.01 255);
+  --background: oklch(0.17 0.01 285);
   --foreground: oklch(0.94 0.006 95);
 
-  --surface: oklch(0.21 0.012 255);
-  --surface-secondary: oklch(0.25 0.012 255);
+  --surface: oklch(0.21 0.012 285);
+  --surface-secondary: oklch(0.25 0.012 285);
 
-  --muted: oklch(0.66 0.02 255);
-  --border: oklch(0.31 0.015 255);
+  --muted: oklch(0.66 0.02 285);
+  --border: oklch(0.31 0.015 285);
 
-  --footer: oklch(0.3 0.11 258);
-  --footer-panel: oklch(0.34 0.12 258);
+  --footer: oklch(0.13 0.012 285);
+  --footer-panel: oklch(0.2 0.018 285);
+
+  --logo-fra: #8b5cf6;
+  --logo-til: #e879f9;
 }
 
 html {
@@ -42,6 +49,12 @@ html {
 
 body {
   font-family: var(--font-geist), sans-serif;
+}
+
+/* Ordmærket "Kommuna". */
+.font-logo {
+  font-family: var(--font-manrope), sans-serif;
+  letter-spacing: -0.025em;
 }
 
 ::selection {
@@ -155,13 +168,13 @@ html[data-kort-visning] [data-site-footer] {
 @media print {
   :root,
   .dark {
-    --accent: oklch(0.5 0.16 255);
+    --accent: oklch(0.49 0.23 300);
     --accent-foreground: oklch(1 0 0);
     --background: oklch(1 0 0);
-    --foreground: oklch(0.19 0.01 255);
+    --foreground: oklch(0.19 0.012 285);
     --surface: oklch(1 0 0);
     --surface-secondary: oklch(0.965 0.008 95);
-    --muted: oklch(0.47 0.015 255);
+    --muted: oklch(0.47 0.015 285);
     --border: oklch(0.88 0.012 95);
     color-scheme: light;
   }

@@ -1,29 +1,30 @@
 import { useId, type CSSProperties } from "react";
 
-// Kortnål med et nordisk kors – en lille hilsen til Dannebrog.
+// Skråtstillet kompasnål: nord i fuld farve, syd dæmpet. Farveovergangen styres af --logo-fra/--logo-til.
 export function LogoMark({
   className = "size-8",
   style,
+  hvid = false,
 }: {
   className?: string;
   style?: CSSProperties;
+  hvid?: boolean;
 }) {
-  const clipId = useId();
+  const gradientId = useId();
 
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={className} style={style}>
-      <defs>
-        <clipPath id={clipId}>
-          <circle cx="16" cy="12.5" r="6.5" />
-        </clipPath>
-      </defs>
-      <path
-        d="M16 2C10.2 2 5.5 6.6 5.5 12.4c0 7.6 9 16.4 9.4 16.8a1.6 1.6 0 0 0 2.2 0c.4-.4 9.4-9.2 9.4-16.8C26.5 6.6 21.8 2 16 2z"
-        fill="var(--accent)"
-      />
-      <g clipPath={`url(#${clipId})`} fill="var(--accent-foreground)">
-        <rect x="12.4" y="5" width="2.6" height="16" />
-        <rect x="8" y="11.2" width="16" height="2.6" />
+      {!hvid && (
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" style={{ stopColor: "var(--logo-fra)" }} />
+            <stop offset="1" style={{ stopColor: "var(--logo-til)" }} />
+          </linearGradient>
+        </defs>
+      )}
+      <g transform="rotate(28 16 16)" fill={hvid ? "white" : `url(#${gradientId})`}>
+        <polygon points="16,1 23,15 9,15" />
+        <polygon points="9,17 23,17 16,31" fillOpacity={0.4} />
       </g>
     </svg>
   );

@@ -24,10 +24,10 @@ export function SiteHeader() {
       >
         <NextLink
           href="/"
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
+          className="font-logo flex items-center gap-2 text-[1.375rem] font-bold text-foreground"
         >
-          <LogoMark className="size-9" />
-          Logo Her
+          <LogoMark className="size-8" />
+          Kommuna
         </NextLink>
 
         <div className="flex items-center gap-3">

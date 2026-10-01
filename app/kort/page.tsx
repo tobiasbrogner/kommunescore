@@ -3,7 +3,7 @@ import { DanmarkKort } from "@/components/danmark-kort";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
-  title: "Kort | TestProjekt",
+  title: "Kort | Kommuna",
   description: "Udforsk Danmarks kommuner på et interaktivt kort.",
 };
 

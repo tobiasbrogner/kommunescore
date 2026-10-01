@@ -6,8 +6,8 @@ import { dstTabeller, statistikbankenUrl } from "@/lib/kilder";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
-  title: "Kilder | TestProjekt",
-  description: "Hvor tallene på TestProjekt kommer fra.",
+  title: "Kilder | Kommuna",
+  description: "Hvor tallene på Kommuna kommer fra.",
 };
 
 // Siden bygges ud fra kategorierne og nøgletallene i databasen, så en ny kategori

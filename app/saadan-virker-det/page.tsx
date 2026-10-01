@@ -3,8 +3,8 @@ import NextLink from "next/link";
 import { IconArrowLeft } from "@tabler/icons-react";
 
 export const metadata: Metadata = {
-  title: "Sådan virker det | TestProjekt",
-  description: "Hvordan TestProjekt regner kommunernes score ud.",
+  title: "Sådan virker det | Kommuna",
+  description: "Hvordan Kommuna regner kommunernes score ud.",
 };
 
 // Hvordan scorerne regnes ud. Hvor tallene kommer fra, står for sig på /kilder.
@@ -25,7 +25,7 @@ export default function SaadanVirkerDetSide() {
           Sådan virker det
         </h1>
         <p className="mt-3 max-w-2xl text-muted">
-          Alle tal på TestProjekt kommer fra offentlige statistikker. Her kan du se, hvilke
+          Alle tal på Kommuna kommer fra offentlige statistikker. Her kan du se, hvilke
           tal hver kategori bygger på, hvor de kommer fra, og hvordan de bliver til en score.
         </p>
       </header>

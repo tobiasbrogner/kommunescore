@@ -17,7 +17,7 @@ import { kommuneSlug } from "@/lib/kommuner/slug";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
-  title: "TestProjekt – find den kommune, der passer til dit liv",
+  title: "Kommuna – find den kommune, der passer til dit liv",
   description:
     "Vælg hvad der betyder mest for dig, og se hvordan alle 98 kommuner klarer sig. Bygget på offentlige tal fra bl.a. Danmarks Statistik.",
 };
