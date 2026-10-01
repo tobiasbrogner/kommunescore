@@ -115,18 +115,19 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
     },
   ],
   // Pr. indbygger alene giver små turistkommuner topscore; antallet viser bylivet.
+  // Antal står først som under Indbyggertal, så det står samme sted i begge kategorier.
   spisesteder: [
-    {
-      id: "pr-indbygger",
-      label: "Pr. indbygger",
-      forklaring: "Spisesteder pr. 1.000 indbyggere",
-      noegletal: "Spisesteder pr. 1.000 indbyggere",
-    },
     {
       id: "antal",
       label: "Antal",
       forklaring: "Spisesteder i alt i kommunen; viser hvor meget byliv der er",
       noegletal: "Spisesteder i alt",
+    },
+    {
+      id: "pr-indbygger",
+      label: "Pr. indbygger",
+      forklaring: "Spisesteder pr. 1.000 indbyggere",
+      noegletal: "Spisesteder pr. 1.000 indbyggere",
     },
   ],
   boligpriser: [
