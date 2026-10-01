@@ -440,9 +440,11 @@ function byggHoverOmridsSynlighed(): any {
 }
 
 // Score-farveskalaer på kortet: alle har 12 trin. Standard går fra rød til grøn;
-// Blå og Grøn er sammenhængende OKLCH-ramper fra lys til mørk.
+// Lilla er en sammenhængende OKLCH-rampe fra lys til mørk i sidens accent-nuance (hue 295).
+// Viridis er læselig ved alle typer farveblindhed; den er vendt, så mørkere betyder højere
+// score ligesom i Lilla.
 const KORT_FARVE_VALGT = "#4b5563";
-type KortPaletId = "groen-gul-orange" | "blaa" | "groen";
+type KortPaletId = "groen-gul-orange" | "lilla" | "viridis";
 const KORT_PALETTER: Record<KortPaletId, { navn: string; farver: readonly string[] }> = {
   "groen-gul-orange": {
     navn: "Standard",
@@ -461,38 +463,38 @@ const KORT_PALETTER: Record<KortPaletId, { navn: string; farver: readonly string
       "#00ab57", // 12 – højeste (grøn)
     ],
   },
-  blaa: {
-    navn: "Blå",
+  viridis: {
+    navn: "Viridis",
     farver: [
-      "#cbd9ec", // 1 – laveste
-      "#b5cbe9",
-      "#9fbee7",
-      "#88b0e3",
-      "#71a2e0",
-      "#5993db",
-      "#4485d4",
-      "#3378cb",
-      "#256cbd",
-      "#195fae",
-      "#155399",
-      "#124784", // 12 – højeste
+      "#fde725", // 1 – laveste (gul)
+      "#c2df23",
+      "#86d549",
+      "#52c569",
+      "#2ab07f",
+      "#1e9b8a",
+      "#25858e",
+      "#2d708e",
+      "#38588c",
+      "#433e85",
+      "#482173",
+      "#440154", // 12 – højeste (mørk lilla)
     ],
   },
-  groen: {
-    navn: "Grøn",
+  lilla: {
+    navn: "Lilla",
     farver: [
-      "#ccddcc", // 1 – laveste
-      "#b7d2b7",
-      "#a1c7a1",
-      "#8bbc8c",
-      "#74b077",
-      "#5da360",
-      "#48964d",
-      "#35893c",
-      "#257a2e",
-      "#156c22",
-      "#0c5e1a",
-      "#065114", // 12 – højeste
+      "#dcd7f0", // 1 – laveste
+      "#ccc3ef",
+      "#bdafec",
+      "#af9ce8",
+      "#a188e3",
+      "#9375dc",
+      "#8562d3",
+      "#774ec8",
+      "#6a3bbb",
+      "#5d28ac",
+      "#4f1699",
+      "#410185", // 12 – højeste
     ],
   },
 };
