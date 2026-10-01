@@ -22,6 +22,7 @@
     "db:seed:tryghed": "tsx scripts/seed-tryghed.ts",
     "db:seed:natur": "tsx scripts/seed-natur.ts",
     "db:seed:pendling": "tsx scripts/seed-pendling.ts",
+    "db:seed:sundhed": "tsx scripts/seed-sundhed.ts",
     "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"
   },
   "dependencies": {

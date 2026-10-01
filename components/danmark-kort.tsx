@@ -341,6 +341,10 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
     { noegletal: "Natur pr. indbygger", tekst: (v) => `${v} m² natur pr. indb.` },
   ],
   pendling: [{ noegletal: "Pendlingsafstand", tekst: (v) => `${v} km til arbejde` }],
+  sundhed: [
+    { noegletal: "Middellevetid", tekst: (v) => `${v} års levetid` },
+    { noegletal: "Afstand til nærmeste læge", tekst: (v) => `${v} km til læge` },
+  ],
 };
 
 type Visning = "kort" | "oversigt" | "regneark";
