@@ -2919,11 +2919,25 @@ export function DanmarkKort({
                 <div className="flex items-center gap-1">
                   <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
                   <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
+                  {kategorier.length > 1 && (
+                    // Slår alle fra, så man kan vælge de få, der betyder noget; ellers alle til.
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const alleTil = antalAktiveKategorier < kategorier.length;
+                        setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, alleTil])));
+                      }}
+                      className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                    >
+                      {antalAktiveKategorier < kategorier.length ? "Slå alle til" : "Slå alle fra"}
+                    </button>
+                  )}
                 </div>
 
-                {antalAktiveKategorier === 1 && kategorier.length > 1 && (
-                  <p id="min-en-kategori" className="-mt-2 text-xs text-muted">
-                    Mindst én kategori skal være slået til.
+                {/* Uden aktive kategorier får alle kommuner samme score (se vaegtetScore). */}
+                {antalAktiveKategorier === 0 && (
+                  <p className="-mt-2 text-xs text-muted">
+                    Slå de kategorier til, der skal tælle med i scoren.
                   </p>
                 )}
 
@@ -2931,8 +2945,6 @@ export function DanmarkKort({
                 <div className="grid gap-3 sm:grid-cols-2">
                 {kategorier.map((kat) => {
                   const aktiv = aktiveKategorier[kat.id] ?? true;
-                  // Mindst én kategori skal tælle med, ellers er der ingen score at vise.
-                  const erSidsteAktive = aktiv && antalAktiveKategorier === 1;
                   const andel = andelAfScore(kat);
                   return (
                     <div
@@ -2967,12 +2979,10 @@ export function DanmarkKort({
                           <Switch
                             size="sm"
                             isSelected={aktiv}
-                            isDisabled={erSidsteAktive}
                             onChange={(valgt) =>
                               setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
                             }
                             aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
-                            aria-describedby={erSidsteAktive ? "min-en-kategori" : undefined}
                           >
                             <Switch.Content>
                               <Switch.Control>
