@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import NextLink from "next/link";
-import { LogoMark } from "@/components/logo";
+import { Logo, LogoMark } from "@/components/logo";
 
 // Linkkolonner i det blå bånd. Nye sider tilføjes her, efterhånden som de kommer.
 const linkGrupper: { href: string; label: string }[][] = [
@@ -31,12 +31,12 @@ export function SiteFooter() {
           <div className="grid gap-10 py-12 sm:grid-cols-[minmax(0,12rem)_1fr] lg:pr-10">
             <div className="flex flex-col justify-between gap-8">
               <div>
-                <p className="font-logo text-lg font-bold">Kommuna</p>
+                <Logo hvid className="h-6" />
                 <p className="mt-2 text-sm leading-relaxed text-white/80">
                   Find et sted i Danmark, der passer til dit liv.
                 </p>
               </div>
-              <LogoMark className="size-12" hvid />
+              <LogoMark className="h-12" hvid />
             </div>
 
             <nav aria-label="Footer navigation" className="grid content-start gap-8 sm:grid-cols-2">

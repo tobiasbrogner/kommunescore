@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@heroui/react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogoMark } from "@/components/logo";
+import { Logo } from "@/components/logo";
 import { FeedbackModal } from "@/components/feedback-modal";
 const link = linkVariants();
 
@@ -22,12 +22,8 @@ export function SiteHeader() {
         aria-label="Primær navigation"
         className={`mx-auto flex h-18 ${bredde} items-center justify-between px-4 sm:px-6 lg:px-8`}
       >
-        <NextLink
-          href="/"
-          className="font-logo flex items-center gap-2 text-[1.375rem] font-bold text-foreground"
-        >
-          <LogoMark className="size-8" />
-          Kommuna
+        <NextLink href="/" className="flex items-center text-foreground">
+          <Logo className="h-6.5" />
         </NextLink>
 
         <div className="flex items-center gap-3">
