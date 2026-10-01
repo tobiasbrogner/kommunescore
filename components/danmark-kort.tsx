@@ -174,6 +174,21 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Natur pr. indbygger",
     },
   ],
+  // Foreningslivet og anlæggene kan vælges hver for sig; begge tæller fra start.
+  idraet: [
+    {
+      id: "medlemmer",
+      label: "Foreninger",
+      forklaring: "Medlemskaber af idrætsforeninger i procent af befolkningen",
+      noegletal: "Medlemskaber af idrætsforeninger",
+    },
+    {
+      id: "anlaeg",
+      label: "Anlæg",
+      forklaring: "Idrætsanlæg pr. 10.000 indbyggere, fx haller, baner og svømmehaller",
+      noegletal: "Idrætsanlæg pr. 10.000 indbyggere",
+    },
+  ],
 };
 
 // Færdige profiler, der sætter Prioritet med ét klik (efter kategoriens slug). Kategorier,
@@ -344,6 +359,10 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   sundhed: [
     { noegletal: "Middellevetid", tekst: (v) => `${v} års levetid` },
     { noegletal: "Afstand til nærmeste læge", tekst: (v) => `${v} km til læge` },
+  ],
+  idraet: [
+    { noegletal: "Medlemskaber af idrætsforeninger", tekst: (v) => `${v} % i idrætsforening` },
+    { noegletal: "Idrætsanlæg pr. 10.000 indbyggere", tekst: (v) => `${v} anlæg pr. 10.000 indb.` },
   ],
 };
 
