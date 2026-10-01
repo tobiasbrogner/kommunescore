@@ -1943,6 +1943,19 @@ export function DanmarkKort({
   ).length;
   const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
+  // Kategoriens andel af den samlede score i procent: dens vægt delt med summen af de
+  // aktive kategoriers vægte, som i vaegtetScore. Vises ved hver kategori under Prioritet,
+  // så man kan se, hvor meget en vægt reelt betyder, når der er mange kategorier.
+  const samletAktivVaegt = kategorier.reduce(
+    (sum, k) =>
+      aktiveKategorier[k.id] === false ? sum : sum + (prioriteter[k.id] ?? PRIORITET_STANDARD),
+    0,
+  );
+  const andelAfScore = (kat: KategoriMeta) =>
+    aktiveKategorier[kat.id] === false || samletAktivVaegt === 0
+      ? 0
+      : ((prioriteter[kat.id] ?? PRIORITET_STANDARD) / samletAktivVaegt) * 100;
+
   const vaelgProfil = (profil: Profil) => {
     setPrioriteter(
       Object.fromEntries(
@@ -2750,6 +2763,7 @@ export function DanmarkKort({
                   const aktiv = aktiveKategorier[kat.id] ?? true;
                   // Mindst én kategori skal tælle med, ellers er der ingen score at vise.
                   const erSidsteAktive = aktiv && antalAktiveKategorier === 1;
+                  const andel = andelAfScore(kat);
                   return (
                     <div
                       key={kat.id}
@@ -2770,22 +2784,33 @@ export function DanmarkKort({
                             {...panelInfo.knapProps(kat.id)}
                           />
                         </div>
-                        <Switch
-                          size="sm"
-                          isSelected={aktiv}
-                          isDisabled={erSidsteAktive}
-                          onChange={(valgt) =>
-                            setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
-                          }
-                          aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
-                          aria-describedby={erSidsteAktive ? "min-en-kategori" : undefined}
-                        >
-                          <Switch.Content>
-                            <Switch.Control>
-                              <Switch.Thumb />
-                            </Switch.Control>
-                          </Switch.Content>
-                        </Switch>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={`text-xs tabular-nums transition-opacity duration-150 ${
+                              aktiv ? "text-muted" : "text-muted opacity-50"
+                            }`}
+                            title="Kategoriens andel af den samlede score"
+                          >
+                            {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
+                            <span className="sr-only"> af den samlede score</span>
+                          </span>
+                          <Switch
+                            size="sm"
+                            isSelected={aktiv}
+                            isDisabled={erSidsteAktive}
+                            onChange={(valgt) =>
+                              setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
+                            }
+                            aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
+                            aria-describedby={erSidsteAktive ? "min-en-kategori" : undefined}
+                          >
+                            <Switch.Content>
+                              <Switch.Control>
+                                <Switch.Thumb />
+                              </Switch.Control>
+                            </Switch.Content>
+                          </Switch>
+                        </div>
                       </div>
 
                       <div className="flex items-end gap-2.5">
