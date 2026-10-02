@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, preload } from "react-dom";
 import {
   Map as MapLibreMap,
   NavigationControl,
@@ -495,6 +495,24 @@ type SortFelt = "score" | "navn" | "favoritter" | `kat-${number}`;
 type SortRetning = "stigende" | "faldende";
 
 const KOMMUNER_URL = "/data/kommuner.geojson";
+
+// Kommunegrænserne (ca. 2,4 MB) hentes én gang og deles af alle kortets kilder.
+// Hentningen starter, før kortet er klar, og browseren har fået et preload-hint i
+// <head>, så den kan begynde allerede mens sidens JavaScript hentes.
+let kommunerData: Promise<GeoJSON.FeatureCollection> | null = null;
+function hentKommuner() {
+  kommunerData ??= fetch(KOMMUNER_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Kunne ikke hente kommunegrænser (${res.status})`);
+      return res.json() as Promise<GeoJSON.FeatureCollection>;
+    })
+    .catch((fejl) => {
+      kommunerData = null;
+      throw fejl;
+    });
+  return kommunerData;
+}
+
 const SOURCE_ID = "kommuner";
 const LINJE_SOURCE_ID = "kommune-linjer";
 // Hver kommune opdelt i sine enkelte polygoner (fastland og øer), så hover-omridset
@@ -1521,6 +1539,8 @@ export function DanmarkKort({
   kommuneScores: KommuneScore[];
   kommunerMedBillede: string[];
 }) {
+  // Skal matche fetch() i hentKommuner (cors, samme-origin-cookies), ellers genbruges den ikke.
+  preload(KOMMUNER_URL, { as: "fetch", crossOrigin: "anonymous" });
   // Med en adresse i Pendling får kategorien et ekstra nøgletal for afstanden til den.
   const [minAdresse, setMinAdresse] = useState<Adresse | null>(null);
   // kategoriId -> valgte id'er fra NOEGLETAL_VALG; mangler den, er alle valgt.
@@ -1662,6 +1682,9 @@ export function DanmarkKort({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const kommunerPromise = hentKommuner();
+    let fjernet = false;
+
     const map = new MapLibreMap({
       container: containerRef.current,
       style: KORT_STYLE,
@@ -1707,9 +1730,12 @@ export function DanmarkKort({
     map.addControl(sidepanelKontrol, "bottom-right");
 
     map.on("load", async () => {
+      const data = await kommunerPromise;
+      if (fjernet) return;
+
       map.addSource(SOURCE_ID, {
         type: "geojson",
-        data: KOMMUNER_URL,
+        data,
         promoteId: "kode",
         tolerance: 0,
         buffer: 256,
@@ -1746,7 +1772,7 @@ export function DanmarkKort({
       // ser tykkere ud. Forenklingen følger zoom, så detaljerne kommer igen tæt på.
       map.addSource(LINJE_SOURCE_ID, {
         type: "geojson",
-        data: KOMMUNER_URL,
+        data,
         tolerance: 0.5,
         buffer: 256,
       });
@@ -1785,8 +1811,6 @@ export function DanmarkKort({
         },
       });
 
-      const res = await fetch(KOMMUNER_URL);
-      const data: GeoJSON.FeatureCollection = await res.json();
       (map.getSource(KOMMUNE_DELE_SOURCE_ID) as GeoJSONSource).setData(opdelIKommuneDele(data));
 
       // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
@@ -1914,6 +1938,7 @@ export function DanmarkKort({
     mapRef.current = map;
 
     return () => {
+      fjernet = true;
       setZoomIkonPladser(null);
       map.remove();
       mapRef.current = null;
