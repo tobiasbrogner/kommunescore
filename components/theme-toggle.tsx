@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@heroui/react";
 
@@ -24,13 +24,12 @@ function MaaneIkon() {
   );
 }
 
-export function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
-  const { resolvedTheme, setTheme } = useTheme();
+const ingenAbonnement = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export function ThemeToggle() {
+  // Temaet kendes først i browseren; på serveren vises en tom plads af samme størrelse.
+  const mounted = useSyncExternalStore(ingenAbonnement, () => true, () => false);
+  const { resolvedTheme, setTheme } = useTheme();
 
   if (!mounted) {
     return <div className="h-10 w-10 shrink-0" aria-hidden="true" />;

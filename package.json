@@ -29,20 +29,20 @@
     "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
-    "@heroui/react": "^3.2.5",
-    "@heroui/styles": "^3.2.5",
-    "@next/env": "^16.3.6",
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
+    "@next/env": "^16.3.8",
     "@node-rs/argon2": "^2.2.1",
-    "@tabler/icons-react": "^3.47.0",
-    "drizzle-orm": "^0.45.2",
+    "@tabler/icons-react": "^3.48.0",
+    "drizzle-orm": "^0.45.3",
     "maplibre-gl": "^6.11.2",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "next-themes": "^0.4.6",
-    "pg": "^8.23.0",
+    "pg": "^8.23.1",
     "puppeteer": "^25.12.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
@@ -51,13 +51,13 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "^5",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "packageManager": "pnpm@12.4.2"
 }
