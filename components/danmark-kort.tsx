@@ -494,9 +494,11 @@ type Visning = "kort" | "oversigt" | "regneark";
 type SortFelt = "score" | "navn" | "favoritter" | `kat-${number}`;
 type SortRetning = "stigende" | "faldende";
 
-const KOMMUNER_URL = "/data/kommuner.geojson";
+// Let, forenklet udgave til kortet (laves af scripts/byg-kortgraenser.ts); den fulde
+// kommuner.geojson bruges kun på serveren.
+const KOMMUNER_URL = "/data/kommuner-kort.geojson";
 
-// Kommunegrænserne (ca. 2,4 MB) hentes én gang og deles af alle kortets kilder.
+// Kommunegrænserne (ca. 1 MB) hentes én gang og deles af alle kortets kilder.
 // Hentningen starter, før kortet er klar, og browseren har fået et preload-hint i
 // <head>, så den kan begynde allerede mens sidens JavaScript hentes.
 let kommunerData: Promise<GeoJSON.FeatureCollection> | null = null;
