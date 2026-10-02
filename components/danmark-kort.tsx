@@ -8,8 +8,14 @@ import {
   type IControl,
   type GeoJSONSource,
   type StyleSpecification,
+  getVersion,
+  setWorkerUrl,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+// MapLibre 6 finder ikke selv sin worker, når Next bundler pakken; den serveres fra
+// public/ (kopieret af scripts/kopier-maplibre-worker.ts).
+setWorkerUrl(`/maplibre/${getVersion()}/maplibre-gl-worker.mjs`);
 import {
   Button,
   Description,
