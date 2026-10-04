@@ -6,6 +6,7 @@ import {
   IconAdjustmentsHorizontal,
   IconArrowRight,
   IconArrowsLeftRight,
+  IconCheck,
   IconFileAnalytics,
   IconHeart,
   IconMap2,
@@ -14,6 +15,7 @@ import {
   IconUserCircle,
 } from "@tabler/icons-react";
 import { ForsideKort } from "@/components/forside-kort";
+import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
 import type { ForsideHus } from "@/components/forside-huse";
 import { KategoriIkon } from "@/components/ikon";
 import { KommuneSoeg } from "@/components/kommune-soeg";
@@ -115,6 +117,11 @@ const VAERKTOEJER = [
 export default async function Home() {
   const [{ kategorier, kommuner }, geo] = await Promise.all([getCachedKommuneScores(), hentGeoFakta()]);
 
+  // Antal nøgletalsværdier bag scorerne, rundet ned til hele hundreder ("2.500+").
+  const antalTal = new Intl.NumberFormat("da-DK").format(
+    Math.floor(kommuner.reduce((sum, k) => sum + Object.keys(k.vaerdier).length, 0) / 100) * 100,
+  );
+
   const alleKommuner = kommuner
     .map((k) => ({ navn: k.navn, slug: kommuneSlug(k.navn) }))
     .sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
@@ -166,12 +173,21 @@ export default async function Home() {
                 <span className="text-accent">dit liv.</span>
               </h1>
 
-              <ul className="mt-7 flex flex-col gap-1.5 text-lg leading-8 text-muted sm:text-xl">
-                <li>
-                  Alle {kommuner.length} kommuner i {kategorier.length} kategorier
-                </li>
-                <li>Bygget på offentlige tal fra bl.a. Danmarks Statistik</li>
-                <li>Vægtet efter det, der betyder mest for dig</li>
+              <ul className="mt-7 flex flex-col gap-2 text-lg leading-7 text-muted sm:text-xl sm:leading-8">
+                {[
+                  `Bygget på ${antalTal}+ offentlige tal`,
+                  `Sammenligner alle ${kommuner.length} kommuner`,
+                  "Rangeret efter det, der betyder mest for dig",
+                ].map((punkt) => (
+                  <li key={punkt} className="flex items-start gap-3">
+                    <IconCheck
+                      className="mt-1 h-5 w-5 shrink-0 text-accent sm:mt-1.5"
+                      stroke={2.5}
+                      aria-hidden="true"
+                    />
+                    {punkt}
+                  </li>
+                ))}
               </ul>
 
               <div className="mt-9">
@@ -183,7 +199,7 @@ export default async function Home() {
                   <IconArrowRight className="h-5 w-5" />
                 </NextLink>
                 <p className="mt-3 text-sm text-muted">
-                  Gratis og uden login. Det tager under et minut.
+                  Gratis og uden login – klar på under et minut.
                 </p>
               </div>
 
@@ -220,15 +236,20 @@ export default async function Home() {
         className="border-y border-border/70 bg-surface-secondary"
       >
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium tracking-wide text-accent">Sådan virker det</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-              Fra 98 muligheder til dine favoritter.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-muted">
-              At vælge hvor man skal bo handler om mange ting på én gang. Vi samler tallene ét
-              sted, så du kan se, hvilke kommuner der passer til netop dine behov.
-            </p>
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-16">
+            <div className="max-w-2xl">
+              <p className="text-sm font-medium tracking-wide text-accent">Sådan virker det</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
+                Fra {kommuner.length} kommuner til dem, der passer til dig.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-muted">
+                Det handler ikke om at finde Danmarks bedste kommune. Det handler om at finde
+                den, der matcher dine eller jeres behov og prioriteter. Vi samler tallene ét sted
+                og viser dem ærligt og overskueligt i vores visuelle og brugervenlige værktøj.
+              </p>
+            </div>
+            {/* Kun på store skærme; på mobil ville den skubbe trinene langt ned. */}
+            <IllustrationKontrolpanel className="hidden w-full lg:block" />
           </div>
 
           <ol className="mt-12 grid gap-5 md:grid-cols-3">
@@ -251,14 +272,6 @@ export default async function Home() {
               </li>
             ))}
           </ol>
-
-          <NextLink
-            href="/saadan-virker-det"
-            className={`${link.base()} mt-8 inline-flex items-center gap-1.5`}
-          >
-            Sådan regnes scoren ud
-            <IconArrowRight className="h-4 w-4" />
-          </NextLink>
         </div>
       </section>
 

@@ -150,6 +150,31 @@ export default async function KilderSide() {
           </ul>
         </section>
       )}
+
+      <section id="illustrationer" className="mt-10 scroll-mt-24">
+        <h2 className="text-xl font-semibold text-foreground">Illustrationer</h2>
+        <p className="mt-1 text-sm text-muted">
+          Illustrationen på forsiden er fra{" "}
+          <a
+            href="https://undraw.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-accent hover:underline"
+          >
+            unDraw
+          </a>{" "}
+          af Katerina Limpitsouni, tilpasset Kommunas farver. Ikonerne er fra{" "}
+          <a
+            href="https://tabler.io/icons"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-accent hover:underline"
+          >
+            Tabler Icons
+          </a>{" "}
+          (MIT-licens).
+        </p>
+      </section>
     </main>
   );
 }
