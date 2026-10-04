@@ -60,6 +60,7 @@ import {
   IconMinus,
   IconPlus,
   IconSettings,
+  IconShare,
   IconSortAscending,
   IconSortDescending,
   IconTarget,
@@ -88,6 +89,11 @@ import { kommuneSlug } from "@/lib/kommuner/slug";
 import { formaterTal } from "@/lib/scores/formater";
 import { erSamletNoegletal } from "@/lib/scores/samlede-noegletal";
 import {
+  PRIORITET_PARAMETRE,
+  prioritetFraParametre,
+  prioritetTilParametre,
+} from "@/lib/scores/prioritet-link";
+import {
   byggKategoriFordelinger,
   byggKommuneProfil,
   type KommuneProfil,
@@ -115,6 +121,8 @@ const AFSTAND_NOEGLETAL_ID = -1;
 const AFSTAND_NOEGLETAL = "Afstand til din adresse";
 const AFSTAND_VALG_ID = "min-adresse";
 const ADRESSE_LAGER = "kommuna-adresse";
+// Prioritet (vægte, fravalgte kategorier og valgte nøgletal) som linkparametre.
+const PRIORITET_LAGER = "kommuna-prioritet";
 // Afstande herunder (km) tæller som "i samme by" og giver fuld score.
 const AFSTAND_NAER = 3;
 
@@ -2217,6 +2225,104 @@ export function DanmarkKort({
   ).length;
   const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
+  // Prioritet huskes i browseren og kan deles med "Del" (se lib/scores/prioritet-link.ts).
+  // Et delt link vinder over det gemte, og parametrene fjernes bagefter, så adressen igen
+  // er /kort. Valget i Pendling gemmes ikke, fordi det følger brugerens adresse, som aldrig
+  // kommer i et link.
+  const [prioritetGendannet, setPrioritetGendannet] = useState(false);
+  // React kører effekter to gange i udvikling; anden gang er linket allerede fjernet, og så
+  // ville det gemte blive lagt oven i det delte.
+  const prioritetLaestRef = useRef(false);
+  useEffect(() => {
+    if (prioritetLaestRef.current) return;
+    prioritetLaestRef.current = true;
+    const url = new URL(window.location.href);
+    let gemt = prioritetFraParametre(url.searchParams);
+    if (gemt) {
+      for (const navn of PRIORITET_PARAMETRE) url.searchParams.delete(navn);
+      window.history.replaceState(null, "", url);
+    } else {
+      try {
+        gemt = prioritetFraParametre(new URLSearchParams(localStorage.getItem(PRIORITET_LAGER) ?? ""));
+      } catch {}
+    }
+    if (gemt) {
+      const { vaegte, fra, noegletal } = gemt;
+      const idFor = new Map(kategorier.map((k) => [k.slug, k.id]));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage og linket findes kun i browseren.
+      setPrioriteter((p) => {
+        const nyt = { ...p };
+        for (const [slug, v] of Object.entries(vaegte)) {
+          const id = idFor.get(slug);
+          if (id !== undefined) nyt[id] = v;
+        }
+        return nyt;
+      });
+      setAktiveKategorier((a) => {
+        const nyt = { ...a };
+        for (const slug of fra) {
+          const id = idFor.get(slug);
+          if (id !== undefined) nyt[id] = false;
+        }
+        return nyt;
+      });
+      setNoegletalValg((valg) => {
+        const nyt = { ...valg };
+        for (const [slug, ider] of Object.entries(noegletal)) {
+          const id = idFor.get(slug);
+          const gyldige = ider.filter((x) => NOEGLETAL_VALG[slug]?.some((v) => v.id === x));
+          if (id !== undefined && slug !== PENDLING_SLUG && gyldige.length > 0) nyt[id] = gyldige;
+        }
+        return nyt;
+      });
+    }
+    setPrioritetGendannet(true);
+    // Kun ved første visning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const prioritetParametre = () =>
+    prioritetTilParametre({
+      vaegte: Object.fromEntries(
+        kategorier.flatMap((k) => {
+          const v = prioriteter[k.id] ?? PRIORITET_STANDARD;
+          return v === PRIORITET_STANDARD ? [] : [[k.slug, v]];
+        }),
+      ),
+      fra: kategorier.filter((k) => aktiveKategorier[k.id] === false).map((k) => k.slug),
+      noegletal: Object.fromEntries(
+        kategorier.flatMap((k) =>
+          noegletalValg[k.id] && k.slug !== PENDLING_SLUG ? [[k.slug, noegletalValg[k.id]]] : [],
+        ),
+      ),
+    });
+
+  useEffect(() => {
+    // Indtil det gemte er læst ind, ville standardværdierne ellers overskrive det.
+    if (!prioritetGendannet) return;
+    const params = prioritetParametre();
+    try {
+      if (params.size > 0) localStorage.setItem(PRIORITET_LAGER, params.toString());
+      else localStorage.removeItem(PRIORITET_LAGER);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- prioritetParametre bygger på de samme værdier.
+  }, [prioritetGendannet, prioriteter, aktiveKategorier, noegletalValg, kategorier]);
+
+  // Link til /kort med hele Prioritet, så en anden ser samme rangering.
+  const [prioritetKopieret, setPrioritetKopieret] = useState(false);
+  const delPrioritet = async () => {
+    const params = prioritetParametre();
+    const link = `${window.location.origin}/kort${params.size > 0 ? `?${params}` : ""}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setPrioritetKopieret(true);
+      setTimeout(() => setPrioritetKopieret(false), 2000);
+    } catch {
+      // Udklipsholderen kræver https og tilladelse; ellers kan linket kopieres herfra.
+      window.prompt("Kopiér linket til din Prioritet:", link);
+    }
+  };
+
   // Kategoriens andel af den samlede score i procent: dens vægt delt med summen af de
   // aktive kategoriers vægte, som i vaegtetScore. Vises ved hver kategori under Prioritet,
   // så man kan se, hvor meget en vægt reelt betyder, når der er mange kategorier.
@@ -2863,14 +2969,32 @@ export function DanmarkKort({
             )}
           </Button>
         )}
+        {/* Kopierer et link med hele Prioritet; ellers står den aldrig i adressen. */}
+        <Button
+          variant="outline"
+          size="sm"
+          onPress={delPrioritet}
+          aria-label={prioritetKopieret ? "Link kopieret" : "Del din Prioritet som link"}
+          className={`h-7 gap-1 rounded-md px-2 text-xs ${kategorier.length > 1 ? "" : "ml-auto"}`}
+        >
+          {prioritetKopieret ? (
+            <>
+              <IconCheck className="h-3.5 w-3.5" />
+              Kopieret
+            </>
+          ) : (
+            <>
+              <IconShare className="h-3.5 w-3.5" />
+              Del
+            </>
+          )}
+        </Button>
         {iBjaelke && (
           <button
             type="button"
             onClick={() => skiftPrioritetBjaelke(false)}
             aria-label="Luk Prioritet"
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground ${
-              kategorier.length > 1 ? "" : "ml-auto"
-            }`}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground"
           >
             <IconX className="h-4 w-4" />
           </button>
