@@ -945,11 +945,31 @@ function PrioritetInfoIndhold() {
     <>
       <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
       <p className="mt-1.5 text-sm text-pretty text-muted">
-        Justér, hvor vigtig hver kategori er for dig. En højere vægt
-        betyder, at kommunernes score i den pågældende kategori får større
-        betydning for den samlede rangering. Det ændrer ikke kommunernes
-        score, men kun hvordan de vægtes og sorteres.
+        Bestem, hvad der betyder mest for dig. Vægtene ændrer den samlede score og dermed
+        kortets farver og placeringerne; kategoriernes egne scorer er de samme.
       </p>
+      <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-sm text-pretty text-muted">
+        <li>
+          <strong className="font-medium text-foreground">Skyderen</strong> sætter vægten, og
+          procenten viser kategoriens andel af den samlede score.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">Kontakten</strong> slår kategorien
+          helt fra.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">Knapperne</strong> under skyderen
+          vælger, hvilke tal kategorien bygger på, fx hus eller lejlighed.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">Profil</strong> sætter alle vægte på
+          én gang som et udgangspunkt.
+        </li>
+        <li>
+          Under <strong className="font-medium text-foreground">Pendling</strong> kan du skrive
+          din egen adresse.
+        </li>
+      </ul>
       <LaesMere href="/saadan-virker-det#beregning" />
     </>
   );
