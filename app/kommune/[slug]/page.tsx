@@ -3,6 +3,7 @@ import NextLink from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import {
   IconArrowLeft,
+  IconArrowsLeftRight,
   IconHome,
   IconInfoCircle,
   IconTarget,
@@ -355,7 +356,16 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
           <IconArrowLeft className="h-4 w-4" />
           Til kortet
         </NextLink>
-        <RapportVaerktoejer kommunenavn={rapport.navn} slug={kommuneSlug(rapport.navn)} />
+        <div className="flex flex-wrap items-center gap-2" data-skjul-ved-print>
+          <NextLink
+            href={`/sammenlign?kommuner=${kommuneSlug(rapport.navn)}`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-secondary"
+          >
+            <IconArrowsLeftRight className="h-4 w-4" />
+            Sammenlign
+          </NextLink>
+          <RapportVaerktoejer kommunenavn={rapport.navn} slug={kommuneSlug(rapport.navn)} />
+        </div>
       </div>
 
       {/* Overblik */}

@@ -9,6 +9,7 @@ const linkGrupper: { href: string; label: string }[][] = [
   [
     { href: "/", label: "Forside" },
     { href: "/kort", label: "Udforsk kortet" },
+    { href: "/sammenlign", label: "Sammenlign kommuner" },
     { href: "/saadan-virker-det", label: "Sådan virker det" },
     { href: "/kilder", label: "Kilder" },
   ],

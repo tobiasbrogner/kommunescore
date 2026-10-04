@@ -40,6 +40,10 @@ export function SiteHeader() {
               Udforsk
             </NextLink>
 
+            <NextLink className={link.base()} href="/sammenlign">
+              Sammenlign
+            </NextLink>
+
             <NextLink className={buttonVariants({ variant: "primary", size: "md" })} href="/kort">
               Kom i gang
             </NextLink>
@@ -82,6 +86,14 @@ export function SiteHeader() {
               onClick={() => setMenuOpen(false)}
             >
               Udforsk
+            </NextLink>
+
+            <NextLink
+              href="/sammenlign"
+              className={`${link.base()} px-3 py-3`}
+              onClick={() => setMenuOpen(false)}
+            >
+              Sammenlign
             </NextLink>
 
             <NextLink
