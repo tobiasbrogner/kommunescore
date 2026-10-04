@@ -19,6 +19,7 @@ const RAEKKEFOELGE = [
   "jobmuligheder",
   "tryghed",
   "sundhed",
+  "aeldre",
   "pendling",
 ];
 

@@ -280,6 +280,22 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Idrætsanlæg pr. 10.000 indbyggere",
     },
   ],
+  // Ventetiden er entydig; hjemmehjælpen kan også afspejle plejekrævende borgere, så den
+  // kan fravælges. Begge tæller fra start.
+  aeldre: [
+    {
+      id: "ventetid",
+      label: "Plejebolig",
+      forklaring: "Ventetid i dage på plejehjem eller plejebolig for 67+ årige",
+      noegletal: "Ventetid på plejebolig",
+    },
+    {
+      id: "hjemmehjaelp",
+      label: "Hjemmehjælp",
+      forklaring: "Visiterede timer hjemmehjælp pr. uge pr. modtager på 67 år og derover",
+      noegletal: "Hjemmehjælp pr. modtager",
+    },
+  ],
 };
 
 // Færdige profiler, der sætter Prioritet med ét klik (efter kategoriens slug). Kategorier,
@@ -308,6 +324,7 @@ const PROFILER: Profil[] = [
       indbyggertal: 20,
       spisesteder: 20,
       idraet: 70,
+      aeldre: 30,
       natur: 60,
       sundhed: 60,
       pendling: 50,
@@ -317,7 +334,7 @@ const PROFILER: Profil[] = [
   {
     id: "pensionist",
     navn: "Pensionist",
-    beskrivelse: "Tryghed, sundhed og lav skat – job og børn tæller ikke",
+    beskrivelse: "Ældrepleje, tryghed og sundhed – job og børn tæller ikke",
     ikon: IconOld,
     vaegte: {
       tryghed: 100,
@@ -328,6 +345,7 @@ const PROFILER: Profil[] = [
       boligpriser: 50,
       indbyggertal: 40,
       idraet: 40,
+      aeldre: 100,
       jobmuligheder: 0,
       boern: 0,
       pendling: 0,
@@ -350,6 +368,7 @@ const PROFILER: Profil[] = [
       boern: 30,
       natur: 30,
       idraet: 30,
+      aeldre: 10,
     },
   },
   {
@@ -366,6 +385,7 @@ const PROFILER: Profil[] = [
       kommuneskat: 50,
       tryghed: 40,
       idraet: 40,
+      aeldre: 10,
       natur: 30,
       sundhed: 30,
       boern: 20,
@@ -386,6 +406,7 @@ const PROFILER: Profil[] = [
       sundhed: 40,
       boligpriser: 30,
       idraet: 20,
+      aeldre: 10,
       natur: 10,
       boern: 0,
     },
@@ -404,6 +425,7 @@ const PROFILER: Profil[] = [
       kommuneskat: 70,
       boern: 50,
       idraet: 50,
+      aeldre: 40,
       sundhed: 40,
       jobmuligheder: 30,
       spisesteder: 10,
@@ -428,6 +450,7 @@ const PROFILER: Profil[] = [
       natur: 20,
       sundhed: 20,
       idraet: 20,
+      aeldre: 0,
       spisesteder: 0,
       indbyggertal: 0,
     },
@@ -486,6 +509,10 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   idraet: [
     { noegletal: "Medlemskaber af idrætsforeninger", tekst: (v) => `${v} % i idrætsforening` },
     { noegletal: "Idrætsanlæg pr. 10.000 indbyggere", tekst: (v) => `${v} anlæg pr. 10.000 indb.` },
+  ],
+  aeldre: [
+    { noegletal: "Ventetid på plejebolig", tekst: (v) => `${v} dages ventetid på plejebolig` },
+    { noegletal: "Hjemmehjælp pr. modtager", tekst: (v) => `${v} timers hjemmehjælp/uge` },
   ],
 };
 
