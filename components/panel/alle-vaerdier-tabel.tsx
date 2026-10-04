@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { beregnScores, type KategoriMeta, type RaaVaerdi } from "@/lib/scores/compute";
+import { erSamletNoegletal } from "@/lib/scores/samlede-noegletal";
 
 type Noegletal = {
   id: number;
@@ -18,10 +19,6 @@ type CelleStatus = "idle" | "gemmer" | "gemt" | "fejl";
 function formatVaerdi(raa: string) {
   const tal = Number(raa);
   return Number.isFinite(tal) ? String(tal) : raa;
-}
-
-function erGennemsnit(navn: string) {
-  return navn.toLowerCase().includes("gennemsnit");
 }
 
 const STATUS_RING: Record<CelleStatus, string> = {
@@ -141,7 +138,7 @@ export function AlleVaerdierTabel({
           <tr>
             {kategorierMedNoegletal.flatMap((k) => [
               ...k.noegletal.map((n, i) => {
-                const fremhaevet = erGennemsnit(n.navn);
+                const fremhaevet = erSamletNoegletal(n.navn);
                 return (
                   <th
                     key={n.id}
@@ -174,7 +171,7 @@ export function AlleVaerdierTabel({
                 ...k.noegletal.map((n, i) => {
                   const noegle = `${kom.kode}:${n.id}`;
                   const status = statusPrCelle[noegle] ?? "idle";
-                  const fremhaevet = erGennemsnit(n.navn);
+                  const fremhaevet = erSamletNoegletal(n.navn);
                   return (
                     <td
                       key={n.id}

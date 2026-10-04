@@ -84,6 +84,7 @@ import { polygonArealKm2 } from "@/lib/kommuner/areal";
 import { navnePunkt } from "@/lib/kommuner/navne-punkt";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { formaterTal } from "@/lib/scores/formater";
+import { erSamletNoegletal } from "@/lib/scores/samlede-noegletal";
 import {
   byggKategoriFordelinger,
   byggKommuneProfil,
@@ -965,12 +966,8 @@ function noegletalValgFor(kat: KategoriMeta): NoegletalValg[] | undefined {
   return valg.length > 1 ? valg : undefined;
 }
 
-function erGennemsnit(navn: string) {
-  return navn.toLowerCase().includes("gennemsnit");
-}
-
 function KategoriInfoIndhold({ kategori }: { kategori: KategoriMeta }) {
-  const gennemsnit = kategori.noegletal.find((n) => erGennemsnit(n.navn));
+  const gennemsnit = kategori.noegletal.find((n) => erSamletNoegletal(n.navn));
   const restNoegletal = gennemsnit
     ? kategori.noegletal.filter((n) => n !== gennemsnit)
     : kategori.noegletal;

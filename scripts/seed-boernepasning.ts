@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { kategorier, kommuner, kommuneNoegletal, noegletal } from "@/lib/db/schema";
+import { BOERNEPASNING_SAMLET } from "@/lib/scores/samlede-noegletal";
 import { revaliderScores } from "./_revalider";
 
 const KILDE_PATH = path.join(process.cwd(), "data/kilder/boernepasning-arstakster-2026.xlsx");
@@ -38,7 +39,7 @@ const RAA_NOEGLETAL = [
   },
 ] as const;
 
-const GENNEMSNIT_NAVN = "Gennemsnitspris årligt";
+const GENNEMSNIT_NAVN = BOERNEPASNING_SAMLET;
 const GENNEMSNIT_BESKRIVELSE = `Gennemsnittet af kommunens årstakster for dagpleje, vuggestue, børnehave og SFO ${KILDE_TEKST}. Pasningstyper, kommunen ikke har, tæller ikke med. ${PRIS_SCORE_TEKST}`;
 
 type Raekke = { navn: string; vaerdier: (number | null)[] };
