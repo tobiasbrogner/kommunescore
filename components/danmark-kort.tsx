@@ -852,7 +852,7 @@ function LaesMere({ href }: { href: string }) {
 }
 
 // På store skærme (Tailwinds lg) er Prioritet en bjælke til højre i stedet for et panel
-// under knappen. Om bjælken er åben, huskes i localStorage.
+// under knappen. Om bjælken er åben i Kort, huskes i localStorage.
 const STOR_SKAERM = "(min-width: 64rem)";
 const PRIORITET_BJAELKE_LAGER = "kommuna-prioritet-aaben";
 
@@ -2121,30 +2121,36 @@ export function DanmarkKort({
     mapRef.current?.resize();
   }, [sidepanelSkjult, visPrioritetBjaelke]);
 
+  // I Kort huskes det, om bjælken er åben. I Oversigt og Regneark åbner den hver gang, man
+  // skifter dertil, fordi listerne der netop sorteres efter vægtene; den kan stadig lukkes.
   const skiftPrioritetBjaelke = (aaben: boolean) => {
     setPrioritetAaben(aaben);
     if (!aaben) panelInfo.luk();
+    if (visning !== "kort") return;
     try {
       localStorage.setItem(PRIORITET_BJAELKE_LAGER, aaben ? "1" : "0");
     } catch {}
   };
   useEffect(() => {
+    if (visning !== "kort") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- åbner ved skift af visning.
+      setPrioritetAaben(true);
+      return;
+    }
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes kun i browseren.
-      if (localStorage.getItem(PRIORITET_BJAELKE_LAGER) === "1") setPrioritetAaben(true);
-    } catch {}
-  }, []);
+      setPrioritetAaben(localStorage.getItem(PRIORITET_BJAELKE_LAGER) === "1");
+    } catch {
+      setPrioritetAaben(false);
+    }
+  }, [visning]);
 
   // I Kort-visning skjules footeren, så kortet fylder skærmen uden scroll.
   useEffect(() => {
     const html = document.documentElement;
     if (visning === "kort") html.dataset.kortVisning = "";
     else delete html.dataset.kortVisning;
-    if (visning === "oversigt" || visning === "regneark") html.dataset.laastVisning = "";
-    else delete html.dataset.laastVisning;
     return () => {
       delete html.dataset.kortVisning;
-      delete html.dataset.laastVisning;
     };
   }, [visning]);
 
@@ -2746,9 +2752,8 @@ export function DanmarkKort({
   );
 
   // Indholdet i Prioritet: i panelet under knappen (små skærme) eller i bjælken til højre
-  // (store skærme), hvor kategorierne står i én kolonne.
-  // toKolonner: i bjælken ved kortet, der er bred nok til to kolonner på store skærme.
-  const prioritetIndhold = (iBjaelke: boolean, toKolonner = false) => {
+  // (store skærme), hvor kategorierne står i to kolonner, når der er plads, ellers én.
+  const prioritetIndhold = (iBjaelke: boolean) => {
     // Nulstilling sker med "Nulstil filtre" i værktøjslinjen.
     const hoved = (
       <div
@@ -2812,7 +2817,7 @@ export function DanmarkKort({
     {iBjaelke && hoved}
     <div
       className={`flex flex-col gap-4 overflow-y-auto ${
-        iBjaelke ? "@container min-h-0 flex-1 p-4" : "max-h-[inherit] p-3"
+        iBjaelke ? "@container min-h-0 flex-1 p-3" : "max-h-[inherit] p-3"
       }`}
     >
       {!iBjaelke && hoved}
@@ -2825,9 +2830,9 @@ export function DanmarkKort({
       )}
 
       {/* To kolonner, der fyldes række for række, så den sidste kategori står nederst: i
-          panelet altid, i bjælken ved kortet kun når der er plads til dem; ellers én kolonne. */}
+          panelet altid, i bjælken kun når der er plads til dem; ellers én kolonne. */}
       <div
-        className={`grid gap-3 ${iBjaelke ? (toKolonner ? "@[33rem]:grid-cols-2" : "") : "sm:grid-cols-2"}`}
+        className={`grid gap-3 ${iBjaelke ? "@[28rem]:grid-cols-2" : "sm:grid-cols-2"}`}
       >
       {kategorier.map((kat) => {
         const aktiv = aktiveKategorier[kat.id] ?? true;
@@ -2835,7 +2840,8 @@ export function DanmarkKort({
         return (
           <div
             key={kat.id}
-            className={`flex flex-col gap-2.5 rounded-xl border border-border p-3 transition-colors duration-150 ${
+            // Lidt mindre luft i bjælken, så navne som "Jobmuligheder" kan stå helt i to kolonner.
+            className={`flex flex-col gap-2.5 rounded-xl border border-border ${iBjaelke ? "p-2.5" : "p-3"} transition-colors duration-150 ${
               aktiv ? "bg-surface" : "bg-surface-secondary/60"
             }`}
           >
@@ -2967,18 +2973,18 @@ export function DanmarkKort({
   };
 
   // Prioritet som bjælke til højre på store skærme. Ved kortet går den fra top til bund
-  // som kommunelisten til venstre og er bredere, så kategorierne kan stå i to kolonner;
-  // i Oversigt og Regneark er den en smallere boks ved siden af.
+  // og er lige så bred som kommunelisten til venstre (20 %); i Oversigt og Regneark er den
+  // en boks ved siden af listen, der fylder 30 %.
   const prioritetBjaelke = (vedKortet: boolean) => (
     <aside
       aria-label="Prioritet"
       className={`relative z-20 flex shrink-0 flex-col bg-surface ${
         vedKortet
-          ? "w-[30%] min-w-80 max-w-[600px] border-l border-border"
-          : "w-80 rounded-[1.75rem] border border-border shadow-sm xl:w-96"
+          ? "w-1/5 min-w-80 border-l border-border"
+          : "w-[30%] min-w-80 max-w-[600px] rounded-[1.75rem] border border-border shadow-sm"
       }`}
     >
-      {prioritetIndhold(true, vedKortet)}
+      {prioritetIndhold(true)}
     </aside>
   );
 
@@ -2995,7 +3001,9 @@ export function DanmarkKort({
       className={`flex flex-col ${
         visning === "kort"
           ? "gap-4 py-12 lg:h-[calc(100dvh-4.5rem-1px)] lg:gap-0 lg:py-0"
-          : "gap-4 py-12 lg:min-h-0 lg:flex-1 lg:gap-0 lg:pt-0 lg:pb-6"
+          : // Oversigt og Regneark fylder også skærmen under headeren; footeren ligger
+            // nedenunder og ses først, når man scroller forbi listen.
+            "gap-4 py-12 lg:h-[calc(100dvh-4.5rem-1px)] lg:gap-0 lg:pt-0 lg:pb-6"
       }`}
     >
       <div
@@ -3538,8 +3546,7 @@ export function DanmarkKort({
 
       {visning === "oversigt" && (
         <div className={`${FULD_BREDDE} lg:flex lg:min-h-0 lg:flex-1 lg:gap-5`}>
-        {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
-            (se html[data-laast-visning] i globals.css). */}
+        {/* På store skærme fylder boksen skærmen under værktøjslinjen. */}
         <div className="flex h-[550px] flex-col overflow-hidden sm:h-[650px] lg:h-full lg:min-w-0 lg:flex-1 rounded-[1.75rem] border border-border bg-surface shadow-sm">
         <div className="@container shrink-0 border-b border-border px-5 py-3">
           {listeVaerktoej}
@@ -3587,8 +3594,7 @@ export function DanmarkKort({
 
       {visning === "regneark" && (
         <div className={`${FULD_BREDDE} lg:flex lg:min-h-0 lg:flex-1 lg:gap-5`}>
-        {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
-            (se html[data-laast-visning] i globals.css). */}
+        {/* På store skærme fylder boksen skærmen under værktøjslinjen. */}
         <div className="flex h-[520px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-full lg:min-w-0 lg:flex-1">
         <div className="@container shrink-0 border-b border-border px-5 py-3">
           {listeVaerktoej}

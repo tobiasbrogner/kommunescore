@@ -143,24 +143,6 @@ body {
     animation: none;
   }
 }
-/* Oversigt og Regneark (sat af DanmarkKort): på store skærme låses siden til skærmens
-   højde med header og footer synlige, og visningens boks fylder pladsen imellem. Så er
-   boksen det eneste, der scroller. */
-@media (min-width: 64rem) {
-  html[data-laast-visning] body {
-    height: 100dvh;
-    overflow: hidden;
-  }
-
-  html[data-laast-visning] body > main,
-  html[data-laast-visning] body > main > main {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-}
-
 /* Kort-visning (sat af DanmarkKort): kortet fylder skærmen, så footeren skjules. */
 html[data-kort-visning] [data-site-footer] {
   display: none;
