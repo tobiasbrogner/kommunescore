@@ -33,9 +33,20 @@ export async function generateMetadata(props: PageProps<"/kommune/[slug]">): Pro
   const { slug } = await props.params;
   const rapport = await hentKommuneRapport(slug);
   if (!rapport) return { title: "Kommune ikke fundet" };
+  // Titlen er det, folk søger på ("Aarhus Kommune boligpriser"); beskrivelsen bruger
+  // kommunens egne tal, så søgeresultatet og delingen siger noget konkret.
+  const officielt = officieltKommunenavn(rapport.navn);
+  const title = `${officielt}: score, boligpriser og skat | Kommuna`;
+  const description =
+    `${officielt} får en samlet score på ${Math.round(rapport.samlet.score)} og er nr. ` +
+    `${rapport.samlet.rang} af ${rapport.samlet.antal} kommuner. Se boligpriser, kommuneskat, ` +
+    `tryghed, børnepasning og ${rapport.kategorier.length - 4} andre kategorier sammenlignet ` +
+    `med resten af Danmark.`;
   return {
-    title: `${rapport.navn} – kommunerapport`,
-    description: `Score, placeringer og nøgletal for ${rapport.navn} sammenlignet med resten af Danmark.`,
+    title,
+    description,
+    alternates: { canonical: `/kommune/${slug}` },
+    openGraph: { title, description, type: "article", siteName: "Kommuna", locale: "da_DK" },
   };
 }
 

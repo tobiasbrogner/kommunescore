@@ -14,10 +14,25 @@ import { formaterTal } from "@/lib/scores/formater";
 
 const MAKS = 4;
 
-export const metadata: Metadata = {
-  title: "Sammenlign kommuner | Kommuna",
-  description: "Sammenlign op til fire kommuner side om side – score, fakta og nøgletal.",
-};
+// Med valgte kommuner står de i titlen, fx "Aarhus vs. Odense – sammenlign kommuner".
+export async function generateMetadata(props: PageProps<"/sammenlign">): Promise<Metadata> {
+  const { kommuner: parameter } = await props.searchParams;
+  const data = await getCachedRapportData();
+  const navnPrSlug = new Map(data.kommuner.map((k) => [kommuneSlug(k.navn), k.navn]));
+  const navne = valgteSlugs(parameter)
+    .flatMap((s) => navnPrSlug.get(s) ?? [])
+    .slice(0, MAKS);
+
+  const title =
+    navne.length >= 2
+      ? `${navne.join(" vs. ")} – sammenlign kommuner | Kommuna`
+      : "Sammenlign kommuner | Kommuna";
+  const description =
+    navne.length >= 2
+      ? `Sammenlign ${navne.slice(0, -1).join(", ")} og ${navne.at(-1)} side om side: samlet score, boligpriser, skat og alle nøgletal.`
+      : "Sammenlign op til fire kommuner side om side – score, fakta og nøgletal.";
+  return { title, description, openGraph: { title, description, siteName: "Kommuna", locale: "da_DK" } };
+}
 
 const heltal = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
 
