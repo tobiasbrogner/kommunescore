@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal, preload } from "react-dom";
 import {
   Map as MapLibreMap,
@@ -851,6 +851,23 @@ function LaesMere({ href }: { href: string }) {
   );
 }
 
+// På store skærme (Tailwinds lg) er Prioritet en bjælke til højre i stedet for et panel
+// under knappen. Om bjælken er åben, huskes i localStorage.
+const STOR_SKAERM = "(min-width: 64rem)";
+const PRIORITET_BJAELKE_LAGER = "kommuna-prioritet-aaben";
+
+function useErStorSkaerm() {
+  return useSyncExternalStore(
+    (skift) => {
+      const mq = window.matchMedia(STOR_SKAERM);
+      mq.addEventListener("change", skift);
+      return () => mq.removeEventListener("change", skift);
+    },
+    () => window.matchMedia(STOR_SKAERM).matches,
+    () => false,
+  );
+}
+
 // Infoboksen til venstre for Prioritet-panelet. Den ligger inde i panelet (ikke som en
 // tooltip i body), fordi panelet er modalt: alt uden for det er inert, og et klik
 // udenfor lukker det. Så kan man føre musen hen til boksen og klikke på "Læs mere".
@@ -1254,6 +1271,9 @@ function SorterbarOverskrift({
 
 // Bredde for værktøjslinjen og Oversigt/Regneark. Kortet går fuld bredde på store skærme.
 const INDHOLD_BREDDE = "mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8";
+// Oversigt og Regneark fylder hele vinduets bredde ligesom kortet; kun værktøjslinjen
+// over dem holdes i INDHOLD_BREDDE.
+const FULD_BREDDE = "w-full px-4 sm:px-6 lg:px-8";
 
 const VISNINGER:{ id: Visning; label: string; Ikon: () => React.JSX.Element }[] = [
   { id: "kort", label: "Kort", Ikon: () => <IconMap className="h-4 w-4" /> },
@@ -1633,6 +1653,9 @@ export function DanmarkKort({
   const [klar, setKlar] = useState(false);
   const [visning, setVisning] = useState<Visning>("kort");
   const [sidepanelSkjult, setSidepanelSkjult] = useState(false);
+  const erStorSkaerm = useErStorSkaerm();
+  const [prioritetAaben, setPrioritetAaben] = useState(false);
+  const visPrioritetBjaelke = erStorSkaerm && prioritetAaben;
   const [zoomIkonPladser, setZoomIkonPladser] = useState<{
     ind: HTMLElement;
     ud: HTMLElement;
@@ -2094,9 +2117,23 @@ export function DanmarkKort({
 
   useEffect(() => {
     sidepanelKontrolRef.current?.setUdvidet(sidepanelSkjult);
-    // Kortet skifter bredde, når listen skjules eller vises.
+    // Kortet skifter bredde, når listen eller Prioritet-bjælken skjules eller vises.
     mapRef.current?.resize();
-  }, [sidepanelSkjult]);
+  }, [sidepanelSkjult, visPrioritetBjaelke]);
+
+  const skiftPrioritetBjaelke = (aaben: boolean) => {
+    setPrioritetAaben(aaben);
+    if (!aaben) panelInfo.luk();
+    try {
+      localStorage.setItem(PRIORITET_BJAELKE_LAGER, aaben ? "1" : "0");
+    } catch {}
+  };
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes kun i browseren.
+      if (localStorage.getItem(PRIORITET_BJAELKE_LAGER) === "1") setPrioritetAaben(true);
+    } catch {}
+  }, []);
 
   // I Kort-visning skjules footeren, så kortet fylder skærmen uden scroll.
   useEffect(() => {
@@ -2708,6 +2745,251 @@ export function DanmarkKort({
     </>
   );
 
+  // Indholdet i Prioritet: i panelet under knappen (små skærme) eller i bjælken til højre
+  // (store skærme), hvor kategorierne står i én kolonne.
+  // toKolonner: i bjælken ved kortet, der er bred nok til to kolonner på store skærme.
+  const prioritetIndhold = (iBjaelke: boolean, toKolonner = false) => {
+    // Nulstilling sker med "Nulstil filtre" i værktøjslinjen.
+    const hoved = (
+      <div
+        className={`flex items-center gap-1 ${iBjaelke ? "shrink-0 border-b border-border px-4 py-3" : ""}`}
+      >
+        <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
+        <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
+        {kategorier.length > 1 && (
+          // Slår alle fra, så man kan vælge de få, der betyder noget; ellers alle til.
+          <button
+            type="button"
+            onClick={() => {
+              const alleTil = antalAktiveKategorier < kategorier.length;
+              setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, alleTil])));
+            }}
+            className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+          >
+            {antalAktiveKategorier < kategorier.length ? "Slå alle til" : "Slå alle fra"}
+          </button>
+        )}
+        {iBjaelke && (
+          <button
+            type="button"
+            onClick={() => skiftPrioritetBjaelke(false)}
+            aria-label="Luk Prioritet"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground ${
+              kategorier.length > 1 ? "" : "ml-auto"
+            }`}
+          >
+            <IconX className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    );
+
+    return (
+    <>
+    {panelInfoKategori !== undefined && (
+      <div
+        {...panelInfo.boksProps}
+        role="region"
+        aria-label={
+          panelInfoKategori ? `Om ${panelInfoKategori.navn}` : "Om vægt pr. kategori"
+        }
+        // Til venstre for panelet/bjælken med toppen i flugt; på smalle skærme er der ikke
+        // plads, så den lægger sig over panelets top i stedet.
+        className={`absolute z-30 rounded-2xl border border-border bg-overlay p-3 shadow-(--overlay-shadow) ${
+          iBjaelke
+            ? "top-3 right-full mr-2 w-72"
+            : "inset-x-0 top-0 sm:inset-x-auto sm:right-full sm:mr-2 sm:w-72"
+        }`}
+      >
+        {panelInfoKategori ? (
+          <KategoriInfoIndhold kategori={panelInfoKategori} />
+        ) : (
+          <PrioritetInfoIndhold />
+        )}
+      </div>
+    )}
+    {/* I bjælken står overskriften fast, mens kategorierne ruller under den. */}
+    {iBjaelke && hoved}
+    <div
+      className={`flex flex-col gap-4 overflow-y-auto ${
+        iBjaelke ? "@container min-h-0 flex-1 p-4" : "max-h-[inherit] p-3"
+      }`}
+    >
+      {!iBjaelke && hoved}
+
+      {/* Uden aktive kategorier får alle kommuner samme score (se vaegtetScore). */}
+      {antalAktiveKategorier === 0 && (
+        <p className="-mt-2 text-xs text-muted">
+          Slå de kategorier til, der skal tælle med i scoren.
+        </p>
+      )}
+
+      {/* To kolonner, der fyldes række for række, så den sidste kategori står nederst: i
+          panelet altid, i bjælken ved kortet kun når der er plads til dem; ellers én kolonne. */}
+      <div
+        className={`grid gap-3 ${iBjaelke ? (toKolonner ? "@[33rem]:grid-cols-2" : "") : "sm:grid-cols-2"}`}
+      >
+      {kategorier.map((kat) => {
+        const aktiv = aktiveKategorier[kat.id] ?? true;
+        const andel = andelAfScore(kat);
+        return (
+          <div
+            key={kat.id}
+            className={`flex flex-col gap-2.5 rounded-xl border border-border p-3 transition-colors duration-150 ${
+              aktiv ? "bg-surface" : "bg-surface-secondary/60"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div
+                className={`flex min-w-0 items-center gap-1.5 transition-opacity duration-150 ${
+                  aktiv ? "" : "opacity-50"
+                }`}
+              >
+                <KategoriIkon navn={kat.ikon} className="h-4 w-4 shrink-0 text-muted" />
+                <Label className="truncate">{kat.navn}</Label>
+                <InfoKnap
+                  label={`Hvad indgår i ${kat.navn}?`}
+                  {...panelInfo.knapProps(kat.id)}
+                />
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={`text-xs tabular-nums transition-opacity duration-150 ${
+                    aktiv ? "text-muted" : "text-muted opacity-50"
+                  }`}
+                  title="Kategoriens andel af den samlede score"
+                >
+                  {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
+                  <span className="sr-only"> af den samlede score</span>
+                </span>
+                <Switch
+                  size="sm"
+                  isSelected={aktiv}
+                  onChange={(valgt) =>
+                    setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
+                  }
+                  aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
+                >
+                  <Switch.Content>
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
+                  </Switch.Content>
+                </Switch>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2.5">
+              <div className="min-w-0 flex-1">
+                <div className="flex justify-between text-[10px] text-muted">
+                  <span>Lav</span>
+                  <span>Høj</span>
+                </div>
+                <Slider
+                  className={`mt-0.5 w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
+                  minValue={0}
+                  maxValue={100}
+                  step={5}
+                  isDisabled={!aktiv}
+                  value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                  onChange={(v) =>
+                    setPrioriteter((p) => ({
+                      ...p,
+                      [kat.id]: Array.isArray(v) ? v[0] : v,
+                    }))
+                  }
+                  aria-label={kat.navn}
+                >
+                  <Slider.Track>
+                    <Slider.Fill />
+                    <Slider.Thumb />
+                  </Slider.Track>
+                </Slider>
+              </div>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={100}
+                step={5}
+                disabled={!aktiv}
+                value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                onChange={(e) => {
+                  const raa = e.target.value;
+                  if (raa === "") return;
+                  const tal = Number(raa);
+                  if (!Number.isFinite(tal)) return;
+                  const klemt = Math.min(100, Math.max(0, Math.round(tal)));
+                  setPrioriteter((p) => ({ ...p, [kat.id]: klemt }));
+                }}
+                onBlur={(e) => {
+                  const tal = e.target.value === "" ? PRIORITET_STANDARD : Number(e.target.value);
+                  const basis = Number.isFinite(tal) ? tal : PRIORITET_STANDARD;
+                  const afrundet = Math.min(100, Math.max(0, Math.round(basis / 5) * 5));
+                  setPrioriteter((p) => ({ ...p, [kat.id]: afrundet }));
+                }}
+                aria-label={`${kat.navn} – vægt i tal`}
+                className="w-9 shrink-0 rounded-md border border-border bg-surface px-1 py-1 text-right text-xs tabular-nums text-foreground outline-none transition-colors focus:border-accent disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </div>
+
+            {noegletalValgFor(kat) && (
+              <NoegletalVaelger
+                kategori={kat}
+                valg={noegletalValgFor(kat)!}
+                valgteIder={valgteIder(kat)}
+                aktiv={aktiv}
+                antalUdenData={
+                  kommuneScores.filter((s) => kategoriScore(s.kode, kat) === null).length
+                }
+                onVaelg={(ider) => setNoegletalValg((v) => ({ ...v, [kat.id]: ider }))}
+              />
+            )}
+
+            {kat.slug === PENDLING_SLUG && (
+              <div
+                className={`flex flex-col gap-1 transition-opacity duration-150 ${aktiv ? "" : "pointer-events-none opacity-40"}`}
+              >
+                <AdresseFelt adresse={minAdresse} onVaelg={vaelgAdresse} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      </div>
+
+      {kategorier.length === 0 && (
+        <p className="text-sm text-muted">Ingen kategorier oprettet endnu.</p>
+      )}
+    </div>
+    </>
+    );
+  };
+
+  // Prioritet som bjælke til højre på store skærme. Ved kortet går den fra top til bund
+  // som kommunelisten til venstre og er bredere, så kategorierne kan stå i to kolonner;
+  // i Oversigt og Regneark er den en smallere boks ved siden af.
+  const prioritetBjaelke = (vedKortet: boolean) => (
+    <aside
+      aria-label="Prioritet"
+      className={`relative z-20 flex shrink-0 flex-col bg-surface ${
+        vedKortet
+          ? "w-[30%] min-w-80 max-w-[600px] border-l border-border"
+          : "w-80 rounded-[1.75rem] border border-border shadow-sm xl:w-96"
+      }`}
+    >
+      {prioritetIndhold(true, vedKortet)}
+    </aside>
+  );
+
+  const prioritetKnapIndhold = (
+    <>
+      <IconAdjustmentsHorizontal className="h-4 w-4" />
+      Prioritet
+      {antalAendredePrioriteter > 0 && <FilterBadge antal={antalAendredePrioriteter} />}
+    </>
+  );
+
   return (
     <div
       className={`flex flex-col ${
@@ -2939,202 +3221,35 @@ export function DanmarkKort({
             </Dropdown>
           )}
 
+          {/* På store skærme åbner og lukker knappen bjælken til højre; ellers et panel. */}
+          {erStorSkaerm ? (
+            <Button
+              variant="outline"
+              aria-pressed={prioritetAaben}
+              onPress={() => skiftPrioritetBjaelke(!prioritetAaben)}
+              className={`h-10 gap-1.5 rounded-lg text-sm ${
+                prioritetAaben ? "border-accent bg-accent/10 text-accent" : ""
+              }`}
+            >
+              {prioritetKnapIndhold}
+            </Button>
+          ) : (
           <Dropdown onOpenChange={(aaben) => !aaben && panelInfo.luk()}>
             <Button
               variant="outline"
               className="h-10 gap-1.5 rounded-lg text-sm"
             >
-              <IconAdjustmentsHorizontal className="h-4 w-4" />
-              Prioritet
-              {antalAendredePrioriteter > 0 && <FilterBadge antal={antalAendredePrioriteter} />}
+              {prioritetKnapIndhold}
             </Button>
             {/* overflow-visible, så infoboksen kan stå uden for panelet; selve indholdet scroller
                 i stedet (max-h-[inherit] arver panelets max-højde). */}
             <Dropdown.Popover
               className={`overflow-visible ${kategorier.length > 1 ? "w-[580px] max-w-[calc(100vw-2rem)]" : "min-w-[280px]"}`}
             >
-              {panelInfoKategori !== undefined && (
-                <div
-                  {...panelInfo.boksProps}
-                  role="region"
-                  aria-label={
-                    panelInfoKategori ? `Om ${panelInfoKategori.navn}` : "Om vægt pr. kategori"
-                  }
-                  // Til venstre for panelet med toppen i flugt; på smalle skærme er der ikke
-                  // plads, så den lægger sig over panelets top i stedet.
-                  className="absolute inset-x-0 top-0 z-10 rounded-2xl border border-border bg-overlay p-3 shadow-(--overlay-shadow) sm:inset-x-auto sm:right-full sm:mr-2 sm:w-72"
-                >
-                  {panelInfoKategori ? (
-                    <KategoriInfoIndhold kategori={panelInfoKategori} />
-                  ) : (
-                    <PrioritetInfoIndhold />
-                  )}
-                </div>
-              )}
-              <div className="flex max-h-[inherit] flex-col gap-4 overflow-y-auto p-3">
-                {/* Nulstilling sker med "Nulstil filtre" i værktøjslinjen. */}
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
-                  <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
-                  {kategorier.length > 1 && (
-                    // Slår alle fra, så man kan vælge de få, der betyder noget; ellers alle til.
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const alleTil = antalAktiveKategorier < kategorier.length;
-                        setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, alleTil])));
-                      }}
-                      className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
-                    >
-                      {antalAktiveKategorier < kategorier.length ? "Slå alle til" : "Slå alle fra"}
-                    </button>
-                  )}
-                </div>
-
-                {/* Uden aktive kategorier får alle kommuner samme score (se vaegtetScore). */}
-                {antalAktiveKategorier === 0 && (
-                  <p className="-mt-2 text-xs text-muted">
-                    Slå de kategorier til, der skal tælle med i scoren.
-                  </p>
-                )}
-
-                {/* To kolonner, der fyldes række for række, så den sidste kategori står nederst. */}
-                <div className="grid gap-3 sm:grid-cols-2">
-                {kategorier.map((kat) => {
-                  const aktiv = aktiveKategorier[kat.id] ?? true;
-                  const andel = andelAfScore(kat);
-                  return (
-                    <div
-                      key={kat.id}
-                      className={`flex flex-col gap-2.5 rounded-xl border border-border p-3 transition-colors duration-150 ${
-                        aktiv ? "bg-surface" : "bg-surface-secondary/60"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div
-                          className={`flex min-w-0 items-center gap-1.5 transition-opacity duration-150 ${
-                            aktiv ? "" : "opacity-50"
-                          }`}
-                        >
-                          <KategoriIkon navn={kat.ikon} className="h-4 w-4 shrink-0 text-muted" />
-                          <Label className="truncate">{kat.navn}</Label>
-                          <InfoKnap
-                            label={`Hvad indgår i ${kat.navn}?`}
-                            {...panelInfo.knapProps(kat.id)}
-                          />
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span
-                            className={`text-xs tabular-nums transition-opacity duration-150 ${
-                              aktiv ? "text-muted" : "text-muted opacity-50"
-                            }`}
-                            title="Kategoriens andel af den samlede score"
-                          >
-                            {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
-                            <span className="sr-only"> af den samlede score</span>
-                          </span>
-                          <Switch
-                            size="sm"
-                            isSelected={aktiv}
-                            onChange={(valgt) =>
-                              setAktiveKategorier((a) => ({ ...a, [kat.id]: valgt }))
-                            }
-                            aria-label={aktiv ? `Fravælg ${kat.navn}` : `Medtag ${kat.navn}`}
-                          >
-                            <Switch.Content>
-                              <Switch.Control>
-                                <Switch.Thumb />
-                              </Switch.Control>
-                            </Switch.Content>
-                          </Switch>
-                        </div>
-                      </div>
-
-                      <div className="flex items-end gap-2.5">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex justify-between text-[10px] text-muted">
-                            <span>Lav</span>
-                            <span>Høj</span>
-                          </div>
-                          <Slider
-                            className={`mt-0.5 w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
-                            minValue={0}
-                            maxValue={100}
-                            step={5}
-                            isDisabled={!aktiv}
-                            value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
-                            onChange={(v) =>
-                              setPrioriteter((p) => ({
-                                ...p,
-                                [kat.id]: Array.isArray(v) ? v[0] : v,
-                              }))
-                            }
-                            aria-label={kat.navn}
-                          >
-                            <Slider.Track>
-                              <Slider.Fill />
-                              <Slider.Thumb />
-                            </Slider.Track>
-                          </Slider>
-                        </div>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          max={100}
-                          step={5}
-                          disabled={!aktiv}
-                          value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
-                          onChange={(e) => {
-                            const raa = e.target.value;
-                            if (raa === "") return;
-                            const tal = Number(raa);
-                            if (!Number.isFinite(tal)) return;
-                            const klemt = Math.min(100, Math.max(0, Math.round(tal)));
-                            setPrioriteter((p) => ({ ...p, [kat.id]: klemt }));
-                          }}
-                          onBlur={(e) => {
-                            const tal = e.target.value === "" ? PRIORITET_STANDARD : Number(e.target.value);
-                            const basis = Number.isFinite(tal) ? tal : PRIORITET_STANDARD;
-                            const afrundet = Math.min(100, Math.max(0, Math.round(basis / 5) * 5));
-                            setPrioriteter((p) => ({ ...p, [kat.id]: afrundet }));
-                          }}
-                          aria-label={`${kat.navn} – vægt i tal`}
-                          className="w-9 shrink-0 rounded-md border border-border bg-surface px-1 py-1 text-right text-xs tabular-nums text-foreground outline-none transition-colors focus:border-accent disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                      </div>
-
-                      {noegletalValgFor(kat) && (
-                        <NoegletalVaelger
-                          kategori={kat}
-                          valg={noegletalValgFor(kat)!}
-                          valgteIder={valgteIder(kat)}
-                          aktiv={aktiv}
-                          antalUdenData={
-                            kommuneScores.filter((s) => kategoriScore(s.kode, kat) === null).length
-                          }
-                          onVaelg={(ider) => setNoegletalValg((v) => ({ ...v, [kat.id]: ider }))}
-                        />
-                      )}
-
-                      {kat.slug === PENDLING_SLUG && (
-                        <div
-                          className={`flex flex-col gap-1 transition-opacity duration-150 ${aktiv ? "" : "pointer-events-none opacity-40"}`}
-                        >
-                          <AdresseFelt adresse={minAdresse} onVaelg={vaelgAdresse} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                </div>
-
-                {kategorier.length === 0 && (
-                  <p className="text-sm text-muted">Ingen kategorier oprettet endnu.</p>
-                )}
-              </div>
+              {prioritetIndhold(false)}
             </Dropdown.Popover>
           </Dropdown>
+          )}
 
           <Dropdown>
             <Button
@@ -3416,13 +3531,16 @@ export function DanmarkKort({
           </div>
         )}
       </div>
+
+      {/* Kortets beholder er kun skjult i de andre visninger, så bjælken skal også være det. */}
+      {visPrioritetBjaelke && visning === "kort" && prioritetBjaelke(true)}
       </div>
 
       {visning === "oversigt" && (
-        <div className={`${INDHOLD_BREDDE} lg:min-h-0 lg:flex-1`}>
+        <div className={`${FULD_BREDDE} lg:flex lg:min-h-0 lg:flex-1 lg:gap-5`}>
         {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
             (se html[data-laast-visning] i globals.css). */}
-        <div className="flex h-[550px] flex-col overflow-hidden sm:h-[650px] lg:h-full rounded-[1.75rem] border border-border bg-surface shadow-sm">
+        <div className="flex h-[550px] flex-col overflow-hidden sm:h-[650px] lg:h-full lg:min-w-0 lg:flex-1 rounded-[1.75rem] border border-border bg-surface shadow-sm">
         <div className="@container shrink-0 border-b border-border px-5 py-3">
           {listeVaerktoej}
         </div>
@@ -3463,14 +3581,15 @@ export function DanmarkKort({
         </div>
         <div className="h-5 shrink-0" />
         </div>
+        {visPrioritetBjaelke && prioritetBjaelke(false)}
         </div>
       )}
 
       {visning === "regneark" && (
-        <div className={`${INDHOLD_BREDDE} lg:min-h-0 lg:flex-1`}>
+        <div className={`${FULD_BREDDE} lg:flex lg:min-h-0 lg:flex-1 lg:gap-5`}>
         {/* På store skærme fylder boksen pladsen mellem værktøjslinjen og footeren
             (se html[data-laast-visning] i globals.css). */}
-        <div className="flex h-[520px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-full">
+        <div className="flex h-[520px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-surface shadow-sm sm:h-[620px] lg:h-full lg:min-w-0 lg:flex-1">
         <div className="@container shrink-0 border-b border-border px-5 py-3">
           {listeVaerktoej}
         </div>
@@ -3607,6 +3726,7 @@ export function DanmarkKort({
         </div>
         <div className="h-5 shrink-0" />
         </div>
+        {visPrioritetBjaelke && prioritetBjaelke(false)}
         </div>
       )}
     </div>
