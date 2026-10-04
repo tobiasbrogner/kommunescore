@@ -47,8 +47,8 @@ const EKSEMPEL_KOMMUNER = ["0851", "0751", "0573", "0461", "0259"]; // Aalborg, 
 const KATEGORI_TEKST: Record<string, string> = {
   boligpriser: "Hvad det koster at købe hus eller ejerlejlighed pr. m².",
   indbyggertal: "Hvor mange der bor i kommunen, og hvor tæt de bor.",
-  kommuneskat: "Kommuneskatten – og grundskylden, hvis du ejer din bolig.",
-  spisesteder: "Hvor mange steder der er at spise ude – i alt og pr. indbygger.",
+  kommuneskat: "Kommuneskatten og grundskylden, hvis du ejer din bolig.",
+  spisesteder: "Hvor mange steder der er at spise ude, i alt og pr. indbygger.",
   natur: "Hvor meget natur og grønt der er, også pr. indbygger.",
   idraet: "Foreningslivet og anlæg som haller, baner og svømmehaller.",
   boern: "Hvad dagpleje, vuggestue, børnehave og SFO koster om året.",
@@ -56,7 +56,7 @@ const KATEGORI_TEKST: Record<string, string> = {
   tryghed: "Anmeldte forbrydelser i forhold til antallet af indbyggere.",
   sundhed: "Middellevetiden og afstanden til nærmeste læge.",
   aeldre: "Ventetiden på plejebolig og hjemmehjælpen til ældre.",
-  pendling: "Hvor langt folk pendler – eller afstanden til din egen adresse.",
+  pendling: "Hvor langt folk pendler, eller hvor langt der er til din egen adresse.",
 };
 
 const TRIN = [
@@ -64,7 +64,7 @@ const TRIN = [
     Ikon: IconAdjustmentsHorizontal,
     titel: "Vælg hvad der betyder noget",
     tekst:
-      "Skru op for det, der er vigtigt for dig, og ned for resten – eller start med en profil som Børnefamilie eller Pensionist.",
+      "Skru op for det, der er vigtigt for dig, og ned for resten. Eller start med en profil som Børnefamilie eller Pensionist.",
   },
   {
     Ikon: IconMap2,
@@ -90,7 +90,7 @@ const VAERKTOEJER = [
   {
     Ikon: IconUserCircle,
     titel: "Start med en profil",
-    tekst: "Børnefamilie, pensionist, pendler og flere – og finjustér derfra.",
+    tekst: "Børnefamilie, pensionist, pendler og flere. Finjustér derfra.",
   },
   {
     Ikon: IconHeart,
@@ -105,7 +105,7 @@ const VAERKTOEJER = [
   {
     Ikon: IconFileAnalytics,
     titel: "En rapport for hver kommune",
-    tekst: "Styrker, fokusområder og alle tallene – også som PDF.",
+    tekst: "Styrker, fokusområder og alle tallene, også som PDF.",
   },
   {
     Ikon: IconMessageCircle,
@@ -199,7 +199,7 @@ export default async function Home() {
                   <IconArrowRight className="h-5 w-5" />
                 </NextLink>
                 <p className="mt-3 text-sm text-muted">
-                  Gratis og uden login – klar på under et minut.
+                  Gratis og uden login. Klar på under et minut.
                 </p>
               </div>
 

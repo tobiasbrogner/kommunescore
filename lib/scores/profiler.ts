@@ -49,7 +49,7 @@ export const PROFILER: Profil[] = [
   {
     id: "pensionist",
     navn: "Pensionist",
-    beskrivelse: "Ældrepleje, tryghed og sundhed – job og børn tæller ikke",
+    beskrivelse: "Ældrepleje, tryghed og sundhed. Job og børn tæller ikke",
     ikon: IconOld,
     vaegte: {
       tryghed: 100,
