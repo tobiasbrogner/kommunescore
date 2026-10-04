@@ -22,6 +22,7 @@ export function AdresseFelt({
   const [fejl, setFejl] = useState<string | null>(null);
   const [aaben, setAaben] = useState(false);
   const feltRef = useRef<HTMLDivElement | null>(null);
+  const listeRef = useRef<HTMLUListElement | null>(null);
 
   // Søg først, når man holder en lille pause, så der ikke slås op for hvert tastetryk.
   useEffect(() => {
@@ -52,6 +53,12 @@ export function AdresseFelt({
       styring.abort();
     };
   }, [soegning]);
+
+  // Feltet ligger nederst i Prioritet-panelet, så forslagene ellers havner under panelets
+  // kant — især på mobil, hvor man ikke opdager, at der skal scrolles.
+  useEffect(() => {
+    listeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [forslag, aaben]);
 
   useEffect(() => {
     const lukVedKlikUdenfor = (e: MouseEvent) => {
@@ -97,7 +104,7 @@ export function AdresseFelt({
         className="h-7 w-full rounded-md border border-border bg-surface px-2 text-xs outline-none transition-colors focus:border-accent"
       />
       {aaben && soegning.trim().length >= 3 && (
-        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface shadow-md">
+        <ul ref={listeRef} className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface shadow-md">
           {forslag.map((f) => (
             <li key={`${f.tekst}-${f.lat}-${f.lon}`}>
               <button

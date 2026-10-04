@@ -51,6 +51,15 @@ body {
   font-family: var(--font-geist), sans-serif;
 }
 
+/* iOS Safari zoomer ind på et felt med under 16px tekst, når man trykker på det. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-foreground);
