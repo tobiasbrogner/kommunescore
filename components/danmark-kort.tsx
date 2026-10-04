@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal, preload } from "react-dom";
+import NextLink from "next/link";
 import {
   Map as MapLibreMap,
   NavigationControl,
@@ -32,8 +33,10 @@ import {
   Tooltip,
   type Selection,
 } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles";
 import {
   IconAdjustmentsHorizontal,
+  IconArrowsLeftRight,
   IconCheck,
   IconChevronDown,
   IconFileText,
@@ -123,6 +126,8 @@ const AFSTAND_VALG_ID = "min-adresse";
 const ADRESSE_LAGER = "kommuna-adresse";
 // Prioritet (vægte, fravalgte kategorier og valgte nøgletal) som linkparametre.
 const PRIORITET_LAGER = "kommuna-prioritet";
+// Samme grænse som på /sammenlign.
+const MAKS_SAMMENLIGN = 4;
 // Afstande herunder (km) tæller som "i samme by" og giver fuld score.
 const AFSTAND_NAER = 3;
 
@@ -2634,6 +2639,20 @@ export function DanmarkKort({
     ? sidepanelKommuner.filter((k) => favoritter.includes(k.kode))
     : sidepanelKommuner;
 
+  // Sammenlign kræver mindst to kommuner; ved flere end fire bruges de øverste i listen.
+  // Favoritterne findes, før listen er indlæst, så listen bruges kun til rækkefølgen.
+  const listePlads = new Map(sidepanelListe.map((k, i) => [k.kode, i]));
+  const navnPrKode = new Map(kommuneScores.map((k) => [k.kode, k.navn]));
+  const sammenlignSlugs = [...favoritter]
+    .sort((a, b) => (listePlads.get(a) ?? Infinity) - (listePlads.get(b) ?? Infinity))
+    .flatMap((kode) => {
+      const navn = navnPrKode.get(kode);
+      return navn ? [kommuneSlug(navn)] : [];
+    })
+    .slice(0, MAKS_SAMMENLIGN);
+  const sammenlignLink =
+    sammenlignSlugs.length >= 2 ? `/sammenlign?kommuner=${sammenlignSlugs.join(",")}` : null;
+
   const delFavoritter = async () => {
     const link = delLink();
     try {
@@ -2862,6 +2881,33 @@ export function DanmarkKort({
             )}
           </Button>
         )}
+
+        {/* Åbner /sammenlign med favoritterne i listens rækkefølge (højst fire). */}
+        {kunFavoritter &&
+          (sammenlignLink ? (
+            <NextLink
+              href={sammenlignLink}
+              aria-label="Sammenlign favoritter"
+              title={
+                favoritter.length > MAKS_SAMMENLIGN
+                  ? `Sammenlign de ${MAKS_SAMMENLIGN} øverste favoritter`
+                  : "Sammenlign favoritter"
+              }
+              className={`${buttonVariants({ variant: "outline", isIconOnly: true })} h-10 w-9 min-w-9 shrink-0 rounded-lg`}
+            >
+              <IconArrowsLeftRight className="h-4 w-4" />
+            </NextLink>
+          ) : (
+            <Button
+              isIconOnly
+              variant="outline"
+              isDisabled
+              aria-label="Sammenlign favoritter – vælg mindst to"
+              className="h-10 w-9 min-w-9 shrink-0 rounded-lg"
+            >
+              <IconArrowsLeftRight className="h-4 w-4" />
+            </Button>
+          ))}
       </div>
 
       {/* Vises kun, når søgning, filtre eller favoritter har skåret kommuner fra. */}
