@@ -63,6 +63,8 @@ import {
   IconSortAscending,
   IconSortDescending,
   IconTarget,
+  IconToggleLeft,
+  IconToggleRight,
   IconTrendingUp,
   IconX,
 } from "@tabler/icons-react";
@@ -2757,22 +2759,89 @@ export function DanmarkKort({
     // Nulstilling sker med "Nulstil filtre" i værktøjslinjen.
     const hoved = (
       <div
-        className={`flex items-center gap-1 ${iBjaelke ? "shrink-0 border-b border-border px-4 py-3" : ""}`}
+        className={`flex flex-wrap items-center gap-1 gap-y-2 ${iBjaelke ? "shrink-0 border-b border-border px-4 py-3" : ""}`}
       >
         <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
         <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
+        {/* Profilerne sætter alle vægte på én gang, så de står sammen med "Slå alle til/fra". */}
+        {kategorier.length > 1 && (
+          <Dropdown>
+            <Button
+              variant={aktivProfil ? "primary" : "outline"}
+              size="sm"
+              className="ml-auto h-7 gap-1 rounded-md px-2 text-xs"
+            >
+              {aktivProfil ? (
+                <aktivProfil.ikon className="h-3.5 w-3.5" />
+              ) : (
+                <IconUserCircle className="h-3.5 w-3.5" />
+              )}
+              {aktivProfil?.navn ?? "Profil"}
+            </Button>
+            <Dropdown.Popover className="w-84 max-w-[calc(100vw-2rem)]">
+              <Dropdown.Menu
+                aria-label="Vælg en profil"
+                selectionMode="single"
+                selectedKeys={aktivProfil ? new Set([aktivProfil.id]) : new Set<string>()}
+                onSelectionChange={(valgte) => {
+                  const id = valgte === "all" ? undefined : [...valgte][0];
+                  const profil = PROFILER.find((p) => p.id === id);
+                  if (profil) vaelgProfil(profil);
+                }}
+              >
+                <Dropdown.Section>
+                  <Header>Sæt Prioritet efter en profil</Header>
+                  {PROFILER.map((profil) => (
+                    // Blød baggrund i stedet for den kraftige fokusramme, som vises, så snart
+                    // menuen åbner; tastaturfokus kan stadig ses.
+                    <Dropdown.Item
+                      key={profil.id}
+                      id={profil.id}
+                      textValue={profil.navn}
+                      className="data-[focus-visible=true]:bg-default data-[focus-visible=true]:ring-0! data-[focus-visible=true]:ring-offset-0! focus-visible:bg-default focus-visible:ring-0! focus-visible:ring-offset-0!"
+                    >
+                      <div className="flex h-8 items-start justify-center pt-px">
+                        <profil.ikon className="h-4 w-4 shrink-0 text-muted" />
+                      </div>
+                      <div className="flex min-w-0 flex-col">
+                        <Label>{profil.navn}</Label>
+                        <Description>{profil.beskrivelse}</Description>
+                      </div>
+                      <Dropdown.ItemIndicator className="ms-auto" />
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+              </Dropdown.Menu>
+              <p className="border-t border-border px-4 py-2.5 text-xs text-muted">
+                Profilen er et udgangspunkt – du kan finjustere vægtene herunder.
+              </p>
+            </Dropdown.Popover>
+          </Dropdown>
+        )}
         {kategorier.length > 1 && (
           // Slår alle fra, så man kan vælge de få, der betyder noget; ellers alle til.
-          <button
-            type="button"
-            onClick={() => {
+          // Samme udseende som Profil-knappen ved siden af.
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={() => {
               const alleTil = antalAktiveKategorier < kategorier.length;
               setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, alleTil])));
             }}
-            className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+            className="h-7 gap-1 rounded-md px-2 text-xs"
           >
-            {antalAktiveKategorier < kategorier.length ? "Slå alle til" : "Slå alle fra"}
-          </button>
+            {antalAktiveKategorier < kategorier.length ? (
+              <>
+                <IconToggleRight className="h-3.5 w-3.5" />
+                Slå alle til
+              </>
+            ) : (
+              <>
+                <IconToggleLeft className="h-3.5 w-3.5" />
+                Slå alle fra
+              </>
+            )}
+          </Button>
         )}
         {iBjaelke && (
           <button
@@ -3174,60 +3243,6 @@ export function DanmarkKort({
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
-
-          {kategorier.length > 1 && (
-            <Dropdown>
-              <Button
-                variant={aktivProfil ? "primary" : "outline"}
-                className="h-10 gap-1.5 rounded-lg text-sm"
-              >
-                {aktivProfil ? (
-                  <aktivProfil.ikon className="h-4 w-4" />
-                ) : (
-                  <IconUserCircle className="h-4 w-4" />
-                )}
-                {aktivProfil?.navn ?? "Profil"}
-              </Button>
-              <Dropdown.Popover className="w-84 max-w-[calc(100vw-2rem)]">
-                <Dropdown.Menu
-                  aria-label="Vælg en profil"
-                  selectionMode="single"
-                  selectedKeys={aktivProfil ? new Set([aktivProfil.id]) : new Set<string>()}
-                  onSelectionChange={(valgte) => {
-                    const id = valgte === "all" ? undefined : [...valgte][0];
-                    const profil = PROFILER.find((p) => p.id === id);
-                    if (profil) vaelgProfil(profil);
-                  }}
-                >
-                  <Dropdown.Section>
-                    <Header>Sæt Prioritet efter en profil</Header>
-                    {PROFILER.map((profil) => (
-                      // Blød baggrund i stedet for den kraftige fokusramme, som vises, så snart
-                      // menuen åbner; tastaturfokus kan stadig ses.
-                      <Dropdown.Item
-                        key={profil.id}
-                        id={profil.id}
-                        textValue={profil.navn}
-                        className="data-[focus-visible=true]:bg-default data-[focus-visible=true]:ring-0! data-[focus-visible=true]:ring-offset-0! focus-visible:bg-default focus-visible:ring-0! focus-visible:ring-offset-0!"
-                      >
-                        <div className="flex h-8 items-start justify-center pt-px">
-                          <profil.ikon className="h-4 w-4 shrink-0 text-muted" />
-                        </div>
-                        <div className="flex min-w-0 flex-col">
-                          <Label>{profil.navn}</Label>
-                          <Description>{profil.beskrivelse}</Description>
-                        </div>
-                        <Dropdown.ItemIndicator className="ms-auto" />
-                      </Dropdown.Item>
-                    ))}
-                  </Dropdown.Section>
-                </Dropdown.Menu>
-                <p className="border-t border-border px-4 py-2.5 text-xs text-muted">
-                  Profilen er et udgangspunkt – du kan finjustere vægtene under Prioritet.
-                </p>
-              </Dropdown.Popover>
-            </Dropdown>
-          )}
 
           {/* På store skærme åbner og lukker knappen bjælken til højre; ellers et panel. */}
           {erStorSkaerm ? (
