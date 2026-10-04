@@ -116,6 +116,21 @@ body {
   background-size: contain;
 }
 
+/* Knapperne nederst til højre står vandret: zoom (+/−) og vis/skjul kommunelisten. */
+.maplibregl-ctrl-bottom-right {
+  display: flex;
+  align-items: flex-end;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+  display: flex;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button + button {
+  border-top: 0;
+  border-left: 1px solid #ddd;
+}
+
 /* Zoomknapperne viser Tabler-ikoner (indsat af DanmarkKort) i stedet for MapLibres. */
 .maplibregl-ctrl.maplibregl-ctrl-group :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out)
   .maplibregl-ctrl-icon {
