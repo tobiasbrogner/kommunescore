@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:sorter": "tsx scripts/sorter-kategorier.ts",
     "kort:graenser": "tsx scripts/byg-kortgraenser.ts",
     "db:seed:kommuner": "tsx scripts/seed-kommuner.ts",
     "db:seed:admin": "tsx scripts/seed-admin.ts",
