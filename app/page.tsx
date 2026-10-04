@@ -16,6 +16,7 @@ import {
 } from "@tabler/icons-react";
 import { ForsideKort } from "@/components/forside-kort";
 import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
+import { IllustrationStatistik } from "@/components/illustration-statistik";
 import type { ForsideHus } from "@/components/forside-huse";
 import { KategoriIkon } from "@/components/ikon";
 import { KommuneSoeg } from "@/components/kommune-soeg";
@@ -297,6 +298,8 @@ export default async function Home() {
                 Se alle tal og kilder
                 <IconArrowRight className="h-4 w-4" />
               </NextLink>
+              {/* Fylder pladsen ved siden af kategorierne; kun på store skærme. */}
+              <IllustrationStatistik className="mt-14 hidden w-full max-w-md lg:block" />
             </div>
 
             <ul className="grid gap-3 sm:grid-cols-2">
