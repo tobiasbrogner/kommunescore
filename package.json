@@ -27,6 +27,7 @@
     "db:seed:sundhed": "tsx scripts/seed-sundhed.ts",
     "db:seed:idraet": "tsx scripts/seed-idraet.ts",
     "db:seed:aeldre": "tsx scripts/seed-aeldre.ts",
+    "kort:forside": "tsx scripts/byg-danmarkskort.ts",
     "billeder:hent": "tsx scripts/hent-kommunebilleder.ts",
     "punkter:hent": "tsx scripts/hent-kommunepunkter.ts",
     "db:seed:kommune-tekster": "tsx scripts/seed-kommune-tekster.ts"

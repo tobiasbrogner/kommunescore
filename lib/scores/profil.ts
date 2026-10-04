@@ -31,7 +31,8 @@ export function byggKategoriFordelinger(kategorier: KategoriMeta[], kommuneScore
 function styrkeTekst(rang: number, antal: number, overGennemsnit: boolean) {
   if (rang <= 5) return "Top 5 i landet";
   if (rang <= 10) return "Top 10 i landet";
-  if (rang / antal <= 0.25) return "Blandt de bedste 25 %";
+  // Hårdt mellemrum, så "%" aldrig står alene på en ny linje.
+  if (rang / antal <= 0.25) return "Blandt de bedste 25 %";
   if (overGennemsnit) return "Over landsgennemsnittet";
   return "Kommunens stærkeste område";
 }

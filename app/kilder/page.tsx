@@ -5,6 +5,7 @@ import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
 import { dstTabeller, statistikbankenUrl } from "@/lib/kilder";
 import { alleBilledKreditter } from "@/lib/kommuner/billeder";
+import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default async function KilderSide() {
   const kommunenavn = new Map(kommuner.map((k) => [k.kode, k.navn]));
   const fotos = alleBilledKreditter()
     .map(([kode, kredit]) => [kode, kommunenavn.get(kode) ?? kode, kredit] as const)
-    .sort(([, a], [, b]) => a.localeCompare(b, "da"));
+    .sort(([, a], [, b]) => sammenlignKommunenavne(a, b));
 
   const noegletalPrKategori = new Map(
     kategorier.map((k) => [k.id, noegletal.filter((n) => n.kategoriId === k.id)]),

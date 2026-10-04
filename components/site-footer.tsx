@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import NextLink from "next/link";
 import { Logo, LogoMark } from "@/components/logo";
+import { FeedbackModal } from "@/components/feedback-modal";
 
 // Linkkolonner i det blå bånd. Nye sider tilføjes her, efterhånden som de kommer.
 const linkGrupper: { href: string; label: string }[][] = [
@@ -17,13 +18,7 @@ const linkGrupper: { href: string; label: string }[][] = [
 
 export function SiteFooter() {
   const aar = new Date().getFullYear();
-  const [tilmeldt, setTilmeldt] = useState(false);
-
-  // Nyhedsbrevet har endnu ingen backend – formularen kvitterer blot.
-  function tilmeld(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setTilmeldt(true);
-  }
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
     <footer data-site-footer>
@@ -34,7 +29,7 @@ export function SiteFooter() {
               <div>
                 <Logo hvid className="h-6" />
                 <p className="mt-2 text-sm leading-relaxed text-white/80">
-                  Find et sted i Danmark, der passer til dit liv.
+                  Find den kommune, der passer til dit liv.
                 </p>
               </div>
               <LogoMark className="h-12" hvid />
@@ -58,48 +53,21 @@ export function SiteFooter() {
             </nav>
           </div>
 
+          {/* Nyhedsbrevet kommer, når der er et rigtigt mailsystem; indtil da beder panelet om
+              feedback, som gemmes via den samme formular som "Feedback" i headeren. */}
           <div className="-mx-4 bg-(--footer-panel) px-4 py-12 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-10">
-            <h2 className="text-base font-semibold tracking-tight">
-              De bedste nyheder direkte i din indbakke
-            </h2>
-            <p className="mt-2 text-sm text-white/80">
-              Bliv opdateret, når der kommer nye data og funktioner på kortet.
+            <h2 className="text-base font-semibold tracking-tight">Mangler der noget?</h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/80">
+              Kommuna er under udvikling. Har du idéer til nye tal, eller har du fundet en fejl,
+              hører vi gerne fra dig.
             </p>
-
-            {tilmeldt ? (
-              <p role="status" className="mt-8 text-sm text-white/90">
-                Tak! Nyhedsbrevet er på vej – vi giver besked, så snart det åbner.
-              </p>
-            ) : (
-              <form onSubmit={tilmeld} className="mt-6 flex flex-col gap-5">
-                <label className="block">
-                  <span className="sr-only">Navn</span>
-                  <input
-                    name="navn"
-                    autoComplete="name"
-                    placeholder="Navn"
-                    className="w-full border-b border-white/40 bg-transparent py-2 text-sm text-white outline-none placeholder:text-white/75 focus:border-white"
-                  />
-                </label>
-                <label className="block">
-                  <span className="sr-only">E-mail</span>
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    placeholder="E-mail"
-                    className="w-full border-b border-white/40 bg-transparent py-2 text-sm text-white outline-none placeholder:text-white/75 focus:border-white"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="self-end rounded-md border border-white px-4 py-2 text-sm font-medium transition-colors hover:bg-white hover:text-(--footer) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                >
-                  Tilmeld
-                </button>
-              </form>
-            )}
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="mt-6 rounded-md border border-white px-4 py-2 text-sm font-medium transition-colors hover:bg-white hover:text-(--footer) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Giv feedback
+            </button>
           </div>
         </div>
       </div>
@@ -108,11 +76,12 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm sm:px-6 lg:px-8">
           <p>
             <span className="font-semibold text-accent">Kommuna</span>
-            <span className="text-muted"> – find et sted, der passer til dit liv</span>
+            <span className="text-muted"> – find den kommune, der passer til dit liv</span>
           </p>
           <p className="text-xs text-muted">© {aar} Kommuna</p>
         </div>
       </div>
+      <FeedbackModal isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </footer>
   );
 }

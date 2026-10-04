@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export type IkonKort = Record<string, string>;
 
@@ -8,6 +8,14 @@ let ikonPromise: Promise<IkonKort> | null = null;
 export function hentIkoner() {
   ikonPromise ??= fetch("/tabler-ikoner.json").then((res) => res.json());
   return ikonPromise;
+}
+
+// Ikoner, som serveren allerede har slået op (se lib/ikoner.ts og app/layout.tsx). Er et
+// ikon her, tegnes det med det samme uden at hente hele ikonfilen.
+const ForudhentedeIkoner = createContext<IkonKort>({});
+
+export function IkonProvider({ ikoner, children }: { ikoner: IkonKort; children: React.ReactNode }) {
+  return <ForudhentedeIkoner.Provider value={ikoner}>{children}</ForudhentedeIkoner.Provider>;
 }
 
 export function humaniser(navn: string) {
@@ -51,10 +59,13 @@ export function PladsholderIkon({ className }: { className?: string }) {
 
 /** Viser et navngivet Tabler-ikon (fra kategoriers `ikon`-felt), med pladsholder mens listen indlæses. */
 export function KategoriIkon({ navn, className }: { navn: string | null; className?: string }) {
+  const forudhentet = useContext(ForudhentedeIkoner);
+  const kendt = navn ? forudhentet[navn] : undefined;
   const [markup, setMarkup] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!navn) return;
+    // Kun ikoner, serveren ikke har sendt med (fx et nyt ikon i admin-panelet), hentes.
+    if (!navn || kendt) return;
     let aktiv = true;
     hentIkoner().then((ikoner) => {
       if (aktiv) setMarkup(ikoner[navn]);
@@ -62,8 +73,9 @@ export function KategoriIkon({ navn, className }: { navn: string | null; classNa
     return () => {
       aktiv = false;
     };
-  }, [navn]);
+  }, [navn, kendt]);
 
-  if (navn && markup) return <Ikon markup={markup} className={className} />;
+  const svg = kendt ?? markup;
+  if (navn && svg) return <Ikon markup={svg} className={className} />;
   return <PladsholderIkon className={className} />;
 }

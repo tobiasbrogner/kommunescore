@@ -3,6 +3,7 @@ import NextLink from "next/link";
 import { IconArrowLeft, IconHome, IconInfoCircle } from "@tabler/icons-react";
 import { KategoriIkon } from "@/components/ikon";
 import { SammenlignVaelger } from "@/components/sammenlign-vaelger";
+import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
 import { hentKommuneRapport, type KommuneRapport } from "@/lib/scores/kommune-rapport";
@@ -254,7 +255,7 @@ export default async function SammenlignSide(props: PageProps<"/sammenlign">) {
   const data = await getCachedRapportData();
   const alle = data.kommuner
     .map((k) => ({ navn: k.navn, slug: kommuneSlug(k.navn) }))
-    .sort((a, b) => a.navn.localeCompare(b.navn, "da"));
+    .sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
 
   // Ukendte navne i adressen springes over; højst MAKS kommuner.
   const slugs = valgteSlugs(parameter)

@@ -5,6 +5,20 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "./providers";
 import { siteAdresse } from "@/lib/site-adresse";
+import { IkonProvider, type IkonKort } from "@/components/ikon";
+import { ikonerFor } from "@/lib/ikoner";
+import { getCachedKommuneScores } from "@/lib/scores/get-scores";
+
+// Kategoriernes ikoner slås op på serveren og sendes med til alle sider, så de står i
+// HTML'en fra start. Svarer databasen ikke, henter ikonerne sig selv som før.
+async function kategoriIkoner(): Promise<IkonKort> {
+  try {
+    const { kategorier } = await getCachedKommuneScores();
+    return await ikonerFor(kategorier.map((k) => k.ikon));
+  } catch {
+    return {};
+  }
+}
 
 const geist = Geist({
   variable: "--font-geist",
@@ -29,7 +43,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -40,9 +54,11 @@ export default function RootLayout({
         className={`${geist.variable} ${geistMono.variable} flex min-h-screen flex-col bg-background text-foreground antialiased`}
       >
         <Providers>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
+          <IkonProvider ikoner={await kategoriIkoner()}>
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </IkonProvider>
         </Providers>
       </body>
     </html>
