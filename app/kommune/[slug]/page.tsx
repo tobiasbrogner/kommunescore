@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import NextLink from "next/link";
+import { buttonVariants } from "@heroui/styles";
 import { notFound, permanentRedirect } from "next/navigation";
 import {
+  IconAdjustmentsHorizontal,
   IconArrowLeft,
   IconArrowsLeftRight,
   IconHome,
   IconInfoCircle,
+  IconMap,
   IconTarget,
   IconTrendingUp,
 } from "@tabler/icons-react";
@@ -22,6 +26,7 @@ import {
   type NoegletalRapport,
 } from "@/lib/scores/kommune-rapport";
 import { formaterTal } from "@/lib/scores/formater";
+import type { NoegletalMeta } from "@/lib/scores/get-scores";
 import type { ProfilPunkt } from "@/lib/scores/profil";
 import { officieltKommunenavn } from "@/lib/kommuner/navn";
 
@@ -231,11 +236,11 @@ function NoegletalRaekke({ n }: { n: NoegletalRapport }) {
         {n.beskrivelse && <p className="mt-0.5 text-xs leading-snug text-muted">{n.beskrivelse}</p>}
       </td>
       <td className="whitespace-nowrap py-3 pr-4 text-right tabular-nums">
-        <span className="font-semibold text-foreground">{formaterTal(n.vaerdi)}</span>{" "}
+        <span className="font-semibold text-foreground">{formaterTal(n.vaerdi, n.decimaler)}</span>{" "}
         <span className="text-muted">{n.enhed}</span>
       </td>
       <td className="whitespace-nowrap py-3 pr-4 text-right tabular-nums text-muted">
-        {formaterTal(n.gennemsnit)} {n.enhed}
+        {formaterTal(n.gennemsnit, n.decimaler)} {n.enhed}
       </td>
       <td className="whitespace-nowrap py-3 text-right text-muted">
         <Placering rang={n.rang} antal={n.antal} />
@@ -244,9 +249,47 @@ function NoegletalRaekke({ n }: { n: NoegletalRapport }) {
   );
 }
 
-function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
+// Et nøgletal, der ikke er opgjort for kommunen, fx lejlighedspriser i små kommuner med få
+// salg. Vises i stedet for bare at mangle, så man kan se, hvad scoren (ikke) bygger på.
+function IkkeOpgjort({ n, navn }: { n: NoegletalMeta; navn: string }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+    <>
+      <p className="font-medium text-foreground">{n.navn}</p>
+      <p className="mt-0.5 text-xs leading-snug text-muted">
+        Ikke opgjort for {navn}, så det tæller ikke med i kategoriens score.
+      </p>
+    </>
+  );
+}
+
+// Nøgletallene på mobil: navn og tal øverst, sammenligningen under og beskrivelsen til sidst,
+// så intet skal klemmes ind i smalle kolonner.
+function NoegletalKort({ n }: { n: NoegletalRapport }) {
+  return (
+    <li className="border-t border-border py-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-medium text-foreground">{n.navn}</p>
+        <p className="shrink-0 whitespace-nowrap tabular-nums">
+          <span className="font-semibold text-foreground">{formaterTal(n.vaerdi, n.decimaler)}</span>{" "}
+          <span className="text-muted">{n.enhed}</span>
+        </p>
+      </div>
+      <p className="mt-0.5 text-xs text-muted tabular-nums">
+        Landsgennemsnit {formaterTal(n.gennemsnit, n.decimaler)} {n.enhed} ·{" "}
+        <Placering rang={n.rang} antal={n.antal} />
+      </p>
+      {n.beskrivelse && <p className="mt-1.5 text-xs leading-snug text-muted">{n.beskrivelse}</p>}
+    </li>
+  );
+}
+
+function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
+  const harNoegletal = k.noegletal.length + k.manglendeNoegletal.length > 0;
+  return (
+    <section
+      id={k.kategori.slug}
+      className="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -274,9 +317,22 @@ function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
         </div>
       </div>
 
-      {k.noegletal.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+      {harNoegletal && (
+        <>
+          {/* Mobil: nøgletallene stablet. */}
+          <ul className="mt-4 text-sm sm:hidden">
+            {k.noegletal.map((n) => (
+              <NoegletalKort key={n.id} n={n} />
+            ))}
+            {k.manglendeNoegletal.map((n) => (
+              <li key={n.id} className="border-t border-border py-3">
+                <IkkeOpgjort n={n} navn={navn} />
+              </li>
+            ))}
+          </ul>
+
+          {/* Større skærme: tabel. */}
+          <table className="mt-4 hidden w-full text-sm sm:table">
             <thead>
               <tr className="text-left text-xs text-muted">
                 <th className="pb-2 pr-4 font-medium">Nøgletal</th>
@@ -289,10 +345,106 @@ function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
               {k.noegletal.map((n) => (
                 <NoegletalRaekke key={n.id} n={n} />
               ))}
+              {k.manglendeNoegletal.map((n) => (
+                <tr key={n.id} className="border-t border-border align-top">
+                  <td className="py-3 pr-4">
+                    <IkkeOpgjort n={n} navn={navn} />
+                  </td>
+                  <td className="py-3 pr-4 text-right text-muted">–</td>
+                  <td className="py-3 pr-4 text-right text-muted">–</td>
+                  <td className="py-3 text-right text-muted">–</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
+        </>
       )}
+    </section>
+  );
+}
+
+// Alle kategorier i ét blik øverst i rapporten, med link ned til hver kategoris tal.
+function KategoriOverblik({ kategorier }: { kategorier: KategoriRapport[] }) {
+  const procent = (v: number) => Math.min(100, Math.max(0, ((v - 50) / 50) * 100));
+  return (
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold text-foreground">Kategorierne i overblik</h2>
+      <p className="mt-1 text-sm text-muted">
+        Scoren fra 50 til 100 i hver kategori. Stregen viser landsgennemsnittet. Vælg en
+        kategori for at se tallene bag.
+      </p>
+      <ul className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
+        {kategorier.map((k) => (
+          <li key={k.kategori.id}>
+            <a
+              href={`#${k.kategori.slug}`}
+              className="flex h-full flex-col gap-2.5 rounded-xl border border-border bg-surface p-3 transition-colors hover:border-accent/60 sm:p-3.5"
+            >
+              {/* På mobil står scoren nederst, så navnet får hele bredden. */}
+              <div className="flex items-center gap-2.5">
+                <KategoriIkon navn={k.kategori.ikon} className="h-4 w-4 shrink-0 text-accent" />
+                <span className="min-w-0 flex-1 text-sm font-medium leading-tight text-foreground">
+                  {k.kategori.navn}
+                </span>
+                <span className="hidden text-lg font-semibold tabular-nums text-foreground sm:inline">
+                  {Math.round(k.score)}
+                </span>
+              </div>
+              <div className="relative h-1.5 rounded-full bg-surface-secondary" aria-hidden="true">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${procent(k.score)}%` }} />
+                <div
+                  className="absolute -top-1 h-3.5 w-0.5 -translate-x-1/2 rounded-full bg-foreground/50"
+                  style={{ left: `${procent(k.gennemsnit)}%` }}
+                />
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs text-muted">
+                  <Placering rang={k.rang} antal={k.antal} />
+                </span>
+                <span className="text-lg font-semibold tabular-nums text-foreground sm:hidden">
+                  {Math.round(k.score)}
+                </span>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// Afslutningen: hvor man kan gå hen, når man har læst rapporten.
+function VidereFra({ navn, slug }: { navn: string; slug: string }) {
+  return (
+    <section data-skjul-ved-print className="mt-10 rounded-2xl border border-border bg-surface-secondary p-6 sm:p-8">
+      <h2 className="text-xl font-semibold text-foreground">Gå videre med {navn}</h2>
+      <p className="mt-1 text-sm text-muted">
+        Se kommunen på kortet, sammenlign den med andre, eller sæt dine egne prioriteter og se,
+        hvor den lander for dig.
+      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <NextLink
+          href={`/kort?kommune=${slug}`}
+          className={buttonVariants({ variant: "primary" })}
+        >
+          <IconMap className="h-4 w-4" />
+          Se {navn} på kortet
+        </NextLink>
+        <NextLink
+          href={`/sammenlign?kommuner=${slug}`}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <IconArrowsLeftRight className="h-4 w-4" />
+          Sammenlign med andre kommuner
+        </NextLink>
+        <NextLink
+          href="/kort"
+          className="inline-flex items-center gap-1.5 px-2 text-sm font-medium text-accent hover:underline"
+        >
+          <IconAdjustmentsHorizontal className="h-4 w-4" />
+          Lav din egen rangering
+        </NextLink>
+      </div>
     </section>
   );
 }
@@ -323,7 +475,7 @@ function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
         Om {officieltKommunenavn(rapport.navn)}
       </h2>
       <div
-        className={`mt-4 grid gap-4 ${om.beskrivelse ? "md:grid-cols-[minmax(0,1fr)_18rem]" : ""}`}
+        className={`mt-4 grid items-start gap-4 ${om.beskrivelse ? "md:grid-cols-[minmax(0,1fr)_18rem]" : ""}`}
       >
         {om.beskrivelse && (
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
@@ -360,7 +512,7 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <NextLink
-          href="/kort"
+          href={`/kort?kommune=${kommuneSlug(rapport.navn)}`}
           data-skjul-ved-print
           className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
         >
@@ -383,11 +535,15 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
       <header className="mt-4 overflow-hidden rounded-3xl border border-border bg-surface">
         <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10 sm:h-56">
           {rapport.harBillede ? (
-            // eslint-disable-next-line @next/next/no-img-element -- samme simple billedvisning som på kortet.
-            <img
+            // Optimeret af Next.js (mindre fil i den bredde, siden viser), og hentet med det
+            // samme, da det er det første, man ser.
+            <Image
               src={`/kommuner/${rapport.kode}.jpg`}
               alt={rapport.navn}
-              className="absolute inset-0 h-full w-full object-cover"
+              fill
+              priority
+              sizes="(min-width: 1024px) 960px, 100vw"
+              className="object-cover"
             />
           ) : (
             <IconHome className="h-10 w-10 text-muted/50" />
@@ -427,6 +583,8 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
         </div>
       </header>
 
+      <KategoriOverblik kategorier={rapport.kategorier} />
+
       <OmKommunen rapport={rapport} />
 
       {/* Styrker og fokusområder */}
@@ -463,6 +621,8 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
           ))}
         </div>
       </section>
+
+      <VidereFra navn={rapport.navn} slug={kommuneSlug(rapport.navn)} />
 
       <p className="mt-10 flex items-start gap-2 text-xs leading-relaxed text-muted">
         <IconInfoCircle className="mt-0.5 h-4 w-4 shrink-0" />

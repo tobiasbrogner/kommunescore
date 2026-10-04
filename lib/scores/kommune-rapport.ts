@@ -21,13 +21,23 @@ export type Sammenligning = {
   gennemsnit: number;
 };
 
-export type NoegletalRapport = NoegletalMeta & Sammenligning & { vaerdi: number };
+// decimaler: hvor mange decimaler nøgletallets tal har (højst 2), så kommunens tal og
+// landsgennemsnittet vises med samme præcision (fx 26,4 km og 24,1 km).
+export type NoegletalRapport = NoegletalMeta & Sammenligning & { vaerdi: number; decimaler: number };
 
 export type KategoriRapport = Sammenligning & {
   kategori: KategoriMeta;
   score: number;
   noegletal: NoegletalRapport[];
+  /** Kategoriens nøgletal, som ikke er opgjort for kommunen (fx for få boligsalg). */
+  manglendeNoegletal: NoegletalMeta[];
 };
+
+// Antal decimaler i et tal (højst 2), fx 26.4 → 1 og 26 → 0.
+function decimaler(v: number) {
+  for (let d = 0; d < 2; d++) if (Math.abs(Math.round(v * 10 ** d) - v * 10 ** d) < 1e-9) return d;
+  return 2;
+}
 
 // Fakta til "Om [kommune]". Tekst og største by redigeres i admin-panelet; resten
 // beregnes, så det altid passer med data.
@@ -118,17 +128,26 @@ export async function hentKommuneRapport(slug: string): Promise<KommuneRapport |
     const alleScorer = data.kommuner.map((k) => k.kategorier[kategori.id]);
     const score = kommune.kategorier[kategori.id];
 
-    const noegletal = data.noegletal
-      .filter((n) => n.kategoriId === kategori.id)
-      .flatMap((n) => {
-        const vaerdier = data.vaerdier.filter((v) => v.noegletalId === n.id);
-        const egen = vaerdier.find((v) => v.kommuneKode === kode);
-        if (!egen) return [];
-        const alle = vaerdier.map((v) => v.vaerdi);
-        return [{ ...n, vaerdi: egen.vaerdi, ...sammenlign(egen.vaerdi, alle, n.retning === "hoejere_bedre") }];
-      });
+    const kategoriensNoegletal = data.noegletal.filter((n) => n.kategoriId === kategori.id);
+    const noegletal = kategoriensNoegletal.flatMap((n) => {
+      const vaerdier = data.vaerdier.filter((v) => v.noegletalId === n.id);
+      const egen = vaerdier.find((v) => v.kommuneKode === kode);
+      if (!egen) return [];
+      const alle = vaerdier.map((v) => v.vaerdi);
+      return [
+        {
+          ...n,
+          vaerdi: egen.vaerdi,
+          decimaler: Math.max(...alle.map(decimaler)),
+          ...sammenlign(egen.vaerdi, alle, n.retning === "hoejere_bedre"),
+        },
+      ];
+    });
+    const manglendeNoegletal = kategoriensNoegletal.filter(
+      (n) => !noegletal.some((m) => m.id === n.id),
+    );
 
-    return { kategori, score, noegletal, ...sammenlign(score, alleScorer) };
+    return { kategori, score, noegletal, manglendeNoegletal, ...sammenlign(score, alleScorer) };
   });
 
   const fakta = geo.get(kode);

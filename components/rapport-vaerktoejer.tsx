@@ -91,13 +91,15 @@ export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string;
   };
 
   const knap = "h-8 gap-1.5 px-2.5 text-sm text-muted hover:text-foreground";
+  // På mobil kun ikoner, så værktøjerne kan stå på én linje; teksten læses stadig op.
+  const tekst = (t: string) => <span className="sr-only sm:not-sr-only">{t}</span>;
 
   return (
-    <div data-skjul-ved-print className="flex items-center gap-1">
+    <div data-skjul-ved-print className="flex flex-wrap items-center gap-1">
       {kanDele && (
         <Button size="sm" variant="ghost" className={knap} onPress={del}>
           <IconShare className="h-4 w-4" />
-          Del
+          {tekst("Del")}
         </Button>
       )}
       <Button size="sm" variant="ghost" className={knap} onPress={kopierLink}>
@@ -106,11 +108,11 @@ export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string;
         ) : (
           <IconLink className="h-4 w-4" />
         )}
-        {kopieret ? "Kopieret" : "Kopiér link"}
+        {tekst(kopieret ? "Kopieret" : "Kopiér link")}
       </Button>
       <Button size="sm" variant="ghost" className={knap} onPress={() => window.print()}>
         <IconPrinter className="h-4 w-4" />
-        Print
+        {tekst("Print")}
       </Button>
       <Button size="sm" variant="ghost" className={knap} isPending={pdfStatus === "henter"} onPress={gemPdf}>
         {pdfStatus === "henter" ? (
@@ -120,7 +122,7 @@ export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string;
         ) : (
           <IconDownload className="h-4 w-4" />
         )}
-        {pdfStatus === "fejl" ? "Prøv igen" : "Gem som PDF"}
+        {tekst(pdfStatus === "fejl" ? "Prøv igen" : "Gem som PDF")}
       </Button>
     </div>
   );

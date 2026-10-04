@@ -226,7 +226,7 @@ function Tabel({ rapporter }: { rapporter: KommuneRapport[] }) {
                       <Celle key={i} bedst={bedst.has(i)}>
                         {x ? (
                           <>
-                            {formaterTal(x.vaerdi)} <span className="font-normal text-muted">{n.enhed}</span>
+                            {formaterTal(x.vaerdi, n.decimaler)} <span className="font-normal text-muted">{n.enhed}</span>
                             <span className="block whitespace-nowrap text-xs font-normal text-muted">
                               Nr. {x.rang} af {x.antal}
                             </span>
@@ -237,7 +237,7 @@ function Tabel({ rapporter }: { rapporter: KommuneRapport[] }) {
                       </Celle>
                     ))}
                     <td className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-muted">
-                      {formaterTal(n.gennemsnit)} {n.enhed}
+                      {formaterTal(n.gennemsnit, n.decimaler)} {n.enhed}
                     </td>
                   </tr>
                 );
