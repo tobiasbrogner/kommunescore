@@ -5,6 +5,7 @@ import {
   IconKey,
   IconOld,
   IconPigMoney,
+  IconSchool,
   IconTrees,
   type Icon,
 } from "@tabler/icons-react";
@@ -104,6 +105,33 @@ export const PROFILER: Profil[] = [
       natur: 30,
       sundhed: 30,
       boern: 20,
+    },
+  },
+  {
+    id: "studerende",
+    navn: "Studerende",
+    beskrivelse: "Billig lejlighed, byliv og studiejob",
+    ikon: IconSchool,
+    vaegte: {
+      boligpriser: 100,
+      spisesteder: 90,
+      indbyggertal: 80,
+      jobmuligheder: 70,
+      pendling: 50,
+      tryghed: 40,
+      kommuneskat: 30,
+      sundhed: 30,
+      idraet: 30,
+      natur: 20,
+      boern: 0,
+      aeldre: 0,
+    },
+    // Studerende lejer typisk en lejlighed og betaler ikke grundskyld.
+    noegletal: {
+      boligpriser: ["lejlighed"],
+      kommuneskat: ["kommuneskat"],
+      indbyggertal: ["antal", "taethed"],
+      spisesteder: ["antal"],
     },
   },
   {
