@@ -14,11 +14,11 @@ const KATEGORI_SLUG = "jobmuligheder";
 const JOB_FIL = "data/kilder/job-pr-1000-indbyggere-2024.xlsx";
 
 // Job inden for pendlingsafstand: alle landets job, vægtet med exp(-afstand / HENFALD_KM)
-// efter afstanden i fugleflugt mellem kommunernes største byer. Et job 25 km væk tæller
-// ca. en tredjedel, 50 km væk en ottendedel. Så får forstæder til store byer de mange job
+// efter afstanden i fugleflugt mellem kommunernes største byer. Et job 15 km væk tæller
+// ca. en tredjedel, 30 km væk en ottendedel. Så får forstæder til store byer de mange job
 // i nabokommunen med, og universitetsbyer trækkes ikke ned af de mange studerende, som
 // erhvervsfrekvensen og ledigheden gør.
-const HENFALD_KM = 25;
+const HENFALD_KM = 15;
 
 type Kilde = {
   navn: string;
