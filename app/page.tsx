@@ -60,7 +60,7 @@ const KATEGORI_TEKST: Record<string, string> = {
   natur: "Hvor meget natur og grønt der er, også pr. indbygger.",
   idraet: "Foreningslivet og anlæg som haller, baner og svømmehaller.",
   boern: "Hvad dagpleje, vuggestue, børnehave og SFO koster om året.",
-  jobmuligheder: "Hvor mange job der er, og hvor mange der er i arbejde.",
+  jobmuligheder: "Hvor mange job der er i kommunen og inden for pendlingsafstand.",
   tryghed: "Anmeldte forbrydelser i forhold til antallet af indbyggere.",
   sundhed: "Middellevetiden og afstanden til nærmeste læge.",
   aeldre: "Ventetiden på plejebolig og hjemmehjælpen til ældre.",

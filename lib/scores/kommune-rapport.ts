@@ -128,7 +128,10 @@ export async function hentKommuneRapport(slug: string): Promise<KommuneRapport |
     const alleScorer = data.kommuner.map((k) => k.kategorier[kategori.id]);
     const score = kommune.kategorier[kategori.id];
 
-    const kategoriensNoegletal = data.noegletal.filter((n) => n.kategoriId === kategori.id);
+    // Nøgletal, der tæller i scoren, først; tilvalg (fx befolkningstæthed) bagefter.
+    const kategoriensNoegletal = data.noegletal
+      .filter((n) => n.kategoriId === kategori.id)
+      .sort((a, b) => Number(b.standardValgt) - Number(a.standardValgt));
     const noegletal = kategoriensNoegletal.flatMap((n) => {
       const vaerdier = data.vaerdier.filter((v) => v.noegletalId === n.id);
       const egen = vaerdier.find((v) => v.kommuneKode === kode);

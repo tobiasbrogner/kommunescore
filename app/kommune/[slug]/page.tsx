@@ -228,11 +228,22 @@ function ProfilListe({
   );
 }
 
+// Tilvalg tæller ikke i scoren fra start, men kan slås til under Prioritet på kortet.
+function Tilvalg({ n }: { n: NoegletalMeta }) {
+  if (n.standardValgt) return null;
+  return (
+    <p className="mt-0.5 text-xs font-medium leading-snug text-muted">
+      Tilvalg: tæller ikke med i scoren, men kan slås til under Prioritet på kortet.
+    </p>
+  );
+}
+
 function NoegletalRaekke({ n }: { n: NoegletalRapport }) {
   return (
     <tr className="border-t border-border align-top">
       <td className="py-3 pr-4">
         <p className="font-medium text-foreground">{n.navn}</p>
+        <Tilvalg n={n} />
         {n.beskrivelse && <p className="mt-0.5 text-xs leading-snug text-muted">{n.beskrivelse}</p>}
       </td>
       <td className="whitespace-nowrap py-3 pr-4 text-right tabular-nums">
@@ -278,6 +289,7 @@ function NoegletalKort({ n }: { n: NoegletalRapport }) {
         Landsgennemsnit {formaterTal(n.gennemsnit, n.decimaler)} {n.enhed} ·{" "}
         <Placering rang={n.rang} antal={n.antal} />
       </p>
+      <Tilvalg n={n} />
       {n.beskrivelse && <p className="mt-1.5 text-xs leading-snug text-muted">{n.beskrivelse}</p>}
     </li>
   );

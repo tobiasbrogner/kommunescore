@@ -23,6 +23,8 @@ export type NoegletalMeta = {
   enhed: string;
   retning: "hoejere_bedre" | "lavere_bedre";
   beskrivelse: string | null;
+  // Tæller i kategoriens standardscore; ellers et tilvalg på /kort (se lib/db/schema.ts).
+  standardValgt: boolean;
 };
 
 // Rapportsiden har også brug for de rå nøgletal (fx antal indbyggere), ikke kun scorerne.

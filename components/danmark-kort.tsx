@@ -217,6 +217,7 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   // Ikke ledigheden: en lav ledighed ved siden af "Svagere end landsgennemsnittet" (fordi der
   // er få job) ser ud som en modsigelse.
   jobmuligheder: [
+    { noegletal: "Job inden for pendlingsafstand", tekst: (v) => `${v} job inden for rækkevidde` },
     { noegletal: "Job pr. 1.000 indbyggere", tekst: (v) => `${v} job pr. 1.000 indb.` },
   ],
   spisesteder: [

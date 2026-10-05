@@ -119,6 +119,34 @@ export const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: AFSTAND_NOEGLETAL,
     },
   ],
+  // Job inden for pendlingsafstand tæller fra start; de andre er tilvalg, da de kun ser på
+  // kommunen selv og straffer forstæder (få job i kommunen) og universitetsbyer (studerende).
+  jobmuligheder: [
+    {
+      id: "pendlingsafstand",
+      label: "Rækkevidde",
+      forklaring: "Job i kommunen og omegnen; job længere væk tæller mindre",
+      noegletal: "Job inden for pendlingsafstand",
+    },
+    {
+      id: "i-kommunen",
+      label: "I kommunen",
+      forklaring: "Job i selve kommunen pr. 1.000 indbyggere",
+      noegletal: "Job pr. 1.000 indbyggere",
+    },
+    {
+      id: "erhvervsfrekvens",
+      label: "Erhvervsfrekvens",
+      forklaring: "Andelen af 16-64-årige i arbejdsstyrken; studerende trækker ned",
+      noegletal: "Erhvervsfrekvens (16-64 år)",
+    },
+    {
+      id: "ledighed",
+      label: "Ledighed",
+      forklaring: "Fuldtidsledige i procent af arbejdsstyrken",
+      noegletal: "Ledighed (fuldtidsledige)",
+    },
+  ],
   // Foreningslivet og anlæggene kan vælges hver for sig; begge tæller fra start.
   idraet: [
     {
