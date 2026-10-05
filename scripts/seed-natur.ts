@@ -18,6 +18,14 @@ const AAR = "2024";
 // områder — de sidste, så byernes grønne områder også tæller med.
 const NATUR_TYPER = ["C2", "E", "F1", "F2", "G1", "G2"];
 const SAMLET_AREAL = "TOT";
+
+// Ubeboede øer, som hører til en kommune, men som beboerne ikke reelt kan bruge, trækkes fra
+// både naturen og det samlede areal (efter kommunekode). Saltholm (ca. 16 km² strandenge,
+// privatejet og uden fast forbindelse) gav ellers Tårnby landets højeste naturandel, selvom
+// kommunen mest er lufthavn og by.
+const UBRUGELIG_NATUR_KM2: Record<string, { omraade: string; km2: number }> = {
+  "0185": { omraade: "Saltholm", km2: 16 },
+};
 const ENHED_KM2 = "8120";
 const ENHED_M2_PR_INDBYGGER = "8130";
 
@@ -71,6 +79,16 @@ async function main() {
     const dele = NATUR_TYPER.map((type) => areal.get(`${type};${dstKode(kode)};${enhed}`));
     return dele.every((d) => d !== undefined) ? dele.reduce((a, b) => a! + b!, 0) : undefined;
   };
+  // Naturen og det samlede areal i km² uden ubrugelige øer (se UBRUGELIG_NATUR_KM2).
+  const fraTrukket = (kode: string) => UBRUGELIG_NATUR_KM2[kode]?.km2 ?? 0;
+  const naturKm2 = (kode: string) => {
+    const natur = summerNatur(kode, ENHED_KM2);
+    return natur === undefined ? undefined : natur - fraTrukket(kode);
+  };
+  const samletKm2 = (kode: string) => {
+    const samlet = areal.get(`${SAMLET_AREAL};${dstKode(kode)};${ENHED_KM2}`);
+    return samlet === undefined ? undefined : samlet - fraTrukket(kode);
+  };
 
   const NOEGLETAL: Noegletal[] = [
     {
@@ -78,10 +96,10 @@ async function main() {
       enhed: "%",
       skala: "lineaer",
       standardValgt: true,
-      beskrivelse: `Andelen af kommunens areal, der er skov, heder, klitter, enge, moser, søer, vandløb eller parker og andre rekreative områder, opgjort i ${AAR} (Danmarks Statistik, ${TABEL}). Landbrugsjord tæller ikke med. En højere andel giver en højere score.`,
+      beskrivelse: `Andelen af kommunens areal, der er skov, heder, klitter, enge, moser, søer, vandløb eller parker og andre rekreative områder, opgjort i ${AAR} (Danmarks Statistik, ${TABEL}). Landbrugsjord tæller ikke med, og det gør ubeboede øer som Saltholm (Tårnby) heller ikke. En højere andel giver en højere score.`,
       beregn: (kode) => {
-        const natur = summerNatur(kode, ENHED_KM2);
-        const samlet = areal.get(`${SAMLET_AREAL};${dstKode(kode)};${ENHED_KM2}`);
+        const natur = naturKm2(kode);
+        const samlet = samletKm2(kode);
         return natur !== undefined && samlet ? (natur / samlet) * 100 : undefined;
       },
     },
@@ -91,7 +109,14 @@ async function main() {
       skala: "logaritmisk",
       standardValgt: false,
       beskrivelse: `Kvadratmeter skov, lysåben natur, søer, vandløb, parker og andre rekreative områder pr. indbygger i ${AAR} (Danmarks Statistik, ${TABEL}). Viser, hvor meget natur der er at dele, så tyndt befolkede kommuner ligger højt. Mere natur pr. indbygger giver en højere score.`,
-      beregn: (kode) => summerNatur(kode, ENHED_M2_PR_INDBYGGER),
+      // DST's m² pr. indbygger skaleres ned i samme forhold som naturen, når en ø trækkes fra.
+      beregn: (kode) => {
+        const prIndbygger = summerNatur(kode, ENHED_M2_PR_INDBYGGER);
+        const natur = summerNatur(kode, ENHED_KM2);
+        const uden = naturKm2(kode);
+        if (prIndbygger === undefined || !natur || uden === undefined) return prIndbygger;
+        return prIndbygger * (uden / natur);
+      },
     },
   ];
 
