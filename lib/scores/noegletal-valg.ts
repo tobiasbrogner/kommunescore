@@ -124,20 +124,20 @@ export const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
   jobmuligheder: [
     {
       id: "pendlingsafstand",
-      label: "Rækkevidde",
+      label: "Omegn",
       forklaring: "Job i kommunen og omegnen; job længere væk tæller mindre",
       noegletal: "Job inden for pendlingsafstand",
     },
     {
       id: "i-kommunen",
-      label: "I kommunen",
+      label: "Lokalt",
       forklaring: "Job i selve kommunen pr. 1.000 indbyggere",
       noegletal: "Job pr. 1.000 indbyggere",
     },
     {
       id: "erhvervsfrekvens",
-      label: "Erhvervsfrekvens",
-      forklaring: "Andelen af 16-64-årige i arbejdsstyrken; studerende trækker ned",
+      label: "Arbejde",
+      forklaring: "Erhvervsfrekvens: andelen af 16-64-årige i arbejdsstyrken; studerende trækker ned",
       noegletal: "Erhvervsfrekvens (16-64 år)",
     },
     {
@@ -158,13 +158,13 @@ export const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
     },
     {
       id: "vold",
-      label: "Vold og røveri",
+      label: "Vold",
       forklaring: "Vold, trusler og røveri mod personer pr. 1.000 indbyggere",
       noegletal: "Vold og røveri pr. 1.000 indbyggere",
     },
     {
       id: "alle",
-      label: "Alle anmeldelser",
+      label: "Alle",
       forklaring: "Alle anmeldte straffelovsforbrydelser pr. 1.000 indbyggere",
       noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
     },

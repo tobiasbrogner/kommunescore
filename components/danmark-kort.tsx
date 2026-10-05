@@ -878,9 +878,18 @@ function NoegletalVaelger({
       >
         {valg.map((v, i) => (
           // Mindre end standard "sm", så vælgeren ikke fylder mere end slideren over den.
-          <ToggleButton key={v.id} id={v.id} className="h-6 min-h-0 px-2 text-xs">
+          // Knapperne må krympe og afkorte teksten, så de aldrig stikker ud af et smalt kort
+          // (fx når Prioritet står i to kolonner); hele forklaringen står i title.
+          // Med fire valg (Jobmuligheder) er der mindre luft i siderne, så teksten kan stå helt.
+          <ToggleButton
+            key={v.id}
+            id={v.id}
+            className={`h-6 min-h-0 min-w-0 flex-auto text-xs ${valg.length > 3 ? "px-1.5" : "px-2"}`}
+          >
             {i > 0 && <ToggleButtonGroup.Separator />}
-            <span title={v.forklaring}>{v.label}</span>
+            <span title={v.forklaring} className="truncate">
+              {v.label}
+            </span>
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
