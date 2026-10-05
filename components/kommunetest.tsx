@@ -15,7 +15,7 @@ import {
   IconMap,
   IconRefresh,
 } from "@tabler/icons-react";
-import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
+import { IllustrationSpoergsmaal } from "@/components/illustration-spoergsmaal";
 import { KategoriIkon } from "@/components/ikon";
 import {
   HELE_LANDET,
@@ -241,7 +241,7 @@ function Intro({ onStart, fortsaet }: { onStart: () => void; fortsaet?: () => vo
             Tager cirka 3 minutter. Dine svar bliver kun i din browser.
           </p>
         </div>
-        <IllustrationKontrolpanel className="hidden w-full md:block" />
+        <IllustrationSpoergsmaal className="hidden w-full md:block" />
       </div>
     </main>
   );

@@ -154,7 +154,7 @@ export default async function KilderSide() {
       <section id="illustrationer" className="mt-10 scroll-mt-24">
         <h2 className="text-xl font-semibold text-foreground">Illustrationer</h2>
         <p className="mt-1 text-sm text-muted">
-          Illustrationerne på forsiden er fra{" "}
+          Illustrationerne på forsiden og i kommunetesten er fra{" "}
           <a
             href="https://undraw.co"
             target="_blank"
