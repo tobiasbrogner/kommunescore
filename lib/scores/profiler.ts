@@ -11,11 +11,8 @@ import {
 } from "@tabler/icons-react";
 import { prioritetTilParametre } from "@/lib/scores/prioritet-link";
 
-// Vægten, alle kategorier har fra start (samme som PRIORITET_STANDARD på kortet).
-const STANDARDVAEGT = 50;
-
 // Færdige profiler, der sætter Prioritet med ét klik (efter kategoriens slug). Kategorier,
-// der ikke står i vaegte, får standardvægten; noegletal vælger id'er fra NOEGLETAL_VALG
+// der ikke står i vaegte, får deres vægt fra start (se standardPrioritet); noegletal vælger id'er fra NOEGLETAL_VALG
 // (mangler den for en kategori, gælder valget fra start). Alle kategorier er slået til.
 export type Profil = {
   id: string;
@@ -205,12 +202,11 @@ export const PROFILER: Profil[] = [
 ];
 
 /** Link til kortet med profilens vægte og nøgletal, fx til profil-knapperne på forsiden.
- * Samme format som "Del" i Prioritet, så kortet læser det på samme måde. */
+ * Samme format som "Del" i Prioritet, så kortet læser det på samme måde. Alle vægte kommer
+ * med, fordi kategorierne ikke har samme vægt fra start (Indbyggertal starter på 0). */
 export function profilLink(profil: Profil) {
   const params = prioritetTilParametre({
-    vaegte: Object.fromEntries(
-      Object.entries(profil.vaegte).filter(([, vaegt]) => vaegt !== STANDARDVAEGT),
-    ),
+    vaegte: profil.vaegte,
     fra: [],
     noegletal: profil.noegletal ?? {},
   });

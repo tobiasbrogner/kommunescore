@@ -14,6 +14,13 @@ export type GemtPrioritet = {
 
 export const PRIORITET_PARAMETRE = ["vaegt", "fra", "tal"] as const;
 
+/** Kategoriens vægt (0-100) under Prioritet fra start: standardvægten fra databasen gange
+ * 50, så vægt 1 giver 50 og vægt 0 (fx Indbyggertal, som er en smagssag) giver 0. Samme
+ * forhold som i den samlede score på serveren (se beregnScores). */
+export function standardPrioritet(standardvaegt: number) {
+  return Math.min(100, Math.max(0, Math.round(standardvaegt * 50)));
+}
+
 // "." og "_" kodes ikke i en URL, så linket forbliver til at læse. Flere valgte nøgletal i
 // samme kategori skrives som flere par: tal=indbyggertal.antal_indbyggertal.taethed.
 const PAR = ".";

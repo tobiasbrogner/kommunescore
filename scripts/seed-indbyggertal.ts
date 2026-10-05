@@ -60,7 +60,10 @@ async function main() {
       navn: KATEGORI_NAVN,
       slug: KATEGORI_SLUG,
       ikon: "users",
-      standardvaegt: "1",
+      // Mange indbyggere er en smagssag (byliv eller ro), ikke en kvalitet, og tæller derfor
+      // ikke i standardscoren; ellers fik storbyerne point for det samme som i Spisesteder,
+      // Jobmuligheder og Pendling. Profilerne og Prioritet kan skrue op for den.
+      standardvaegt: "0",
       sortering: Number(maksSortering) + 1,
       venlighed: VENLIGHED,
     })

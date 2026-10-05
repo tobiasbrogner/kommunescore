@@ -113,6 +113,7 @@ import {
   PRIORITET_PARAMETRE,
   prioritetFraParametre,
   prioritetTilParametre,
+  standardPrioritet,
 } from "@/lib/scores/prioritet-link";
 import {
   byggKategoriFordelinger,
@@ -127,7 +128,11 @@ type Kommune = {
   regionskode: string;
 };
 
-const PRIORITET_STANDARD = 50;
+// Scoren for en kommune uden data (bunden af skalaen 50-100).
+const SCORE_UDEN_DATA = 50;
+
+// Kategoriens vægt under Prioritet fra start (se standardPrioritet).
+const standardVaegt = (kat: KategoriMeta) => standardPrioritet(kat.standardvaegt);
 
 // Kommunegruppernes id'er i Område-menuen, hvor de deler valg med regionerne og landsdelene.
 const GRUPPE_PRAEFIKS = "gruppe-";
@@ -1468,7 +1473,7 @@ export function DanmarkKort({
   const [valgteRegioner, setValgteRegioner] = useState<Selection>(new Set<string>());
   const [valgteGrupper, setValgteGrupper] = useState<Selection>(new Set<string>());
   const [prioriteter, setPrioriteter] = useState<Record<number, number>>(() =>
-    Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])),
+    Object.fromEntries(kategorier.map((k) => [k.id, standardVaegt(k)])),
   );
   const [aktiveKategorier, setAktiveKategorier] = useState<Record<number, boolean>>(() =>
     Object.fromEntries(kategorier.map((k) => [k.id, true])),
@@ -1979,13 +1984,13 @@ export function DanmarkKort({
   const gruppeFilterAktiv = valgteGrupper !== "all" && valgteGrupper.size > 0;
 
   const nulstilPrioriteter = () => {
-    setPrioriteter(Object.fromEntries(kategorier.map((k) => [k.id, PRIORITET_STANDARD])));
+    setPrioriteter(Object.fromEntries(kategorier.map((k) => [k.id, standardVaegt(k)])));
     setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, true])));
     setNoegletalValg({});
   };
   const antalAendredePrioriteter = kategorier.filter(
     (k) =>
-      (prioriteter[k.id] ?? PRIORITET_STANDARD) !== PRIORITET_STANDARD ||
+      (prioriteter[k.id] ?? standardVaegt(k)) !== standardVaegt(k) ||
       !(aktiveKategorier[k.id] ?? true) ||
       valgteNoegletal(k) !== undefined,
   ).length;
@@ -2051,8 +2056,8 @@ export function DanmarkKort({
     prioritetTilParametre({
       vaegte: Object.fromEntries(
         kategorier.flatMap((k) => {
-          const v = prioriteter[k.id] ?? PRIORITET_STANDARD;
-          return v === PRIORITET_STANDARD ? [] : [[k.slug, v]];
+          const v = prioriteter[k.id] ?? standardVaegt(k);
+          return v === standardVaegt(k) ? [] : [[k.slug, v]];
         }),
       ),
       fra: kategorier.filter((k) => aktiveKategorier[k.id] === false).map((k) => k.slug),
@@ -2094,18 +2099,18 @@ export function DanmarkKort({
   // så man kan se, hvor meget en vægt reelt betyder, når der er mange kategorier.
   const samletAktivVaegt = kategorier.reduce(
     (sum, k) =>
-      aktiveKategorier[k.id] === false ? sum : sum + (prioriteter[k.id] ?? PRIORITET_STANDARD),
+      aktiveKategorier[k.id] === false ? sum : sum + (prioriteter[k.id] ?? standardVaegt(k)),
     0,
   );
   const andelAfScore = (kat: KategoriMeta) =>
     aktiveKategorier[kat.id] === false || samletAktivVaegt === 0
       ? 0
-      : ((prioriteter[kat.id] ?? PRIORITET_STANDARD) / samletAktivVaegt) * 100;
+      : ((prioriteter[kat.id] ?? standardVaegt(kat)) / samletAktivVaegt) * 100;
 
   const vaelgProfil = (profil: Profil) => {
     setPrioriteter(
       Object.fromEntries(
-        kategorier.map((k) => [k.id, profil.vaegte[k.slug] ?? PRIORITET_STANDARD]),
+        kategorier.map((k) => [k.id, profil.vaegte[k.slug] ?? standardVaegt(k)]),
       ),
     );
     setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, true])));
@@ -2123,8 +2128,8 @@ export function DanmarkKort({
     kategorier.every(
       (k) =>
         (aktiveKategorier[k.id] ?? true) &&
-        (prioriteter[k.id] ?? PRIORITET_STANDARD) ===
-          (profil.vaegte[k.slug] ?? PRIORITET_STANDARD) &&
+        (prioriteter[k.id] ?? standardVaegt(k)) ===
+          (profil.vaegte[k.slug] ?? standardVaegt(k)) &&
         samme(
           valgteIder(k),
           profil.noegletal?.[k.slug] ?? standardIder(k),
@@ -2230,7 +2235,7 @@ export function DanmarkKort({
   const kategoriScore = (kode: string, kat: KategoriMeta): number | null => {
     const valgte = valgteNoegletal(kat);
     if (valgte === undefined) {
-      return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? PRIORITET_STANDARD;
+      return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? SCORE_UDEN_DATA;
     }
     const scorer = valgte.flatMap(({ id, omvendt }) => {
       const score = noegletalScorerPrKommune.get(kode)?.[id];
@@ -2242,14 +2247,14 @@ export function DanmarkKort({
 
   // null når kommunen ikke har data i nogen af de kategorier, der tæller med.
   const vaegtetScore = (kode: string): number | null => {
-    if (!kategoriScorerPrKommune.has(kode)) return PRIORITET_STANDARD;
+    if (!kategoriScorerPrKommune.has(kode)) return SCORE_UDEN_DATA;
 
     let sumVaegtetScore = 0;
     let sumVaegt = 0;
     let harVaegt = false;
     for (const kat of kategorier) {
       if (aktiveKategorier[kat.id] === false) continue;
-      const vaegt = prioriteter[kat.id] ?? PRIORITET_STANDARD;
+      const vaegt = prioriteter[kat.id] ?? standardVaegt(kat);
       if (vaegt <= 0) continue;
       harVaegt = true;
       const score = kategoriScore(kode, kat);
@@ -2258,7 +2263,7 @@ export function DanmarkKort({
       sumVaegt += vaegt;
     }
     if (sumVaegt > 0) return sumVaegtetScore / sumVaegt;
-    return harVaegt ? null : PRIORITET_STANDARD;
+    return harVaegt ? null : SCORE_UDEN_DATA;
   };
 
   // Kommuner uden data sorteres sidst.
@@ -2478,7 +2483,7 @@ export function DanmarkKort({
           const score = kategoriScore(valgtKommune.kode, kat);
           const alle = kommuneScores.flatMap((s) => kategoriScore(s.kode, kat) ?? []);
           const gennemsnit = alle.length > 0 ? alle.reduce((a, b) => a + b, 0) / alle.length : null;
-          const vaegt = prioriteter[kat.id] ?? PRIORITET_STANDARD;
+          const vaegt = prioriteter[kat.id] ?? standardVaegt(kat);
           return {
             kategori: kat,
             score,
@@ -2941,7 +2946,7 @@ export function DanmarkKort({
                   maxValue={100}
                   step={5}
                   isDisabled={!aktiv}
-                  value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                  value={prioriteter[kat.id] ?? standardVaegt(kat)}
                   onChange={(v) =>
                     setPrioriteter((p) => ({
                       ...p,
@@ -2963,7 +2968,7 @@ export function DanmarkKort({
                 max={100}
                 step={5}
                 disabled={!aktiv}
-                value={prioriteter[kat.id] ?? PRIORITET_STANDARD}
+                value={prioriteter[kat.id] ?? standardVaegt(kat)}
                 onChange={(e) => {
                   const raa = e.target.value;
                   if (raa === "") return;
@@ -2973,8 +2978,8 @@ export function DanmarkKort({
                   setPrioriteter((p) => ({ ...p, [kat.id]: klemt }));
                 }}
                 onBlur={(e) => {
-                  const tal = e.target.value === "" ? PRIORITET_STANDARD : Number(e.target.value);
-                  const basis = Number.isFinite(tal) ? tal : PRIORITET_STANDARD;
+                  const tal = e.target.value === "" ? standardVaegt(kat) : Number(e.target.value);
+                  const basis = Number.isFinite(tal) ? tal : standardVaegt(kat);
                   const afrundet = Math.min(100, Math.max(0, Math.round(basis / 5) * 5));
                   setPrioriteter((p) => ({ ...p, [kat.id]: afrundet }));
                 }}
