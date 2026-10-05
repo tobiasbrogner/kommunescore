@@ -65,7 +65,7 @@ import {
   IconTrendingUp,
   IconX,
 } from "@tabler/icons-react";
-import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
+import { omvendtScore, type KategoriMeta, type KommuneScore } from "@/lib/scores/compute";
 import { AdresseFelt, type Adresse } from "@/components/adresse-felt";
 import { AiChat } from "@/components/ai-chat";
 import kommunePunkter from "@/data/kommune-punkter.json";
@@ -185,7 +185,15 @@ function medAfstand(scorer: KommuneScore[], adresse: Adresse): KommuneScore[] {
 // Kommuner uden en værdi for de valgte nøgletal springes over i kategorien i stedet
 // for at få bundscoren; deres samlede score regnes så ud fra de øvrige kategorier.
 // noegletal er nøgletallets navn i databasen; forklaring vises ved mus over knappen.
-type NoegletalValg = { id: string; label: string; forklaring: string; noegletal: string };
+// omvendt vender nøgletallets score, så det modsatte er bedst. To valg med samme nøgletal
+// kan ikke være valgt på én gang.
+type NoegletalValg = {
+  id: string;
+  label: string;
+  forklaring: string;
+  noegletal: string;
+  omvendt?: boolean;
+};
 const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
   // Antal siger mest om kommunens størrelse; tætheden skelner byer fra store landkommuner.
   indbyggertal: [
@@ -200,6 +208,14 @@ const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       label: "Tæthed",
       forklaring: "Indbyggere pr. km²; skelner byer fra store landkommuner",
       noegletal: "Indbyggere pr. km²",
+    },
+    // Til dem, der søger ro: færre naboer giver højere score (bruges af Landliv og ro).
+    {
+      id: "lav-taethed",
+      label: "Lav tæthed",
+      forklaring: "Færre indbyggere pr. km² giver højere score; til dig, der søger ro",
+      noegletal: "Indbyggere pr. km²",
+      omvendt: true,
     },
   ],
   // Pr. indbygger alene giver små turistkommuner topscore; antallet viser bylivet.
@@ -958,7 +974,19 @@ function NoegletalVaelger({
         disallowEmptySelection
         isDisabled={!aktiv}
         selectedKeys={valgteIder}
-        onSelectionChange={(keys) => onVaelg([...keys].map(String))}
+        onSelectionChange={(keys) => {
+          const ider = [...keys].map(String);
+          // Vælges et valg, hvis nøgletal allerede tæller (fx Lav tæthed mens Tæthed er
+          // valgt), fravælges det andet, så de ikke ophæver hinanden.
+          const nyt = valg.find((v) => ider.includes(v.id) && !valgteIder.includes(v.id));
+          onVaelg(
+            nyt
+              ? ider.filter(
+                  (id) => id === nyt.id || valg.find((v) => v.id === id)?.noegletal !== nyt.noegletal,
+                )
+              : ider,
+          );
+        }}
       >
         {valg.map((v, i) => (
           // Mindre end standard "sm", så vælgeren ikke fylder mere end slideren over den.
@@ -1581,9 +1609,9 @@ export function DanmarkKort({
 
   const valgteIder = (kat: KategoriMeta) => noegletalValg[kat.id] ?? standardIder(kat);
 
-  // Id'er på de nøgletal, der tæller i kategorien, eller undefined når valget er som fra
-  // start, så kategorien tæller som normalt (serverens kategoriscore).
-  const valgteNoegletalIder = (kat: KategoriMeta) => {
+  // De nøgletal, der tæller i kategorien (og om scoren skal vendes), eller undefined når
+  // valget er som fra start, så kategorien tæller som normalt (serverens kategoriscore).
+  const valgteNoegletal = (kat: KategoriMeta) => {
     const valg = noegletalValgFor(kat);
     if (!valg) return undefined;
     const ider = valgteIder(kat);
@@ -1593,7 +1621,10 @@ export function DanmarkKort({
     }
     return valg
       .filter((v) => ider.includes(v.id))
-      .flatMap((v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.id ?? []);
+      .flatMap((v) => {
+        const id = kat.noegletal.find((n) => n.navn === v.noegletal)?.id;
+        return id === undefined ? [] : [{ id, omvendt: v.omvendt === true }];
+      });
   };
   const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
   const [museOverAktiv, setMuseOverAktiv] = useState(true);
@@ -2064,7 +2095,7 @@ export function DanmarkKort({
     (k) =>
       (prioriteter[k.id] ?? PRIORITET_STANDARD) !== PRIORITET_STANDARD ||
       !(aktiveKategorier[k.id] ?? true) ||
-      valgteNoegletalIder(k) !== undefined,
+      valgteNoegletal(k) !== undefined,
   ).length;
   const antalAktiveKategorier = kategorier.filter((k) => aktiveKategorier[k.id] ?? true).length;
 
@@ -2250,9 +2281,12 @@ export function DanmarkKort({
   // kommunens bedste under Styrker og dens svageste under Fokusområder.
   // null = kommunen har ingen værdi at vise.
   // De nøgletal fra KORT_NOEGLETAL, som tæller under Prioritet og har en værdi for kommunen.
-  const visbareNoegletal = (kode: string, kat: KategoriMeta) => {
+  // Uden omvendte vises tallene, som om de omvendte valg ikke var der: Styrker og
+  // Fokusområder sammenligner med hele landet, hvor fx få indbyggere pr. km² er svagt.
+  const visbareNoegletal = (kode: string, kat: KategoriMeta, medOmvendte = true) => {
     const vaerdier = vaerdierPrKommune.get(kode) ?? {};
-    const talteIder = valgteNoegletalIder(kat);
+    const talte = valgteNoegletal(kat)?.filter((n) => medOmvendte || !n.omvendt);
+    const talteIder = talte && talte.length > 0 ? talte.map((n) => n.id) : undefined;
     return (KORT_NOEGLETAL[kat.slug] ?? []).flatMap((valg) => {
       const noegletal = kat.noegletal.find((n) => n.navn === valg.noegletal);
       const id = noegletal?.id;
@@ -2270,7 +2304,7 @@ export function DanmarkKort({
   // databasens enhed.
   const foersteNoegletalTekst = (kode: string, kat: KategoriMeta): string | null => {
     const valg = noegletalValgFor(kat);
-    if (valg && valgteNoegletalIder(kat) !== undefined) {
+    if (valg && valgteNoegletal(kat) !== undefined) {
       const valgte = valg.filter((v) => valgteIder(kat).includes(v.id));
       if (valgte.length === 0) return null;
       return `Ingen tal for ${valgte.map((v) => v.label.toLowerCase()).join(" og ")}`;
@@ -2284,7 +2318,7 @@ export function DanmarkKort({
   const noegletalTekst = (kode: string, kat: KategoriMeta, styrke: boolean): string | null => {
     const scorer = noegletalScorerPrKommune.get(kode) ?? {};
     let bedst: { id: number; tekst: string } | null = null;
-    for (const n of visbareNoegletal(kode, kat)) {
+    for (const n of visbareNoegletal(kode, kat, false)) {
       // Ved lige scorer vinder det første i KORT_NOEGLETAL.
       if (!bedst || (styrke ? scorer[n.id] > scorer[bedst.id] : scorer[n.id] < scorer[bedst.id])) {
         bedst = n;
@@ -2302,11 +2336,15 @@ export function DanmarkKort({
   // Kommunens score i kategorien: gennemsnittet af de valgte nøgletal, som kommunen har
   // værdier for (ligesom kategoriscoren på serveren). null = ingen data for dem.
   const kategoriScore = (kode: string, kat: KategoriMeta): number | null => {
-    const noegletalIder = valgteNoegletalIder(kat);
-    if (noegletalIder === undefined) {
+    const valgte = valgteNoegletal(kat);
+    if (valgte === undefined) {
       return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? PRIORITET_STANDARD;
     }
-    const scorer = noegletalIder.flatMap((id) => noegletalScorerPrKommune.get(kode)?.[id] ?? []);
+    const scorer = valgte.flatMap(({ id, omvendt }) => {
+      const score = noegletalScorerPrKommune.get(kode)?.[id];
+      if (score === undefined) return [];
+      return [omvendt ? omvendtScore(score, kat.venlighed) : score];
+    });
     return scorer.length > 0 ? scorer.reduce((a, b) => a + b, 0) / scorer.length : null;
   };
 

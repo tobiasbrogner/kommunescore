@@ -92,6 +92,16 @@ function normaliserNoegletal(
   return resultat;
 }
 
+/** Vender en nøgletal-score (50-100) fra normaliserNoegletal om, så det modsatte er bedst,
+ * fx lav befolkningstæthed for Landliv og ro på /kort. Venligheden fjernes først og
+ * lægges på igen bagefter, så resultatet er det samme, som hvis retningen var vendt. */
+export function omvendtScore(score: number, venlighed: number) {
+  const eksponent = venlighedTilEksponent(venlighed);
+  const andel = Math.min(1, Math.max(0, (score - SCORE_MIN) / (SCORE_MAKS - SCORE_MIN)));
+  const omvendt = Math.pow(1 - Math.pow(andel, 1 / eksponent), eksponent);
+  return SCORE_MIN + omvendt * (SCORE_MAKS - SCORE_MIN);
+}
+
 export function beregnScores(
   kommuner: { kode: string; navn: string }[],
   kategorier: KategoriMeta[],

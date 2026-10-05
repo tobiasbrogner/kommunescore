@@ -144,11 +144,15 @@ export const PROFILER: Profil[] = [
       sundhed: 40,
       jobmuligheder: 30,
       spisesteder: 10,
-      indbyggertal: 0,
+      indbyggertal: 60,
       pendling: 0,
     },
-    // Natur pr. indbygger trækker de tyndt befolkede kommuner frem.
-    noegletal: { boligpriser: ["hus"], natur: ["andel", "pr-indbygger"] },
+    // Natur pr. indbygger og lav befolkningstæthed trækker de tyndt befolkede kommuner frem.
+    noegletal: {
+      boligpriser: ["hus"],
+      natur: ["andel", "pr-indbygger"],
+      indbyggertal: ["lav-taethed"],
+    },
   },
   {
     id: "laveste-udgifter",
