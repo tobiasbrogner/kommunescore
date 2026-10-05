@@ -1,22 +1,38 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createPortal, preload } from "react-dom";
+import { createPortal, preload, preloadModule } from "react-dom";
 import NextLink from "next/link";
-import {
+import type {
   Map as MapLibreMap,
-  NavigationControl,
-  type IControl,
-  type GeoJSONSource,
-  type StyleSpecification,
-  getVersion,
-  setWorkerUrl,
+  IControl,
+  GeoJSONSource,
+  StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// MapLibre 6 finder ikke selv sin worker, når Next bundler pakken; den serveres fra
-// public/ (kopieret af scripts/kopier-maplibre-worker.ts).
-setWorkerUrl(`/maplibre/${getVersion()}/maplibre-gl-worker.mjs`);
+// MapLibre bundles ikke, men hentes fra public/maplibre/<version>/ (kopieret af
+// scripts/kopier-maplibre-worker.ts). Workeren importerer selv maplibre-gl-shared.mjs
+// derfra, så et bundlet MapLibre ville få browseren til at hente de samme ca. 150 KB
+// (komprimeret) to gange. DanmarkKort forudindlæser filerne, så de hentes samtidig med
+// sidens øvrige JS. Versionen kommer fra next.config.ts.
+const MAPLIBRE_MAPPE = `/maplibre/${process.env.MAPLIBRE_VERSION}`;
+const MAPLIBRE_URL = `${MAPLIBRE_MAPPE}/maplibre-gl.mjs`;
+const MAPLIBRE_WORKER_URL = `${MAPLIBRE_MAPPE}/maplibre-gl-worker.mjs`;
+const MAPLIBRE_FILER = [MAPLIBRE_URL, `${MAPLIBRE_MAPPE}/maplibre-gl-shared.mjs`, MAPLIBRE_WORKER_URL];
+
+let maplibrePromise: Promise<typeof import("maplibre-gl")> | undefined;
+function hentMapLibre() {
+  maplibrePromise ??= (
+    import(/* turbopackIgnore: true */ /* webpackIgnore: true */ MAPLIBRE_URL) as Promise<
+      typeof import("maplibre-gl")
+    >
+  ).then((maplibre) => {
+    maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL);
+    return maplibre;
+  });
+  return maplibrePromise;
+}
 import {
   Button,
   Description,
@@ -1488,6 +1504,9 @@ export function DanmarkKort({
 }) {
   // Skal matche fetch() i hentKommuner (cors, samme-origin-cookies), ellers genbruges den ikke.
   preload(KOMMUNER_URL, { as: "fetch", crossOrigin: "anonymous" });
+  // Nabolandene er med i kortets stil og hentes ellers først, når MapLibre kører.
+  preload(NABOLANDE_URL, { as: "fetch", crossOrigin: "anonymous" });
+  for (const fil of MAPLIBRE_FILER) preloadModule(fil, { as: "script" });
   // Med en adresse i Pendling får kategorien et ekstra nøgletal for afstanden til den.
   const [minAdresse, setMinAdresse] = useState<Adresse | null>(null);
   // kategoriId -> valgte id'er fra NOEGLETAL_VALG; mangler den, er alle valgt.
@@ -1633,216 +1652,248 @@ export function DanmarkKort({
   const [farvEfterPlacering, setFarvEfterPlacering] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+    if (!container || mapRef.current) return;
 
     const kommunerPromise = hentKommuner();
     let fjernet = false;
 
-    const map = new MapLibreMap({
-      container: containerRef.current,
-      style: KORT_STYLE,
-      bounds: DANMARK_BOUNDS,
-      fitBoundsOptions: { padding: 24 },
-      attributionControl: false,
-    });
-
-    laasKortTilDanmark(map);
-    // Når kortet ændrer størrelse (vindue, eller kommunelisten skjules/vises), låses det
-    // til det nye udsnit; et aktivt Område-filter zoomes der ind på igen.
-    // map.resize() udløser også hændelsen uden ændret størrelse; det springes over.
-    let forrigeStoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
-    map.on("resize", () => {
-      const stoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
-      if (stoerrelse === forrigeStoerrelse) return;
-      forrigeStoerrelse = stoerrelse;
-      laasKortTilDanmark(map);
-      if (filterUdstraekningRef.current) {
-        map.fitBounds(filterUdstraekningRef.current, { ...FILTER_ZOOM_INDSTILLINGER, duration: 0 });
-      }
-    });
-    map.doubleClickZoom.disable();
-    // Kortet skal altid vende nord op og ligge fladt: slå rotation og hældning fra
-    // (højreklik-træk, to-finger-rotation og Shift+piletaster).
-    map.dragRotate.disable();
-    map.touchZoomRotate.disableRotation();
-    map.touchPitch.disable();
-    map.keyboard.disableRotation();
-
-    map.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
-    // Zoomknapperne beholder MapLibres opførsel, men ikonerne byttes til Tabler (via portal).
-    const zoomInd = map.getContainer().querySelector<HTMLElement>(
-      ".maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon",
-    );
-    const zoomUd = map.getContainer().querySelector<HTMLElement>(
-      ".maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon",
-    );
-    if (zoomInd && zoomUd) setZoomIkonPladser({ ind: zoomInd, ud: zoomUd });
-    // Nederste hjørner stabler nye kontroller ovenpå, så knappen lander over zoom.
-    const sidepanelKontrol = new SidepanelKontrol(() => setSidepanelSkjult((s) => !s));
-    sidepanelKontrolRef.current = sidepanelKontrol;
-    map.addControl(sidepanelKontrol, "bottom-right");
-
-    map.on("load", async () => {
-      const data = await kommunerPromise;
+    // MapLibre hentes først nu (se hentMapLibre); filerne er forudindlæst i <head>.
+    hentMapLibre().then((maplibre) => {
       if (fjernet) return;
-
-      map.addSource(SOURCE_ID, {
-        type: "geojson",
-        data,
-        promoteId: "kode",
-        tolerance: 0,
-        buffer: 256,
+      const map = new maplibre.Map({
+        container,
+        style: KORT_STYLE,
+        bounds: DANMARK_BOUNDS,
+        fitBoundsOptions: { padding: 24 },
+        attributionControl: false,
       });
 
-      map.addLayer({
-        id: "kommune-fill",
-        type: "fill",
-        source: SOURCE_ID,
-        paint: {
-          "fill-color": byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver),
-          "fill-opacity": [
-            "case",
-            ["boolean", ["feature-state", "valgt"], false],
-            0.55,
-            ["boolean", ["feature-state", "udenforFilter"], false],
-            1,
-            0.9,
-          ],
-        },
+      laasKortTilDanmark(map);
+      // Når kortet ændrer størrelse (vindue, eller kommunelisten skjules/vises), låses det
+      // til det nye udsnit; et aktivt Område-filter zoomes der ind på igen.
+      // map.resize() udløser også hændelsen uden ændret størrelse; det springes over.
+      let forrigeStoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
+      map.on("resize", () => {
+        const stoerrelse = `${map.getCanvas().clientWidth}x${map.getCanvas().clientHeight}`;
+        if (stoerrelse === forrigeStoerrelse) return;
+        forrigeStoerrelse = stoerrelse;
+        laasKortTilDanmark(map);
+        if (filterUdstraekningRef.current) {
+          map.fitBounds(filterUdstraekningRef.current, { ...FILTER_ZOOM_INDSTILLINGER, duration: 0 });
+        }
+      });
+      map.doubleClickZoom.disable();
+      // Kortet skal altid vende nord op og ligge fladt: slå rotation og hældning fra
+      // (højreklik-træk, to-finger-rotation og Shift+piletaster).
+      map.dragRotate.disable();
+      map.touchZoomRotate.disableRotation();
+      map.touchPitch.disable();
+      map.keyboard.disableRotation();
+
+      map.addControl(new maplibre.NavigationControl({ showCompass: false }), "bottom-right");
+      // Zoomknapperne beholder MapLibres opførsel, men ikonerne byttes til Tabler (via portal).
+      const zoomInd = map.getContainer().querySelector<HTMLElement>(
+        ".maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon",
+      );
+      const zoomUd = map.getContainer().querySelector<HTMLElement>(
+        ".maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon",
+      );
+      if (zoomInd && zoomUd) setZoomIkonPladser({ ind: zoomInd, ud: zoomUd });
+      // Nederste hjørner stabler nye kontroller ovenpå, så knappen lander over zoom.
+      const sidepanelKontrol = new SidepanelKontrol(() => setSidepanelSkjult((s) => !s));
+      sidepanelKontrolRef.current = sidepanelKontrol;
+      map.addControl(sidepanelKontrol, "bottom-right");
+
+      map.on("load", async () => {
+        const data = await kommunerPromise;
+        if (fjernet) return;
+
+        map.addSource(SOURCE_ID, {
+          type: "geojson",
+          data,
+          promoteId: "kode",
+          tolerance: 0,
+          buffer: 256,
+        });
+
+        map.addLayer({
+          id: "kommune-fill",
+          type: "fill",
+          source: SOURCE_ID,
+          paint: {
+            "fill-color": byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver),
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "valgt"], false],
+              0.55,
+              ["boolean", ["feature-state", "udenforFilter"], false],
+              1,
+              0.9,
+            ],
+          },
+        });
+
+        map.setPaintProperty("kommune-fill", "fill-opacity-transition", {
+          duration: 400,
+          delay: 0,
+        });
+        map.setPaintProperty("kommune-fill", "fill-color-transition", {
+          duration: 400,
+          delay: 0,
+        });
+
+        // De tynde grænser tegnes fra en forenklet kopi af kommunerne: ved lav zoom
+        // klumper takkede kyster (fx Bornholms nordkyst) sig ellers sammen, så stregen
+        // ser tykkere ud. Forenklingen følger zoom, så detaljerne kommer igen tæt på.
+        map.addSource(LINJE_SOURCE_ID, {
+          type: "geojson",
+          data,
+          tolerance: 0.5,
+          buffer: 256,
+        });
+
+        map.addLayer({
+          id: "kommune-linje",
+          type: "line",
+          source: LINJE_SOURCE_ID,
+          layout: { "line-join": "round" },
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 1,
+          },
+        });
+
+        // Fremhæv ved mus: kun et tykkere hvidt omrids om kommunen under musen.
+        // Eget lag øverst, så nabokommunernes tynde linjer ikke tegnes hen over det.
+        // Kilden fyldes, når kommunerne er hentet nedenfor.
+        map.addSource(KOMMUNE_DELE_SOURCE_ID, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+          promoteId: "kode",
+          tolerance: 0,
+          buffer: 256,
+        });
+
+        map.addLayer({
+          id: "kommune-hover-linje",
+          type: "line",
+          source: KOMMUNE_DELE_SOURCE_ID,
+          layout: { "line-join": "round" },
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 3,
+            "line-opacity": byggHoverOmridsSynlighed(),
+          },
+        });
+
+        (map.getSource(KOMMUNE_DELE_SOURCE_ID) as GeoJSONSource).setData(opdelIKommuneDele(data));
+
+        // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
+        // at overlappe hinanden (MapLibre skjuler automatisk dem, der ikke er plads til).
+        map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavnePunkter(data) });
+        map.addLayer({
+          id: "kommune-navne",
+          type: "symbol",
+          source: NAVNE_SOURCE_ID,
+          minzoom: NAVNE_MIN_ZOOM,
+          layout: {
+            "text-field": ["get", "navn"],
+            "text-font": ["Open Sans Semibold"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 11, 10, 15],
+            "text-max-width": 8,
+            "text-padding": 4,
+          },
+          paint: {
+            "text-color": "#1f2937",
+            "text-halo-color": "rgba(255, 255, 255, 0.85)",
+            "text-halo-width": 1.5,
+            "text-opacity": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 0, NAVNE_MIN_ZOOM + 0.3, 1],
+          },
+        });
+
+        const liste: Kommune[] = [];
+        data.features.forEach((feature) => {
+          const kode = feature.properties?.kode as string;
+          const navn = feature.properties?.navn as string;
+          const regionskode = feature.properties?.regionskode as string;
+          liste.push({ kode, navn, regionskode });
+          kommuneUdstraekningRef.current.set(kode, kommuneUdstraekning(feature.geometry));
+        });
+        liste.sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
+        setKommuner(liste);
+        kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
+
+        setKlar(true);
       });
 
-      map.setPaintProperty("kommune-fill", "fill-opacity-transition", {
-        duration: 400,
-        delay: 0,
-      });
-      map.setPaintProperty("kommune-fill", "fill-color-transition", {
-        duration: 400,
-        delay: 0,
-      });
+      const erKommuneTilladt = (kode: string) => {
+        const valgteOmr = valgteRegionerRef.current;
+        const omrFilterAktiv = valgteOmr !== "all" && valgteOmr.size > 0;
+        if (omrFilterAktiv) {
+          const regionskode = kommuneRegionerRef.current.get(kode);
+          if (regionskode) {
+            let matcher = false;
+            for (const id of valgteOmr) {
+              if (kommuneMatcherFilterId(kode, regionskode, String(id))) {
+                matcher = true;
+                break;
+              }
+            }
+            if (!matcher) return false;
+          }
+        }
 
-      // De tynde grænser tegnes fra en forenklet kopi af kommunerne: ved lav zoom
-      // klumper takkede kyster (fx Bornholms nordkyst) sig ellers sammen, så stregen
-      // ser tykkere ud. Forenklingen følger zoom, så detaljerne kommer igen tæt på.
-      map.addSource(LINJE_SOURCE_ID, {
-        type: "geojson",
-        data,
-        tolerance: 0.5,
-        buffer: 256,
-      });
-
-      map.addLayer({
-        id: "kommune-linje",
-        type: "line",
-        source: LINJE_SOURCE_ID,
-        layout: { "line-join": "round" },
-        paint: {
-          "line-color": "#ffffff",
-          "line-width": 1,
-        },
-      });
-
-      // Fremhæv ved mus: kun et tykkere hvidt omrids om kommunen under musen.
-      // Eget lag øverst, så nabokommunernes tynde linjer ikke tegnes hen over det.
-      // Kilden fyldes, når kommunerne er hentet nedenfor.
-      map.addSource(KOMMUNE_DELE_SOURCE_ID, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-        promoteId: "kode",
-        tolerance: 0,
-        buffer: 256,
-      });
-
-      map.addLayer({
-        id: "kommune-hover-linje",
-        type: "line",
-        source: KOMMUNE_DELE_SOURCE_ID,
-        layout: { "line-join": "round" },
-        paint: {
-          "line-color": "#ffffff",
-          "line-width": 3,
-          "line-opacity": byggHoverOmridsSynlighed(),
-        },
-      });
-
-      (map.getSource(KOMMUNE_DELE_SOURCE_ID) as GeoJSONSource).setData(opdelIKommuneDele(data));
-
-      // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
-      // at overlappe hinanden (MapLibre skjuler automatisk dem, der ikke er plads til).
-      map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavnePunkter(data) });
-      map.addLayer({
-        id: "kommune-navne",
-        type: "symbol",
-        source: NAVNE_SOURCE_ID,
-        minzoom: NAVNE_MIN_ZOOM,
-        layout: {
-          "text-field": ["get", "navn"],
-          "text-font": ["Open Sans Semibold"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 11, 10, 15],
-          "text-max-width": 8,
-          "text-padding": 4,
-        },
-        paint: {
-          "text-color": "#1f2937",
-          "text-halo-color": "rgba(255, 255, 255, 0.85)",
-          "text-halo-width": 1.5,
-          "text-opacity": ["interpolate", ["linear"], ["zoom"], NAVNE_MIN_ZOOM, 0, NAVNE_MIN_ZOOM + 0.3, 1],
-        },
-      });
-
-      const liste: Kommune[] = [];
-      data.features.forEach((feature) => {
-        const kode = feature.properties?.kode as string;
-        const navn = feature.properties?.navn as string;
-        const regionskode = feature.properties?.regionskode as string;
-        liste.push({ kode, navn, regionskode });
-        kommuneUdstraekningRef.current.set(kode, kommuneUdstraekning(feature.geometry));
-      });
-      liste.sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
-      setKommuner(liste);
-      kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
-
-      setKlar(true);
-    });
-
-    const erKommuneTilladt = (kode: string) => {
-      const valgteOmr = valgteRegionerRef.current;
-      const omrFilterAktiv = valgteOmr !== "all" && valgteOmr.size > 0;
-      if (omrFilterAktiv) {
-        const regionskode = kommuneRegionerRef.current.get(kode);
-        if (regionskode) {
+        const valgteGrp = valgteGrupperRef.current;
+        const grpFilterAktiv = valgteGrp !== "all" && valgteGrp.size > 0;
+        if (grpFilterAktiv) {
           let matcher = false;
-          for (const id of valgteOmr) {
-            if (kommuneMatcherFilterId(kode, regionskode, String(id))) {
+          for (const id of valgteGrp) {
+            if (kommuneMatcherGruppeId(kode, String(id))) {
               matcher = true;
               break;
             }
           }
           if (!matcher) return false;
         }
-      }
 
-      const valgteGrp = valgteGrupperRef.current;
-      const grpFilterAktiv = valgteGrp !== "all" && valgteGrp.size > 0;
-      if (grpFilterAktiv) {
-        let matcher = false;
-        for (const id of valgteGrp) {
-          if (kommuneMatcherGruppeId(kode, String(id))) {
-            matcher = true;
-            break;
+        return true;
+      };
+
+      map.on("mousemove", "kommune-fill", (e) => {
+        const feature = e.features?.[0];
+        if (!feature) return;
+        const kode = feature.properties?.kode as string;
+
+        if (!erKommuneTilladt(kode)) {
+          map.getCanvas().style.cursor = "";
+          if (hoveredKode.current) {
+            map.setFeatureState(
+              { source: KOMMUNE_DELE_SOURCE_ID, id: hoveredKode.current },
+              { hover: false },
+            );
+            hoveredKode.current = null;
           }
+          return;
         }
-        if (!matcher) return false;
-      }
 
-      return true;
-    };
+        map.getCanvas().style.cursor = "pointer";
 
-    map.on("mousemove", "kommune-fill", (e) => {
-      const feature = e.features?.[0];
-      if (!feature) return;
-      const kode = feature.properties?.kode as string;
+        if (!museOverAktivRef.current) return;
 
-      if (!erKommuneTilladt(kode)) {
+        if (hoveredKode.current && hoveredKode.current !== kode) {
+          map.setFeatureState(
+            { source: KOMMUNE_DELE_SOURCE_ID, id: hoveredKode.current },
+            { hover: false },
+          );
+        }
+        if (hoveredKode.current !== kode) {
+          map.setFeatureState({ source: KOMMUNE_DELE_SOURCE_ID, id: kode }, { hover: true });
+          hoveredKode.current = kode;
+        }
+      });
+
+      map.on("mouseleave", "kommune-fill", () => {
         map.getCanvas().style.cursor = "";
         if (hoveredKode.current) {
           map.setFeatureState(
@@ -1851,49 +1902,22 @@ export function DanmarkKort({
           );
           hoveredKode.current = null;
         }
-        return;
-      }
+      });
 
-      map.getCanvas().style.cursor = "pointer";
+      map.on("click", "kommune-fill", (e) => {
+        const feature = e.features?.[0];
+        const kode = feature?.properties?.kode as string | undefined;
+        if (!kode || !erKommuneTilladt(kode)) return;
+        setValgtKode(kode);
+      });
 
-      if (!museOverAktivRef.current) return;
-
-      if (hoveredKode.current && hoveredKode.current !== kode) {
-        map.setFeatureState(
-          { source: KOMMUNE_DELE_SOURCE_ID, id: hoveredKode.current },
-          { hover: false },
-        );
-      }
-      if (hoveredKode.current !== kode) {
-        map.setFeatureState({ source: KOMMUNE_DELE_SOURCE_ID, id: kode }, { hover: true });
-        hoveredKode.current = kode;
-      }
+      mapRef.current = map;
     });
-
-    map.on("mouseleave", "kommune-fill", () => {
-      map.getCanvas().style.cursor = "";
-      if (hoveredKode.current) {
-        map.setFeatureState(
-          { source: KOMMUNE_DELE_SOURCE_ID, id: hoveredKode.current },
-          { hover: false },
-        );
-        hoveredKode.current = null;
-      }
-    });
-
-    map.on("click", "kommune-fill", (e) => {
-      const feature = e.features?.[0];
-      const kode = feature?.properties?.kode as string | undefined;
-      if (!kode || !erKommuneTilladt(kode)) return;
-      setValgtKode(kode);
-    });
-
-    mapRef.current = map;
 
     return () => {
       fjernet = true;
       setZoomIkonPladser(null);
-      map.remove();
+      mapRef.current?.remove();
       mapRef.current = null;
     };
   }, []);
@@ -2023,7 +2047,8 @@ export function DanmarkKort({
     sidepanelKontrolRef.current?.setUdvidet(sidepanelSkjult);
     // Kortet skifter bredde, når listen eller Prioritet-bjælken skjules eller vises.
     mapRef.current?.resize();
-  }, [sidepanelSkjult, visPrioritetBjaelke]);
+    // klar: kortet (og knappen) oprettes først, når MapLibre er hentet.
+  }, [sidepanelSkjult, visPrioritetBjaelke, klar]);
 
   // I Kort huskes det, om bjælken er åben. I Oversigt og Regneark åbner den hver gang, man
   // skifter dertil, fordi listerne der netop sorteres efter vægtene; den kan stadig lukkes.
