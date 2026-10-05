@@ -9,12 +9,14 @@ import {
   IconCheck,
   IconFileAnalytics,
   IconHeart,
+  IconList,
   IconMap2,
   IconMessageCircle,
   IconShare,
   IconUserCircle,
 } from "@tabler/icons-react";
 import { ForsideKort } from "@/components/forside-kort";
+import { IllustrationFamilie } from "@/components/illustration-familie";
 import { IllustrationGade } from "@/components/illustration-gade";
 import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
 import { IllustrationStatistik } from "@/components/illustration-statistik";
@@ -409,25 +411,41 @@ export default async function Home() {
             className="overflow-hidden rounded-[2rem] border border-border"
           >
             <Card.Content className="p-8 sm:p-12 lg:p-16">
-              <div className="max-w-2xl">
-                <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-                  Hvor kunne du egentlig trives?
-                </h2>
-                <p className="mt-5 text-lg leading-8 text-muted">
-                  Det tager under et minut at sætte dine prioriteter og se, hvilke kommuner der
-                  passer til dig.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
-                  <NextLink
-                    href="/kort"
-                    className={buttonVariants({ variant: "primary", size: "lg" })}
-                  >
-                    Find din kommune
-                    <IconArrowRight className="h-5 w-5" />
-                  </NextLink>
-                  <NextLink href="/sammenlign" className={link.base()}>
-                    Sammenlign kommuner
-                  </NextLink>
+              {/* Afslutningen på forsiden: en knap til hvert værktøj. */}
+              <div className="grid items-center gap-12 md:grid-cols-[minmax(0,16rem)_1fr] lg:grid-cols-[minmax(0,18rem)_1fr] lg:gap-16">
+                <IllustrationFamilie className="hidden w-full md:block" />
+                <div>
+                  {/* På brede skærme står overskriften på én linje. */}
+                  <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl xl:whitespace-nowrap">
+                    Hvor kunne du egentlig trives?
+                  </h2>
+                  <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
+                    Start på kortet med dine egne prioriteter, sammenlign dem, du overvejer, eller
+                    kig alle {kommuner.length} kommuner igennem.
+                  </p>
+                  <div className="mt-8 flex flex-wrap items-center gap-3">
+                    <NextLink
+                      href="/kort"
+                      className={buttonVariants({ variant: "primary", size: "lg" })}
+                    >
+                      Find din kommune
+                      <IconArrowRight className="h-5 w-5" />
+                    </NextLink>
+                    <NextLink
+                      href="/sammenlign"
+                      className={buttonVariants({ variant: "outline", size: "lg" })}
+                    >
+                      <IconArrowsLeftRight className="h-5 w-5" />
+                      Sammenlign rapporter
+                    </NextLink>
+                    <NextLink
+                      href="/kommuner"
+                      className={buttonVariants({ variant: "outline", size: "lg" })}
+                    >
+                      <IconList className="h-5 w-5" />
+                      Alle kommuner
+                    </NextLink>
+                  </div>
                 </div>
               </div>
             </Card.Content>
