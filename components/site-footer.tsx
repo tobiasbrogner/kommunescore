@@ -9,8 +9,9 @@ import { FeedbackModal } from "@/components/feedback-modal";
 const linkGrupper: { href: string; label: string }[][] = [
   [
     { href: "/", label: "Forside" },
-    { href: "/kort", label: "Udforsk kortet" },
-    { href: "/sammenlign", label: "Sammenlign kommuner" },
+    { href: "/kort", label: "Kortet" },
+    { href: "/sammenlign", label: "Sammenlign rapporter" },
+    { href: "/kommuner", label: "Alle kommuner" },
     { href: "/saadan-virker-det", label: "Sådan virker det" },
     { href: "/kilder", label: "Kilder" },
   ],

@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const faste: MetadataRoute.Sitemap = [
     { url: `${adresse}/`, changeFrequency: "monthly", priority: 1 },
     { url: `${adresse}/kort`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${adresse}/kommuner`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${adresse}/sammenlign`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${adresse}/saadan-virker-det`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${adresse}/kilder`, changeFrequency: "monthly", priority: 0.4 },

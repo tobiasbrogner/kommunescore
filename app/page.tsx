@@ -15,16 +15,17 @@ import {
   IconUserCircle,
 } from "@tabler/icons-react";
 import { ForsideKort } from "@/components/forside-kort";
+import { IllustrationGade } from "@/components/illustration-gade";
 import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
 import { IllustrationStatistik } from "@/components/illustration-statistik";
 import type { ForsideHus } from "@/components/forside-huse";
 import { KategoriIkon } from "@/components/ikon";
-import { KommuneSoeg } from "@/components/kommune-soeg";
+import { KommuneFlise } from "@/components/kommune-flise";
 import kommunePunkter from "@/data/kommune-punkter.json";
 import { DANMARK_BREDDE, DANMARK_HOEJDE, projekterTilDanmarkskort } from "@/lib/danmarkskort";
-import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { kommunerMedBillede } from "@/lib/kommuner/billeder";
+import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { REGION_NAVNE } from "@/lib/kommuner/regioner";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 import { hentGeoFakta } from "@/lib/scores/kommune-rapport";
@@ -42,6 +43,9 @@ const link = linkVariants();
 
 // Husene på Danmarkskortet øverst: fem kommuner spredt over landet som eksempler.
 const EKSEMPEL_KOMMUNER = ["0851", "0751", "0573", "0461", "0259"]; // Aalborg, Aarhus, Varde, Odense, Køge
+
+// Landets fire største byer, som altid vises blandt kommunekortene.
+const STORE_BYER = ["0101", "0751", "0461", "0851"]; // København, Aarhus, Odense, Aalborg
 
 // En kort forklaring pr. kategori (efter slug). Nye kategorier uden tekst viser deres
 // nøgletal i stedet, så forsiden aldrig mangler noget.
@@ -123,9 +127,16 @@ export default async function Home() {
     Math.floor(kommuner.reduce((sum, k) => sum + Object.keys(k.vaerdier).length, 0) / 100) * 100,
   );
 
-  const alleKommuner = kommuner
-    .map((k) => ({ navn: k.navn, slug: kommuneSlug(k.navn) }))
-    .sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
+  // Kortene under "Kender du allerede en kommune?": de største byer plus de højest
+  // placerede med standardvægte, så der altid er otte, sorteret efter placering.
+  const fliser = await byggKommuneFliser(kommuner);
+  const hoejestPlacerede = [...fliser]
+    .filter((f) => !STORE_BYER.includes(f.kode))
+    .sort((a, b) => a.rang - b.rang);
+  const fremhaevede = [
+    ...fliser.filter((f) => STORE_BYER.includes(f.kode)),
+    ...hoejestPlacerede.slice(0, 8 - STORE_BYER.length),
+  ].sort((a, b) => a.rang - b.rang);
 
   // Placering og styrker med standardvægte, som i rapporterne (lige scorer deler placering).
   const punkter = kommunePunkter as Record<string, { lat: number; lon: number }>;
@@ -199,14 +210,11 @@ export default async function Home() {
                   Find din kommune
                   <IconArrowRight className="h-5 w-5" />
                 </NextLink>
-                <p className="mt-3 text-sm text-muted">
-                  Gratis og uden login. Klar på under et minut.
-                </p>
               </div>
 
               {/* Hver profil åbner kortet med dens vægte (samme linkformat som "Del"). */}
               <div className="mt-8">
-                <p className="text-sm font-medium text-foreground">Eller start som</p>
+                <p className="text-sm font-medium text-foreground">Eller vælg den profil, der ligner dig mest</p>
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {PROFILER.map((profil) => (
                     <li key={profil.id}>
@@ -359,34 +367,36 @@ export default async function Home() {
       {/* ALLE KOMMUNER */}
       <section id="alle-kommuner">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-            <div>
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between lg:gap-20">
+            <div className="max-w-2xl">
               <p className="text-sm font-medium tracking-wide text-accent">Alle kommuner</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
                 Kender du allerede en kommune?
               </h2>
               <p className="mt-5 text-lg leading-8 text-muted">
-                Slå den op og se dens rapport med score, styrker og alle tallene.
+                Åbn dens rapport og se score, styrker og alle tallene.
               </p>
-              <div className="mt-6">
-                <KommuneSoeg kommunenavne={alleKommuner.map((k) => k.navn)} />
-              </div>
             </div>
+            {/* Kun på store skærme, ligesom de andre illustrationer. */}
+            <IllustrationGade className="hidden w-full max-w-md lg:block" />
+          </div>
 
-            <nav aria-label="Alle kommuner">
-              <ul className="columns-2 gap-x-6 text-sm sm:columns-3 lg:columns-4">
-                {alleKommuner.map((k) => (
-                  <li key={k.slug} className="break-inside-avoid">
-                    <NextLink
-                      href={`/kommune/${k.slug}`}
-                      className="block py-1 text-muted transition-colors hover:text-accent"
-                    >
-                      {k.navn}
-                    </NextLink>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* På mobil vises kun fire, så afsnittet ikke bliver en lang stak kort. */}
+            {fremhaevede.map((k, i) => (
+              <li key={k.kode} className={i >= 4 ? "hidden sm:block" : undefined}>
+                <KommuneFlise kommune={k} />
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <p className="text-sm text-muted">
+              De fire største byer og de højest placerede kommuner med standardvægtene.
+            </p>
+            <NextLink href="/kommuner" className={`${link.base()} inline-flex items-center gap-1.5`}>
+              Se alle {kommuner.length} kommuner
+              <IconArrowRight className="h-4 w-4" />
+            </NextLink>
           </div>
         </div>
       </section>
