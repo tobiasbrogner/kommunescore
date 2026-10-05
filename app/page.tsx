@@ -61,7 +61,7 @@ const KATEGORI_TEKST: Record<string, string> = {
   idraet: "Foreningslivet og anlæg som haller, baner og svømmehaller.",
   boern: "Hvad dagpleje, vuggestue, børnehave og SFO koster om året.",
   jobmuligheder: "Hvor mange job der er i kommunen og inden for pendlingsafstand.",
-  tryghed: "Anmeldte forbrydelser i forhold til antallet af indbyggere.",
+  tryghed: "Indbrud i boliger og vold i forhold til antallet af indbyggere.",
   sundhed: "Middellevetiden og afstanden til nærmeste læge.",
   aeldre: "Ventetiden på plejebolig og hjemmehjælpen til ældre.",
   pendling: "Hvor langt folk pendler, eller hvor langt der er til din egen adresse.",

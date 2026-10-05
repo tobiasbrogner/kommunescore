@@ -234,6 +234,14 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   ],
   tryghed: [
     {
+      noegletal: "Indbrud i beboelser pr. 1.000 indbyggere",
+      tekst: (v) => `${v} indbrud pr. 1.000 indb.`,
+    },
+    {
+      noegletal: "Vold og røveri pr. 1.000 indbyggere",
+      tekst: (v) => `${v} vold/røveri pr. 1.000 indb.`,
+    },
+    {
       noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
       tekst: (v) => `${v} anmeldelser pr. 1.000 indb.`,
     },

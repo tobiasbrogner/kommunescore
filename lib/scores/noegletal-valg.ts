@@ -147,6 +147,28 @@ export const NOEGLETAL_VALG: Record<string, NoegletalValg[]> = {
       noegletal: "Ledighed (fuldtidsledige)",
     },
   ],
+  // Indbrud og vold tæller fra start; alle anmeldelser er et tilvalg, da butikstyverier og
+  // nattelivet giver bymidterne bundscoren uanset, hvor trygt der er at bo.
+  tryghed: [
+    {
+      id: "indbrud",
+      label: "Indbrud",
+      forklaring: "Indbrud i private boliger pr. 1.000 indbyggere",
+      noegletal: "Indbrud i beboelser pr. 1.000 indbyggere",
+    },
+    {
+      id: "vold",
+      label: "Vold og røveri",
+      forklaring: "Vold, trusler og røveri mod personer pr. 1.000 indbyggere",
+      noegletal: "Vold og røveri pr. 1.000 indbyggere",
+    },
+    {
+      id: "alle",
+      label: "Alle anmeldelser",
+      forklaring: "Alle anmeldte straffelovsforbrydelser pr. 1.000 indbyggere",
+      noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
+    },
+  ],
   // Foreningslivet og anlæggene kan vælges hver for sig; begge tæller fra start.
   idraet: [
     {

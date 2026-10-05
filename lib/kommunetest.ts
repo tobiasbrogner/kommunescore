@@ -235,7 +235,7 @@ export const SPOERGSMAAL: Spoergsmaal[] = [
     type: "vigtighed",
     kategori: "tryghed",
     titel: "Hvor vigtigt er det med lav kriminalitet?",
-    hjaelp: "Anmeldte forbrydelser pr. 1.000 indbyggere.",
+    hjaelp: "Indbrud i boliger samt vold og røveri pr. 1.000 indbyggere.",
   },
   {
     id: "sundhed",

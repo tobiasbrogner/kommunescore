@@ -1,5 +1,6 @@
 import "./_load-env";
 
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import * as XLSX from "xlsx";
 import { and, eq, sql } from "drizzle-orm";
@@ -9,70 +10,94 @@ import { revaliderScores } from "./_revalider";
 
 const KATEGORI_NAVN = "Tryghed";
 const KATEGORI_SLUG = "tryghed";
-const NOEGLETAL_NAVN = "Anmeldte forbrydelser pr. 1.000 indbyggere";
-const NOEGLETAL_BESKRIVELSE =
-  "Antal anmeldte straffelovsforbrydelser (fx vold, indbrud og tyveri) i hele 2025 (alle fire kvartaler lagt sammen) pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). Særlove som narko-, våben- og udlændingeloven er ikke med, fordi de mest afspejler politiets kontroller ved fx grænser og lufthavne. Tæller hvor forbrydelsen er begået, så fx bymidter trækker op. Anmeldelser uden oplyst kommune er ikke med. Færre anmeldelser giver en højere score.";
 
-// STRAF11: anmeldte forbrydelser pr. kvartal i 2025, opdelt på overtrædelsens art.
-// Kun afsnittet FORBRYDELSE_ART bruges; kvartalerne lægges sammen til et helt år.
-// Filen har artens navn i første kolonne på afsnittets første række og tom derefter.
-const FORBRYDELSE_KILDE = "data/kilder/anmeldte-forbrydelser-straf11.xlsx";
-const FORBRYDELSE_ART = "Straffelov i alt";
-const FORBRYDELSE_ARTKOLONNE = 0;
-const FORBRYDELSE_NAVNEKOLONNE = 1;
+// STRAF11: anmeldte forbrydelser pr. kvartal i 2025 efter overtrædelsens art og kommune,
+// hentet fra Danmarks Statistiks API (api.statbank.dk/v1/data, tabel STRAF11, format BULK,
+// OVERTRÆD 1, 12, 1210, 1220, 1283, 1320, 1380, 1390, 1332, 1345, Tid 2025K1-2025K4).
+// Kolonner: OMRÅDE;OVERTRÆD;TID;INDHOLD. Kvartalerne lægges sammen til et helt år.
+const FORBRYDELSE_KILDE = "data/kilder/straf11-typer-2025.csv";
 const AAR = "2025";
-const KVARTALER = ["K1", "K2", "K3", "K4"].map((k) => `${AAR}${k}`);
 
 // FOLK1AM: befolkningen 1. december 2024 (samme fil som Spisesteder bruger).
 const BEFOLKNING_KILDE = "data/kilder/befolkning-folk1am.xlsx";
 const BEFOLKNING_NAVNEKOLONNE = 2;
 const BEFOLKNING_VAERDIKOLONNE = 3;
 
-function laesArk(fil: string) {
-  const arbejdsbog = XLSX.readFile(path.join(process.cwd(), fil));
-  const ark = arbejdsbog.Sheets[arbejdsbog.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ark, { header: 1, raw: true }) as unknown[][];
-}
+const FAELLES =
+  "Tæller hvor forbrydelsen er begået, og anmeldelser uden oplyst kommune er ikke med.";
+
+type Noegletal = {
+  navn: string;
+  // Tæller i kategoriens standardscore; ellers et tilvalg under Prioritet på /kort.
+  standardValgt: boolean;
+  beskrivelse: string;
+  // Årets antal for en kommune ud fra antal pr. art (artens navn i STRAF11).
+  antal: (art: (navn: string) => number) => number;
+};
+
+// Indbrud og vold mod personer er det, der rammer beboerne. Alle anmeldelser tilsammen
+// domineres af butikstyverier, bedrageri og nattelivet i bymidter, så storbyer fik
+// bundscoren uanset hvor trygt der er at bo; det er nu et tilvalg.
+const NOEGLETAL: Noegletal[] = [
+  {
+    navn: "Indbrud i beboelser pr. 1.000 indbyggere",
+    standardValgt: true,
+    beskrivelse: `Anmeldte indbrud i private boliger i hele ${AAR} pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). ${FAELLES} Færre indbrud giver en højere score.`,
+    antal: (art) => art("Indbrud i beboelser"),
+  },
+  {
+    navn: "Vold og røveri pr. 1.000 indbyggere",
+    standardValgt: true,
+    beskrivelse: `Anmeldt vold, trusler og røveri mod personer i hele ${AAR} pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). Vold mod politi og myndigheder, opløb og uagtsom legemsbeskadigelse er ikke med, da de mest afspejler nattelivet og politiets indsats. ${FAELLES} Færre anmeldelser giver en højere score.`,
+    antal: (art) =>
+      art("Voldsforbrydelser i alt") -
+      art("Vold og lignende mod offentlig myndighed") -
+      art("Opløb/forstyrrelse af offentlig orden") -
+      art("Uagtsomt manddrab/legemsbeskadigelse") +
+      art("Røveri"),
+  },
+  {
+    navn: "Anmeldte forbrydelser pr. 1.000 indbyggere",
+    standardValgt: false,
+    beskrivelse: `Alle anmeldte straffelovsforbrydelser (fx vold, indbrud, tyveri og bedrageri) i hele ${AAR} pr. 1.000 indbyggere (Danmarks Statistik, STRAF11 og FOLK1AM). Særlove som narko-, våben- og udlændingeloven er ikke med. Butikstyverier og nattelivet trækker bymidter op. ${FAELLES} Færre anmeldelser giver en højere score.`,
+    antal: (art) => art("Straffelov i alt"),
+  },
+];
 
 /** Tal pr. område-navn. Rækker der ikke er kommuner frasorteres senere, fordi kun
  * navne fra kommuner-tabellen slås op. */
-function laesTal(fil: string, navnekolonne: number, vaerdikolonne: number): Map<string, number> {
+function laesBefolkning(): Map<string, number> {
+  const arbejdsbog = XLSX.readFile(path.join(process.cwd(), BEFOLKNING_KILDE));
+  const ark = arbejdsbog.Sheets[arbejdsbog.SheetNames[0]];
+  const raa = XLSX.utils.sheet_to_json(ark, { header: 1, raw: true }) as unknown[][];
   const tal = new Map<string, number>();
-  for (const linje of laesArk(fil)) {
-    const navn = linje[navnekolonne];
-    const vaerdi = linje[vaerdikolonne];
-    if (typeof navn === "string" && typeof vaerdi === "number") {
-      tal.set(navn.trim(), vaerdi);
-    }
+  for (const linje of raa) {
+    const navn = linje[BEFOLKNING_NAVNEKOLONNE];
+    const vaerdi = linje[BEFOLKNING_VAERDIKOLONNE];
+    if (typeof navn === "string" && typeof vaerdi === "number") tal.set(navn.trim(), vaerdi);
   }
   return tal;
 }
 
-/** Årets anmeldte forbrydelser af arten FORBRYDELSE_ART pr. område-navn; kun rækker med
- * tal for alle fire kvartaler. */
+/** Årets antal anmeldelser pr. "område|art". BULK-formatet udelader rækker med 0, så
+ * en manglende kombination tæller som 0; filen skal dog have alle fire kvartaler. */
 function laesForbrydelser(): Map<string, number> {
-  const raa = laesArk(FORBRYDELSE_KILDE);
-  const overskrift = raa.find((linje) => linje.includes(KVARTALER[0]));
-  const kolonner = KVARTALER.map((k) => overskrift?.indexOf(k) ?? -1);
-  if (kolonner.some((i) => i < 0)) {
-    throw new Error(`${FORBRYDELSE_KILDE}: fandt ikke kolonnerne ${KVARTALER.join(", ")}.`);
-  }
-
+  const linjer = readFileSync(path.join(process.cwd(), FORBRYDELSE_KILDE), "utf8")
+    .trim()
+    .split(/\r?\n/)
+    .slice(1);
   const antal = new Map<string, number>();
-  let art: string | null = null;
-  for (const linje of raa) {
-    const artCelle = linje[FORBRYDELSE_ARTKOLONNE];
-    if (typeof artCelle === "string" && artCelle.trim()) art = artCelle.trim();
-    if (art !== FORBRYDELSE_ART) continue;
-    const navn = linje[FORBRYDELSE_NAVNEKOLONNE];
-    if (typeof navn !== "string") continue;
-    const tal = kolonner.map((i) => linje[i]);
-    if (tal.every((t): t is number => typeof t === "number")) {
-      antal.set(navn.trim(), tal.reduce((a, b) => a + b, 0));
-    }
+  const kvartaler = new Set<string>();
+  for (const linje of linjer) {
+    const [omraade, art, tid, vaerdi] = linje.split(";");
+    if (!tid?.startsWith(AAR)) continue;
+    kvartaler.add(tid);
+    const noegle = `${omraade}|${art}`;
+    // ".." betyder uoplyst hos Danmarks Statistik; tælles som 0.
+    antal.set(noegle, (antal.get(noegle) ?? 0) + (Number(vaerdi) || 0));
   }
-  if (antal.size === 0) {
-    throw new Error(`${FORBRYDELSE_KILDE}: fandt ingen rækker for "${FORBRYDELSE_ART}".`);
+  if (kvartaler.size !== 4) {
+    throw new Error(`${FORBRYDELSE_KILDE}: har ${kvartaler.size} kvartaler i ${AAR}, ikke 4.`);
   }
   return antal;
 }
@@ -80,10 +105,10 @@ function laesForbrydelser(): Map<string, number> {
 async function main() {
   const alleKommuner = await db.select({ kode: kommuner.kode, navn: kommuner.navn }).from(kommuner);
   const forbrydelser = laesForbrydelser();
-  const befolkning = laesTal(BEFOLKNING_KILDE, BEFOLKNING_NAVNEKOLONNE, BEFOLKNING_VAERDIKOLONNE);
+  const befolkning = laesBefolkning();
 
   const manglende = alleKommuner.filter(
-    (k) => !forbrydelser.has(k.navn) || !befolkning.get(k.navn),
+    (k) => !forbrydelser.has(`${k.navn}|Straffelov i alt`) || !befolkning.get(k.navn),
   );
   if (manglende.length > 0) {
     throw new Error(`Mangler data for ${manglende.map((k) => k.navn).join(", ")}`);
@@ -106,46 +131,47 @@ async function main() {
     .onConflictDoUpdate({ target: kategorier.slug, set: { navn: sql`excluded.navn` } })
     .returning();
 
-  // Genbrug eksisterende nøgletal ved genkørsel i stedet for at oprette dubletter.
-  let [noegletalRow] = await db
-    .select()
-    .from(noegletal)
-    .where(and(eq(noegletal.kategoriId, kategori.id), eq(noegletal.navn, NOEGLETAL_NAVN)));
-  if (!noegletalRow) {
-    [noegletalRow] = await db
-      .insert(noegletal)
-      .values({
-        kategoriId: kategori.id,
-        navn: NOEGLETAL_NAVN,
-        enhed: "anmeldelser",
-        retning: "lavere_bedre",
-        beskrivelse: NOEGLETAL_BESKRIVELSE,
-      })
-      .returning();
-  } else {
-    await db
-      .update(noegletal)
-      .set({ beskrivelse: NOEGLETAL_BESKRIVELSE })
-      .where(eq(noegletal.id, noegletalRow.id));
-  }
+  for (const n of NOEGLETAL) {
+    const felter = {
+      enhed: "anmeldelser",
+      retning: "lavere_bedre" as const,
+      standardValgt: n.standardValgt,
+      beskrivelse: n.beskrivelse,
+    };
 
-  for (const kommune of alleKommuner) {
-    const prTusind = (forbrydelser.get(kommune.navn)! / befolkning.get(kommune.navn)!) * 1000;
-    await db
-      .insert(kommuneNoegletal)
-      .values({
-        kommuneKode: kommune.kode,
-        noegletalId: noegletalRow.id,
-        vaerdi: prTusind.toFixed(2),
-      })
-      .onConflictDoUpdate({
-        target: [kommuneNoegletal.kommuneKode, kommuneNoegletal.noegletalId],
-        set: { vaerdi: sql`excluded.vaerdi` },
-      });
+    // Genbrug eksisterende nøgletal ved genkørsel i stedet for at oprette dubletter.
+    let [noegletalRow] = await db
+      .select()
+      .from(noegletal)
+      .where(and(eq(noegletal.kategoriId, kategori.id), eq(noegletal.navn, n.navn)));
+    if (!noegletalRow) {
+      [noegletalRow] = await db
+        .insert(noegletal)
+        .values({ kategoriId: kategori.id, navn: n.navn, ...felter })
+        .returning();
+    } else {
+      await db.update(noegletal).set(felter).where(eq(noegletal.id, noegletalRow.id));
+    }
+
+    for (const kommune of alleKommuner) {
+      const antal = n.antal((art) => forbrydelser.get(`${kommune.navn}|${art}`) ?? 0);
+      const prTusind = (antal / befolkning.get(kommune.navn)!) * 1000;
+      await db
+        .insert(kommuneNoegletal)
+        .values({
+          kommuneKode: kommune.kode,
+          noegletalId: noegletalRow.id,
+          vaerdi: prTusind.toFixed(2),
+        })
+        .onConflictDoUpdate({
+          target: [kommuneNoegletal.kommuneKode, kommuneNoegletal.noegletalId],
+          set: { vaerdi: sql`excluded.vaerdi` },
+        });
+    }
   }
 
   console.log(
-    `Oprettede kategorien "${KATEGORI_NAVN}" med nøgletallet "${NOEGLETAL_NAVN}" for ${alleKommuner.length} kommuner.`,
+    `Opdaterede kategorien "${KATEGORI_NAVN}" med ${NOEGLETAL.length} nøgletal for ${alleKommuner.length} kommuner.`,
   );
   await revaliderScores();
   process.exit(0);
