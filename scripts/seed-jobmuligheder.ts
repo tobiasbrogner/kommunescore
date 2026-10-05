@@ -136,7 +136,9 @@ async function main() {
       navn: KATEGORI_NAVN,
       slug: KATEGORI_SLUG,
       ikon: "briefcase",
-      standardvaegt: "1",
+      // Halv vægt fra start: job betyder ikke lige meget for alle (fx pensionister), og
+      // hovedstadsområdets mange job ville ellers dominere standardrangeringen.
+      standardvaegt: "0.5",
       sortering: 2,
     })
     .onConflictDoUpdate({ target: kategorier.slug, set: { navn: sql`excluded.navn` } })
