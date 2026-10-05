@@ -43,7 +43,7 @@ export function KommuneFlise({ kommune }: { kommune: KommuneFliseData }) {
           </p>
         </div>
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-base font-bold tabular-nums text-accent-foreground"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-base font-bold tabular-nums text-foreground ring-1 ring-inset ring-border/50"
           title="Samlet score ud af 100"
         >
           {kommune.score}
