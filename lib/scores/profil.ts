@@ -50,6 +50,9 @@ export function byggKommuneProfil(
 ): KommuneProfil {
   const maalinger = kategorier
     .flatMap((kategori) => {
+      // Kategorier, der ikke tæller i standardscoren (fx Indbyggertal, som er en smagssag),
+      // er hverken styrker eller fokusområder.
+      if (kategori.standardvaegt <= 0) return [];
       const score = scorer?.[kategori.id];
       const fordeling = fordelinger.get(kategori.id);
       if (score == null || !fordeling) return [];
