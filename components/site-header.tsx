@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Description, Dropdown, Label } from "@heroui/react";
-import { IconArrowsLeftRight, IconChevronDown, IconMap } from "@tabler/icons-react";
+import { IconArrowsLeftRight, IconChecklist, IconChevronDown, IconMap } from "@tabler/icons-react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
@@ -14,6 +14,7 @@ const link = linkVariants();
 // Værktøjerne samles under én menu, så der er plads til flere punkter i topmenuen.
 const VAERKTOEJER = [
   { href: "/kort", navn: "Kortet", tekst: "Find din kommune på kortet", Ikon: IconMap },
+  { href: "/kommunetest", navn: "Kommunetesten", tekst: "20 spørgsmål finder din top 6", Ikon: IconChecklist },
   { href: "/sammenlign", navn: "Sammenlign rapporter", tekst: "Stil kommuner op side om side", Ikon: IconArrowsLeftRight },
 ];
 

@@ -10,6 +10,7 @@ const linkGrupper: { href: string; label: string }[][] = [
   [
     { href: "/", label: "Forside" },
     { href: "/kort", label: "Kortet" },
+    { href: "/kommunetest", label: "Kommunetesten" },
     { href: "/sammenlign", label: "Sammenlign rapporter" },
     { href: "/kommuner", label: "Alle kommuner" },
     { href: "/saadan-virker-det", label: "Sådan virker det" },

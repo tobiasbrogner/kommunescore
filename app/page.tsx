@@ -7,6 +7,7 @@ import {
   IconArrowRight,
   IconArrowsLeftRight,
   IconCheck,
+  IconChecklist,
   IconFileAnalytics,
   IconHeart,
   IconList,
@@ -420,8 +421,8 @@ export default async function Home() {
                     Hvor kunne du egentlig trives?
                   </h2>
                   <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
-                    Start på kortet med dine egne prioriteter, sammenlign dem, du overvejer, eller
-                    kig alle {kommuner.length} kommuner igennem.
+                    Start på kortet med dine egne prioriteter, tag kommunetesten, sammenlign dem, du
+                    overvejer, eller kig alle {kommuner.length} kommuner igennem.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center gap-3">
                     <NextLink
@@ -430,6 +431,13 @@ export default async function Home() {
                     >
                       Find din kommune
                       <IconArrowRight className="h-5 w-5" />
+                    </NextLink>
+                    <NextLink
+                      href="/kommunetest"
+                      className={buttonVariants({ variant: "outline", size: "lg" })}
+                    >
+                      <IconChecklist className="h-5 w-5" />
+                      Kommunetesten
                     </NextLink>
                     <NextLink
                       href="/sammenlign"
