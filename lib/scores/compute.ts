@@ -1,3 +1,5 @@
+import { BEFOLKNING_NOEGLETAL, UDJAEVNEDE_NOEGLETAL, udjaevn } from "@/lib/scores/udjaevning";
+
 export type RaaVaerdi = {
   kommuneKode: string;
   noegletalId: number;
@@ -117,6 +119,27 @@ export function beregnScores(
     perNoegletal.get(r.noegletalId)!.push({ kommuneKode: r.kommuneKode, vaerdi: r.vaerdi });
     retningPrNoegletal.set(r.noegletalId, r.retning);
     kategoriPrNoegletal.set(r.noegletalId, r.kategoriId);
+  }
+
+  // Små kommuners tal pr. indbygger trækkes mod landsniveauet før normaliseringen (se
+  // lib/scores/udjaevning.ts). Mangler indbyggertallet (fx admin-panelets forhåndsvisning),
+  // springes udjævningen over.
+  const navnPrNoegletal = new Map(
+    kategorier.flatMap((k) => k.noegletal.map((n) => [n.id, n.navn] as const)),
+  );
+  const befolkningId = [...navnPrNoegletal].find(([, navn]) => navn === BEFOLKNING_NOEGLETAL)?.[0];
+  const indbyggere = new Map(
+    (befolkningId !== undefined ? (perNoegletal.get(befolkningId) ?? []) : []).map((v) => [
+      v.kommuneKode,
+      v.vaerdi,
+    ]),
+  );
+  if (indbyggere.size > 0) {
+    for (const [noegletalId, vaerdier] of perNoegletal) {
+      if (UDJAEVNEDE_NOEGLETAL.has(navnPrNoegletal.get(noegletalId) ?? "")) {
+        perNoegletal.set(noegletalId, udjaevn(vaerdier, indbyggere));
+      }
+    }
   }
 
   const venlighedPrKategori = new Map(kategorier.map((k) => [k.id, k.venlighed]));

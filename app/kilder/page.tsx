@@ -7,6 +7,7 @@ import { dstTabeller, statistikbankenUrl } from "@/lib/kilder";
 import { alleBilledKreditter } from "@/lib/kommuner/billeder";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
+import { UDJAEVNEDE_NOEGLETAL, UDJAEVNING_INDBYGGERE } from "@/lib/scores/udjaevning";
 
 export const metadata: Metadata = {
   title: "Kilder | Kommuna",
@@ -83,6 +84,15 @@ export default async function KilderSide() {
                           {n.beskrivelse && (
                             <dd className="mt-1 text-sm leading-relaxed text-muted">{n.beskrivelse}</dd>
                           )}
+                          {UDJAEVNEDE_NOEGLETAL.has(n.navn) && (
+                            <dd className="mt-1 text-sm leading-relaxed text-muted">
+                              Små kommuners tal{" "}
+                              <a href="#smaa-kommuner" className="font-medium text-accent hover:underline">
+                                udjævnes
+                              </a>{" "}
+                              mod landsniveauet, før de får en score.
+                            </dd>
+                          )}
                           {kilder.length > 0 && (
                             <dd className="mt-2 flex flex-wrap gap-1.5">
                               {kilder.map((tabel) => (
@@ -101,6 +111,19 @@ export default async function KilderSide() {
             );
           })}
         </div>
+      </section>
+
+      <section id="smaa-kommuner" className="mt-10 scroll-mt-24">
+        <h2 className="text-xl font-semibold text-foreground">Små kommuner</h2>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Tal pr. indbygger, som fx indbrud eller idrætsanlæg, bygger på få hændelser i en lille
+          kommune, så tilfældigheder slår hårdt igennem: ét indbrud mere eller mindre kan flytte
+          Læsø fra top til bund. Derfor trækkes de mod landsniveauet, jo færre indbyggere
+          kommunen har, før de får en score. Kommunen vægtes som sit indbyggertal og
+          landsniveauet som {UDJAEVNING_INDBYGGERE.toLocaleString("da-DK")} indbyggere, så Læsø
+          (ca. 1.800 indbyggere) beholder godt en fjerdedel af sit eget tal, mens kommuner med
+          50.000 indbyggere beholder ca. 90 %. Rapporterne viser altid de rigtige tal.
+        </p>
       </section>
 
       {sorteredeTabeller.length > 0 && (
