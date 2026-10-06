@@ -6,16 +6,23 @@ import { Logo, LogoMark } from "@/components/logo";
 import { FeedbackModal } from "@/components/feedback-modal";
 
 // Linkkolonner i det blå bånd. Nye sider tilføjes her, efterhånden som de kommer.
-const linkGrupper: { href: string; label: string }[][] = [
-  [
-    { href: "/", label: "Forside" },
-    { href: "/kort", label: "Kortet" },
-    { href: "/kommunetest", label: "Kommunetesten" },
-    { href: "/sammenlign", label: "Sammenlign rapporter" },
-    { href: "/kommuner", label: "Alle kommuner" },
-    { href: "/saadan-virker-det", label: "Sådan virker det" },
-    { href: "/kilder", label: "Kilder" },
-  ],
+const linkGrupper: { titel: string; links: { href: string; label: string }[] }[] = [
+  {
+    titel: "Generelt",
+    links: [
+      { href: "/kommuner", label: "Alle kommuner" },
+      { href: "/saadan-virker-det", label: "Sådan virker det" },
+      { href: "/kilder", label: "Kilder" },
+    ],
+  },
+  {
+    titel: "Værktøjer",
+    links: [
+      { href: "/kort", label: "Kortet" },
+      { href: "/kommunetest", label: "Kommunetesten" },
+      { href: "/sammenlign", label: "Sammenlign rapporter" },
+    ],
+  },
 ];
 
 export function SiteFooter() {
@@ -29,28 +36,37 @@ export function SiteFooter() {
           <div className="grid gap-10 py-12 sm:grid-cols-[minmax(0,12rem)_1fr] lg:pr-10">
             <div className="flex flex-col justify-between gap-8">
               <div>
-                <Logo hvid className="h-6" />
+                <NextLink href="/" aria-label="Kommuna – til forsiden" className="inline-block">
+                  <Logo hvid className="h-6" />
+                </NextLink>
                 <p className="mt-2 text-sm leading-relaxed text-white/80">
                   Find den kommune, der passer til dit liv.
                 </p>
               </div>
-              <LogoMark className="h-12" hvid />
+              <NextLink href="/" aria-label="Til forsiden" className="self-center">
+                <LogoMark className="h-12" hvid />
+              </NextLink>
             </div>
 
             <nav aria-label="Footer navigation" className="grid content-start gap-8 sm:grid-cols-2">
-              {linkGrupper.map((gruppe, i) => (
-                <ul key={i}>
-                  {gruppe.map((l) => (
-                    <li key={l.href}>
-                      <NextLink
-                        href={l.href}
-                        className="block border-b border-white/25 py-2.5 text-sm text-white/90 transition-colors hover:text-white hover:border-white/60"
-                      >
-                        {l.label}
-                      </NextLink>
-                    </li>
-                  ))}
-                </ul>
+              {linkGrupper.map((gruppe) => (
+                <div key={gruppe.titel}>
+                  <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/60">
+                    {gruppe.titel}
+                  </h2>
+                  <ul>
+                    {gruppe.links.map((l) => (
+                      <li key={l.href}>
+                        <NextLink
+                          href={l.href}
+                          className="block border-b border-white/25 py-2.5 text-sm text-white/90 transition-colors hover:text-white hover:border-white/60"
+                        >
+                          {l.label}
+                        </NextLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
             </nav>
           </div>

@@ -10,7 +10,7 @@ import {
   IconChecklist,
   IconFileAnalytics,
   IconHeart,
-  IconList,
+  IconMap,
   IconMap2,
   IconMessageCircle,
   IconShare,
@@ -412,7 +412,7 @@ export default async function Home() {
             className="overflow-hidden rounded-[2rem] border border-border"
           >
             <Card.Content className="p-8 sm:p-12 lg:p-16">
-              {/* Afslutningen på forsiden: en knap til hvert værktøj. */}
+              {/* Afslutningen på forsiden: knapper til kortet og kommunetesten. */}
               <div className="grid items-center gap-12 md:grid-cols-[minmax(0,16rem)_1fr] lg:grid-cols-[minmax(0,18rem)_1fr] lg:gap-16">
                 <IllustrationFamilie className="hidden w-full md:block" />
                 <div>
@@ -421,16 +421,16 @@ export default async function Home() {
                     Hvor kunne du egentlig trives?
                   </h2>
                   <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
-                    Start på kortet med dine egne prioriteter, tag kommunetesten, sammenlign dem, du
-                    overvejer, eller kig alle {kommuner.length} kommuner igennem.
+                    Hvor I bor, former hverdagen for hele familien. Vælg det, der betyder mest for jer,
+                    og find stedet, hvor I passer ind.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center gap-3">
                     <NextLink
                       href="/kort"
                       className={buttonVariants({ variant: "primary", size: "lg" })}
                     >
-                      Find din kommune
-                      <IconArrowRight className="h-5 w-5" />
+                      <IconMap className="h-5 w-5" />
+                      Kortet
                     </NextLink>
                     <NextLink
                       href="/kommunetest"
@@ -438,20 +438,6 @@ export default async function Home() {
                     >
                       <IconChecklist className="h-5 w-5" />
                       Kommunetesten
-                    </NextLink>
-                    <NextLink
-                      href="/sammenlign"
-                      className={buttonVariants({ variant: "outline", size: "lg" })}
-                    >
-                      <IconArrowsLeftRight className="h-5 w-5" />
-                      Sammenlign rapporter
-                    </NextLink>
-                    <NextLink
-                      href="/kommuner"
-                      className={buttonVariants({ variant: "outline", size: "lg" })}
-                    >
-                      <IconList className="h-5 w-5" />
-                      Alle kommuner
                     </NextLink>
                   </div>
                 </div>
