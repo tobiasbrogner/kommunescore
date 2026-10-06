@@ -7,7 +7,15 @@ declare global {
   var __kommunescoreDbPool: Pool | undefined;
 }
 
-const pool = globalThis.__kommunescoreDbPool ?? new Pool(dbConfig());
+// Databasen (Aiven) tillader kun 17 forbindelser i alt (20 minus 3 til administratoren),
+// og hver serverproces har sin egen pulje: dev-serveren, hver proces i buildet og senere
+// produktionen. Derfor højst 5 pr. proces (pg's standard er 10); ledige forbindelser lukkes
+// efter 10 sekunder. Kan ændres med DATABASE_POOL_MAX.
+const POOL_MAX = Number(process.env.DATABASE_POOL_MAX) || 5;
+
+const pool =
+  globalThis.__kommunescoreDbPool ??
+  new Pool({ ...dbConfig(), max: POOL_MAX, idleTimeoutMillis: 10_000 });
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__kommunescoreDbPool = pool;
