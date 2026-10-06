@@ -26,7 +26,7 @@ export default function NotFound() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
       <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
-        <div className="motion-rise">
+        <div className="motion-rise-synlig">
           <p className="text-sm font-medium tracking-wide text-accent">Fejl 404</p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-6xl">
             Her er vist ikke nogen kommune.

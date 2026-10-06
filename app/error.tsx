@@ -22,7 +22,7 @@ export default function Fejl({
   return (
     <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
       <title>Noget gik galt | Kommuna</title>
-      <div className="motion-rise">
+      <div className="motion-rise-synlig">
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
           <IconPlugConnectedX className="h-7 w-7" aria-hidden="true" />
         </span>

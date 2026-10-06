@@ -89,6 +89,23 @@ body {
   animation: rise-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Til tekst med sidens hovedoverskrift: glider op, men er synlig fra start. Google måler,
+   hvornår det største element vises (LCP), og en fade fra usynlig blev på langsomme
+   telefoner først vist efter ca. 6 s, mens browseren var optaget af JavaScript. */
+.motion-rise-synlig {
+  animation: rise-in-synlig 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise-in-synlig {
+  from {
+    transform: translateY(18px);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
 .motion-delay-1 {
   animation-delay: 120ms;
 }
@@ -171,7 +188,8 @@ body {
     scroll-behavior: auto;
   }
 
-  .motion-rise {
+  .motion-rise,
+  .motion-rise-synlig {
     animation: none;
   }
 }
@@ -207,7 +225,8 @@ html[data-kort-visning] [data-site-footer] {
   }
 
   /* PDF'en tages med det samme; indtoningen må ikke nå at være halvvejs. */
-  .motion-rise {
+  .motion-rise,
+  .motion-rise-synlig {
     animation: none;
   }
 

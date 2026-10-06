@@ -200,7 +200,7 @@ export default async function Home() {
       <section id="start" className="relative">
         <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:px-8 lg:pb-24 lg:pt-20">
           <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-            <div className="motion-rise">
+            <div className="motion-rise-synlig">
               <h1 className="max-w-4xl text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-7xl">
                 Find den kommune,
                 <br />

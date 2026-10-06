@@ -15,7 +15,7 @@ import {
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
-import { FeedbackModal } from "@/components/feedback-modal";
+import { FeedbackModalLazy } from "@/components/feedback-modal-lazy";
 const link = linkVariants();
 
 // Topmenuens punkter samles i dropdown-menuer, så der er plads til flere sider.
@@ -198,7 +198,7 @@ export function SiteHeader() {
         </div>
       )}
 
-      <FeedbackModal isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <FeedbackModalLazy isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </header>
   );
 }

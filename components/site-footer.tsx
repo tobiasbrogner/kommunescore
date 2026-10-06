@@ -3,7 +3,7 @@
 import { useState } from "react";
 import NextLink from "next/link";
 import { Logo, LogoMark } from "@/components/logo";
-import { FeedbackModal } from "@/components/feedback-modal";
+import { FeedbackModalLazy } from "@/components/feedback-modal-lazy";
 
 // Linkkolonner i det blå bånd. Nye sider tilføjes her, efterhånden som de kommer.
 const linkGrupper: { titel: string; links: { href: string; label: string }[] }[] = [
@@ -100,7 +100,7 @@ export function SiteFooter() {
           <p className="text-xs text-muted">© {aar} Kommuna</p>
         </div>
       </div>
-      <FeedbackModal isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <FeedbackModalLazy isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </footer>
   );
 }
