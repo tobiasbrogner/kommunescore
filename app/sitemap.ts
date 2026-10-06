@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${adresse}/sammenlign`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${adresse}/saadan-virker-det`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${adresse}/kilder`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${adresse}/privatlivspolitik`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
   const rapporter: MetadataRoute.Sitemap = kommuner

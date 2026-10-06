@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { feedback, feedbackTypeEnum } from "@/lib/db/schema";
 import { erFeedbackRateLimited } from "@/lib/auth/rate-limit";
+import { sletGammelFeedback } from "@/lib/feedback-oprydning";
 
 const MIN_BESKED = 5;
 const MAKS_BESKED = 4000;
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     side,
     brugeragent,
   });
+  await sletGammelFeedback();
 
   return NextResponse.json({ ok: true });
 }

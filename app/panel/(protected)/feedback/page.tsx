@@ -2,8 +2,10 @@ import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { feedback } from "@/lib/db/schema";
 import { FeedbackManager } from "@/components/panel/feedback-manager";
+import { sletGammelFeedback } from "@/lib/feedback-oprydning";
 
 export default async function PanelFeedbackPage() {
+  await sletGammelFeedback();
   const alFeedback = await db
     .select({
       id: feedback.id,

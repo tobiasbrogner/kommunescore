@@ -13,6 +13,7 @@ const linkGrupper: { titel: string; links: { href: string; label: string }[] }[]
       { href: "/kommuner", label: "Alle kommuner" },
       { href: "/saadan-virker-det", label: "Sådan virker det" },
       { href: "/kilder", label: "Kilder" },
+      { href: "/privatlivspolitik", label: "Privatlivspolitik" },
     ],
   },
   {
