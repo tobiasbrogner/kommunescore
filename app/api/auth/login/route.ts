@@ -4,14 +4,16 @@ import { db } from "@/lib/db";
 import { administratorer } from "@/lib/db/schema";
 import { verifyPassword, DUMMY_HASH } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
-import { erRateLimited } from "@/lib/auth/rate-limit";
+import { erLoginLoftNaaet, erRateLimited } from "@/lib/auth/rate-limit";
+import { klientIp } from "@/lib/klient-ip";
 
 const GENERISK_FEJL = "Forkert e-mail eller adgangskode.";
 
 export async function POST(request: Request) {
-  const ip = request.headers.get("x-forwarded-for") ?? "ukendt";
-
-  if (erRateLimited(ip)) {
+  // Både grænsen pr. IP og det samlede loft tælles hver gang (ingen kortslutning).
+  const forMangeFraIp = erRateLimited(klientIp(request));
+  const forMangeIAlt = erLoginLoftNaaet("alle");
+  if (forMangeFraIp || forMangeIAlt) {
     return NextResponse.json(
       { fejl: "For mange loginforsøg. Prøv igen senere." },
       { status: 429 },

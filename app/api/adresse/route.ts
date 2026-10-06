@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { erAdresseRateLimited } from "@/lib/auth/rate-limit";
+import { klientIp } from "@/lib/klient-ip";
 
 // Adressesøgning til den personlige afstand på /kort. Slår op i Dataforsyningens Gsearch
 // (det officielle adresseregister, afløseren for DAWA), der kræver en gratis token i
@@ -105,8 +106,7 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (q.length < 3 || q.length > 200) return NextResponse.json([]);
 
-  const ip = request.headers.get("x-forwarded-for") ?? "ukendt";
-  if (erAdresseRateLimited(ip)) {
+  if (erAdresseRateLimited(klientIp(request))) {
     return NextResponse.json({ fejl: "For mange søgninger. Prøv igen om lidt." }, { status: 429 });
   }
 

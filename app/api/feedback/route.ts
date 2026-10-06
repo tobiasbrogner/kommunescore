@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { feedback, feedbackTypeEnum } from "@/lib/db/schema";
-import { erFeedbackRateLimited } from "@/lib/auth/rate-limit";
+import { erFeedbackLoftNaaet, erFeedbackRateLimited } from "@/lib/auth/rate-limit";
+import { klientIp } from "@/lib/klient-ip";
 import { sletGammelFeedback } from "@/lib/feedback-oprydning";
 
 const MIN_BESKED = 5;
@@ -12,9 +13,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type FeedbackType = (typeof feedbackTypeEnum.enumValues)[number];
 
 export async function POST(request: Request) {
-  const ip = request.headers.get("x-forwarded-for") ?? "ukendt";
-
-  if (erFeedbackRateLimited(ip)) {
+  const forMangeFraIp = erFeedbackRateLimited(klientIp(request));
+  const forMangeIAlt = erFeedbackLoftNaaet("alle");
+  if (forMangeFraIp || forMangeIAlt) {
     return NextResponse.json(
       { fejl: "Du har sendt meget feedback på kort tid. Prøv igen om lidt." },
       { status: 429 },

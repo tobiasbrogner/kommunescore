@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/dal";
 import { chatKvoteBruger, chatKvoteGaest, erChatLoftNaaet } from "@/lib/auth/rate-limit";
+import { klientIp } from "@/lib/klient-ip";
 import { byggSystemPrompt } from "@/lib/chat/system-prompt";
 import { CHAT_VAERKTOEJER, koerVaerktoej } from "@/lib/chat/vaerktoejer";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
@@ -48,16 +49,12 @@ function laesBeskeder(body: unknown): IndBesked[] | string {
   return beskeder as IndBesked[];
 }
 
-function ipFra(request: Request) {
-  return request.headers.get("x-forwarded-for") ?? "ukendt";
-}
-
 // Indloggede tælles pr. konto med den store kvote, alle andre pr. IP med den lille.
 async function kvoteFor(request: Request) {
   const bruger = await verifySession();
   return bruger
     ? { kvote: chatKvoteBruger, noegle: String(bruger.id) }
-    : { kvote: chatKvoteGaest, noegle: ipFra(request) };
+    : { kvote: chatKvoteGaest, noegle: klientIp(request) };
 }
 
 // Hvor mange beskeder brugeren har tilbage i dag. Bruger ikke af kvoten.

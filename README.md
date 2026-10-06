@@ -43,6 +43,8 @@ Find den kommune, der passer til dit liv. Kommuna sammenligner alle 98 danske ko
 | `GSEARCH_TOKEN` | Adressesøgningen under Pendling (Dataforsyningen). Mangler den, bruges Photon |
 | `ANTHROPIC_API_KEY` | "Spørg hjælperen" på kortet |
 | `APP_URL` | Sidens adresse. Lokalt `http://localhost:3000`; ved lancering det rigtige domæne (bruges i sitemap, delinger og PDF) |
+| `TRUSTED_PROXY_HOPS` | Valgfri (standard 1). Antal proxyer foran siden, så den besøgendes rigtige IP findes til grænserne for login, chat og feedback |
+| `DATABASE_POOL_MAX` | Valgfri (standard 5). Højst så mange databaseforbindelser pr. serverproces |
 
 `.env.local` må aldrig committes. Kun `.env.example` ligger i git.
 
@@ -68,7 +70,7 @@ pnpm db:sorter               # kategoriernes rækkefølge (kør efter seed-scrip
 
 | Kommando | Laver |
 | --- | --- |
-| `pnpm kort:graenser` | Den lette udgave af kommunegrænserne til kortet (`public/data/kommuner-kort.geojson`) |
+| `pnpm kort:graenser` | Den lette udgave af kommunegrænserne til kortet (`public/data/kommuner-kort.geojson`), navnenes placering og forhåndsvisningen, der vises, mens kortet indlæses |
 | `pnpm kort:forside` | Danmarkskortet på forsiden (`lib/danmarkskort.ts`) |
 | `pnpm billeder:hent` | Kommunefotos fra Wikimedia Commons (`public/kommuner/`) |
 | `pnpm punkter:hent` | Kommunernes største by som punkt (`data/kommune-punkter.json`) |
