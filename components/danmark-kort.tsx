@@ -95,8 +95,9 @@ import {
   kommuneMatcherFilterId,
   kommuneMatcherGruppeId,
 } from "@/lib/kommuner/omraader";
-import { polygonArealKm2 } from "@/lib/kommuner/areal";
-import { navnePunkt } from "@/lib/kommuner/navne-punkt";
+import { opdelIKommuneDele } from "@/lib/kommuner/kommune-dele";
+import { FORHAANDSVISNING } from "@/lib/kommuner/kort-forhaandsvisning";
+import { DANMARK_BOUNDS, KORT_KANT } from "@/lib/kommuner/kort-udsnit";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { formaterTal } from "@/lib/scores/formater";
@@ -282,6 +283,8 @@ type SortRetning = "stigende" | "faldende";
 // Let, forenklet udgave til kortet (laves af scripts/byg-kortgraenser.ts); den fulde
 // kommuner.geojson bruges kun på serveren.
 const KOMMUNER_URL = "/data/kommuner-kort.geojson";
+// Navnenes placering, beregnet på forhånd (se lib/kommuner/kommune-dele.ts).
+const NAVNE_URL = "/data/kommune-navne.geojson";
 
 // Kommunegrænserne (ca. 1 MB) hentes én gang og deles af alle kortets kilder.
 // Hentningen starter, før kortet er klar, og browseren har fået et preload-hint i
@@ -332,56 +335,6 @@ function kommuneUdstraekning(geometri: GeoJSON.Geometry): [[number, number], [nu
     [minX, minY],
     [maxX, maxY],
   ];
-}
-
-function opdelIKommuneDele(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-  const dele: GeoJSON.Feature[] = [];
-  data.features.forEach((feature) => {
-    const kode = feature.properties?.kode as string;
-    const geometri = feature.geometry;
-    const polygoner =
-      geometri.type === "Polygon"
-        ? [geometri.coordinates]
-        : geometri.type === "MultiPolygon"
-          ? geometri.coordinates
-          : [];
-    polygoner.forEach((polygon) => {
-      dele.push({
-        type: "Feature",
-        properties: { kode, areal: polygonArealKm2(polygon[0]) },
-        geometry: { type: "Polygon", coordinates: polygon },
-      });
-    });
-  });
-  return { type: "FeatureCollection", features: dele };
-}
-
-// Ét punkt pr. kommune midt i dens største landdel, så navnet står én gang (på
-// fastlandet) og ikke på hver ø. Et punkt og ikke selve polygonen: MapLibre deler
-// GeoJSON op i fliser og sætter ellers et navn i hver flise, når man zoomer ind.
-function kommuneNavnePunkter(data: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-  const stoerste = new Map<string, GeoJSON.Feature>();
-  for (const del of opdelIKommuneDele(data).features) {
-    const kode = del.properties?.kode as string;
-    const nuvaerende = stoerste.get(kode);
-    if (!nuvaerende || del.properties!.areal > nuvaerende.properties!.areal) {
-      stoerste.set(kode, del);
-    }
-  }
-  const navnPrKode = new Map(
-    data.features.map((f) => [f.properties?.kode as string, f.properties?.navn as string]),
-  );
-  return {
-    type: "FeatureCollection",
-    features: [...stoerste.values()].map((del) => ({
-      type: "Feature",
-      properties: { ...del.properties, navn: navnPrKode.get(del.properties?.kode as string) },
-      geometry: {
-        type: "Point",
-        coordinates: navnePunkt((del.geometry as GeoJSON.Polygon).coordinates),
-      },
-    })),
-  };
 }
 
 // Det tykke omrids vises om kommunen under musen og den valgte kommune, men kun for
@@ -525,11 +478,6 @@ function byggKommuneFyldFarve(farver: readonly string[]): any {
   ];
 }
 
-const DANMARK_BOUNDS: [[number, number], [number, number]] = [
-  [7.8, 54.5],
-  [15.3, 57.9],
-];
-
 // Zoom til de valgte områder i Område-filtret: lidt luft om kanten, og aldrig
 // tættere på end zoom 8, så en enkelt lille landsdel ikke fylder hele kortet.
 const FILTER_ZOOM_INDSTILLINGER = {
@@ -544,7 +492,7 @@ const FILTER_ZOOM_INDSTILLINGER = {
 function laasKortTilDanmark(map: MapLibreMap) {
   map.setMaxBounds(null);
   map.setMinZoom(0);
-  map.fitBounds(DANMARK_BOUNDS, { padding: 24, duration: 0 });
+  map.fitBounds(DANMARK_BOUNDS, { padding: KORT_KANT, duration: 0 });
   map.setMinZoom(map.getZoom());
   map.setMaxBounds(map.getBounds());
 }
@@ -1374,6 +1322,44 @@ function VisFlere({
   );
 }
 
+// Vises, mens MapLibre starter: et let billede af kortet (public/data/kort-forhaandsvisning.svg,
+// lavet af scripts/byg-kortgraenser.ts) med Danmark samme sted, som MapLibre lægger det
+// (fitBounds med KORT_KANT luft). Udsnittets kasse beregnes med container-enheder, så
+// billedet følger kortets størrelse uden JavaScript og står der fra første visning.
+function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
+  const { forhold, venstre, top, bredde, hoejde } = FORHAANDSVISNING;
+  return (
+    <div
+      aria-hidden={skjult}
+      className={`pointer-events-none absolute inset-0 overflow-hidden bg-[#90c1de] transition-opacity duration-300 ${
+        skjult ? "opacity-0" : "opacity-100"
+      }`}
+    >
+      <div className="absolute" style={{ inset: KORT_KANT, containerType: "size" }}>
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: `min(100cqw, ${forhold} * 100cqh)`, aspectRatio: forhold }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- en SVG, der skal vises med det samme. */}
+          <img
+            src="/data/kort-forhaandsvisning.svg"
+            alt=""
+            fetchPriority="high"
+            className="absolute max-w-none"
+            style={{ left: `${venstre}%`, top: `${top}%`, width: `${bredde}%`, height: `${hoejde}%` }}
+          />
+        </div>
+      </div>
+      {!skjult && (
+        <div className="absolute top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface/90 px-3 py-1.5 shadow-sm">
+          <Spinner size="sm" />
+          <p className="text-sm text-muted">Indlæser kort…</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DanmarkKort({
   kategorier: databaseKategorier,
   kommuneScores: databaseScorer,
@@ -1452,6 +1438,8 @@ export function DanmarkKort({
   const [soegning, setSoegning] = useState("");
   const [forslagAabent, setForslagAabent] = useState(false);
   const [klar, setKlar] = useState(false);
+  // Kommunerne er tegnet med farver; indtil da vises forhåndsvisningen.
+  const [tegnet, setTegnet] = useState(false);
   const [visning, setVisning] = useState<Visning>("kort");
   const [sidepanelSkjult, setSidepanelSkjult] = useState(false);
   const erStorSkaerm = useErStorSkaerm();
@@ -1546,7 +1534,7 @@ export function DanmarkKort({
         container,
         style: KORT_STYLE,
         bounds: DANMARK_BOUNDS,
-        fitBoundsOptions: { padding: 24 },
+        fitBoundsOptions: { padding: KORT_KANT },
         attributionControl: false,
       });
 
@@ -1672,7 +1660,7 @@ export function DanmarkKort({
 
         // Kommunenavne vises først, når man zoomer ind, og kun hvor de kan være uden
         // at overlappe hinanden (MapLibre skjuler automatisk dem, der ikke er plads til).
-        map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: kommuneNavnePunkter(data) });
+        map.addSource(NAVNE_SOURCE_ID, { type: "geojson", data: NAVNE_URL });
         map.addLayer({
           id: "kommune-navne",
           type: "symbol",
@@ -1706,6 +1694,15 @@ export function DanmarkKort({
         kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
 
         setKlar(true);
+        // Første gang kommunerne er tegnet med deres farver: skjul forhåndsvisningen, og sæt
+        // et mærke til målinger af, hvor hurtigt kortet er klar (fx i DevTools under Performance).
+        const foersteTegning = () => {
+          if (!map.isSourceLoaded(SOURCE_ID)) return;
+          map.off("render", foersteTegning);
+          performance.mark("kommuna:kort-tegnet");
+          setTegnet(true);
+        };
+        map.on("render", foersteTegning);
       });
 
       const erKommuneTilladt = (kode: string) => {
@@ -3399,35 +3396,45 @@ export function DanmarkKort({
           {listeVaerktoej}
         </div>
 
-        <div className="flex flex-col gap-3 p-4">
-          {sidepanelListe.slice(0, antalVist).map((k) => (
-            <KommuneKort
-              key={k.kode}
-              kommune={k}
-              rang={rangAf(k.kode)}
-              score={vaegtetScore(k.kode)}
-              valgt={valgtKode === k.kode}
-              profil={kommuneProfiler.get(k.kode)}
-              noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
-              lavtBillede
-              harBillede={billedKoder.has(k.kode)}
-              favorit={favoritter.includes(k.kode)}
-              onFavorit={(k) => skiftFavorit(k.kode)}
-              onVaelg={vaelgFraSidepanel}
+        {/* Kortene (med fotos) tegnes først, når kortet er tegnet; ellers konkurrerer de med
+            kortet om browserens tid og net lige før, og kortet kommer ca. 0,2 s senere. */}
+        {!tegnet ? (
+          <div className="flex flex-col gap-3 p-4" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-44 animate-pulse rounded-2xl bg-surface-secondary" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 p-4">
+            {sidepanelListe.slice(0, antalVist).map((k) => (
+              <KommuneKort
+                key={k.kode}
+                kommune={k}
+                rang={rangAf(k.kode)}
+                score={vaegtetScore(k.kode)}
+                valgt={valgtKode === k.kode}
+                profil={kommuneProfiler.get(k.kode)}
+                noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
+                lavtBillede
+                harBillede={billedKoder.has(k.kode)}
+                favorit={favoritter.includes(k.kode)}
+                onFavorit={(k) => skiftFavorit(k.kode)}
+                onVaelg={vaelgFraSidepanel}
+              />
+            ))}
+
+            <VisFlere
+              vist={antalVist}
+              ialt={sidepanelListe.length}
+              bid={SIDEPANEL_BID}
+              onVisFlere={() =>
+                setVisFlere({ noegle: sidepanelNoegle, antal: antalVist + SIDEPANEL_BID })
+              }
             />
-          ))}
 
-          <VisFlere
-            vist={antalVist}
-            ialt={sidepanelListe.length}
-            bid={SIDEPANEL_BID}
-            onVisFlere={() =>
-              setVisFlere({ noegle: sidepanelNoegle, antal: antalVist + SIDEPANEL_BID })
-            }
-          />
-
-          {sidepanelListe.length === 0 && ingenKommunerEllerFavoritter}
-        </div>
+            {sidepanelListe.length === 0 && ingenKommunerEllerFavoritter}
+          </div>
+        )}
       </aside>
 
       <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
@@ -3435,12 +3442,7 @@ export function DanmarkKort({
         <AiChat />
         {zoomIkonPladser && createPortal(<IconPlus className="h-5 w-5" />, zoomIkonPladser.ind)}
         {zoomIkonPladser && createPortal(<IconMinus className="h-5 w-5" />, zoomIkonPladser.ud)}
-        {!klar && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-secondary">
-            <Spinner />
-            <p className="text-sm text-muted">Indlæser kort…</p>
-          </div>
-        )}
+        <KortForhaandsvisning skjult={tegnet} />
 
         {klar && scoreSpaend && (
           <Surface
