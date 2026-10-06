@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal, preload, preloadModule } from "react-dom";
+import Image from "next/image";
 import NextLink from "next/link";
 import type {
   Map as MapLibreMap,
@@ -735,6 +736,21 @@ function noegletalValgFor(kat: KategoriMeta): NoegletalValg[] | undefined {
   return valg.length > 1 ? valg : undefined;
 }
 
+// Valgene fra start: dem, hvis nøgletal tæller i standardscoren (tilvalg som
+// befolkningstæthed er ikke med). Er ingen standardvalgt, er alle valgt, som på serveren.
+function standardIder(kat: KategoriMeta) {
+  const valg = noegletalValgFor(kat) ?? [];
+  const valgte = valg.filter(
+    (v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.standardValgt !== false,
+  );
+  return (valgte.length > 0 ? valgte : valg).map((v) => v.id);
+}
+
+// Kommuner uden data sorteres sidst.
+function sammenlignScorer(a: number | null, b: number | null) {
+  return (b ?? -Infinity) - (a ?? -Infinity) || 0;
+}
+
 function KategoriInfoIndhold({ kategori }: { kategori: KategoriMeta }) {
   const gennemsnit = kategori.noegletal.find((n) => erSamletNoegletal(n.navn));
   const restNoegletal = gennemsnit
@@ -925,11 +941,14 @@ function KommuneBillede({
   navn,
   harBillede,
   ikonClassName,
+  sizes,
 }: {
   kode: string;
   navn: string;
   harBillede: boolean;
   ikonClassName: string;
+  /** Billedets bredde på siden, så Next.js kan sende en lille nok udgave (fotoene er store). */
+  sizes: string;
 }) {
   const [fejlet, setFejlet] = useState(false);
 
@@ -938,10 +957,12 @@ function KommuneBillede({
   }
 
   return (
-    <img
+    <Image
       src={`/kommuner/${kode}.jpg`}
       alt={navn}
-      className="absolute inset-0 h-full w-full object-cover"
+      fill
+      sizes={sizes}
+      className="object-cover"
       onError={() => setFejlet(true)}
     />
   );
@@ -1240,6 +1261,8 @@ function KommuneKort({
             navn={k.navn}
             harBillede={harBillede}
             ikonClassName="h-8 w-8 text-muted/50"
+            // Sidepanelet er 20 % bredt; i Oversigt står kortene i op til fire kolonner.
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
           />
           <span
             className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
@@ -1485,35 +1508,28 @@ export function DanmarkKort({
         ? null
         : kategorier.find((k) => k.id === panelInfo.aktiv);
 
-  // Valgene fra start: dem, hvis nøgletal tæller i standardscoren (tilvalg som
-  // befolkningstæthed er ikke med). Er ingen standardvalgt, er alle valgt, som på serveren.
-  const standardIder = (kat: KategoriMeta) => {
-    const valg = noegletalValgFor(kat) ?? [];
-    const valgte = valg.filter(
-      (v) => kat.noegletal.find((n) => n.navn === v.noegletal)?.standardValgt !== false,
-    );
-    return (valgte.length > 0 ? valgte : valg).map((v) => v.id);
-  };
-
   const valgteIder = (kat: KategoriMeta) => noegletalValg[kat.id] ?? standardIder(kat);
 
   // De nøgletal, der tæller i kategorien (og om scoren skal vendes), eller undefined når
   // valget er som fra start, så kategorien tæller som normalt (serverens kategoriscore).
-  const valgteNoegletal = (kat: KategoriMeta) => {
-    const valg = noegletalValgFor(kat);
-    if (!valg) return undefined;
-    const ider = valgteIder(kat);
-    const standard = standardIder(kat);
-    if (ider.length === standard.length && standard.every((id) => ider.includes(id))) {
-      return undefined;
-    }
-    return valg
-      .filter((v) => ider.includes(v.id))
-      .flatMap((v) => {
-        const id = kat.noegletal.find((n) => n.navn === v.noegletal)?.id;
-        return id === undefined ? [] : [{ id, omvendt: v.omvendt === true }];
-      });
-  };
+  const valgteNoegletal = useCallback(
+    (kat: KategoriMeta) => {
+      const valg = noegletalValgFor(kat);
+      if (!valg) return undefined;
+      const ider = noegletalValg[kat.id] ?? standardIder(kat);
+      const standard = standardIder(kat);
+      if (ider.length === standard.length && standard.every((id) => ider.includes(id))) {
+        return undefined;
+      }
+      return valg
+        .filter((v) => ider.includes(v.id))
+        .flatMap((v) => {
+          const id = kat.noegletal.find((n) => n.navn === v.noegletal)?.id;
+          return id === undefined ? [] : [{ id, omvendt: v.omvendt === true }];
+        });
+    },
+    [noegletalValg],
+  );
   const [farvePaletId, setFarvePaletId] = useState<KortPaletId>(KORT_PALET_STANDARD);
   const [museOverAktiv, setMuseOverAktiv] = useState(true);
   const [klikFremhaevAktiv, setKlikFremhaevAktiv] = useState(false);
@@ -1692,6 +1708,29 @@ export function DanmarkKort({
         liste.sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
         setKommuner(liste);
         kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
+
+        // /kort?kommune=esbjerg (fx fra husene på forsiden) åbner kortet med kommunen valgt
+        // og zoomet ind. Parameteren fjernes bagefter, så adressen er /kort.
+        const url = new URL(window.location.href);
+        const slug = url.searchParams.get(KOMMUNE_PARAMETER);
+        if (slug !== null) {
+          url.searchParams.delete(KOMMUNE_PARAMETER);
+          window.history.replaceState(null, "", url);
+          const kommune = liste.find((k) => kommuneSlug(k.navn) === slug);
+          if (kommune) {
+            setValgtKode(kommune.kode);
+            // Som vaelgKommune: centrér med ekstra luft til højre, hvor kommunekortet ligger.
+            const udstraekning = kommuneUdstraekningRef.current.get(kommune.kode);
+            if (udstraekning && visningRef.current === "kort") {
+              const bred = map.getContainer().clientWidth >= 640;
+              map.fitBounds(udstraekning, {
+                padding: { top: 120, bottom: 120, left: 120, right: bred ? 400 : 120 },
+                maxZoom: 8,
+                duration: 800,
+              });
+            }
+          }
+        }
 
         setKlar(true);
         // Første gang kommunerne er tegnet med deres farver: skjul forhåndsvisningen, og sæt
@@ -1975,7 +2014,9 @@ export function DanmarkKort({
 
     map.resize();
 
-    if (!valgtKode) {
+    // Ref'en følger valgtKode (se effekten ovenfor); kortet skal kun låses til Danmark,
+    // når visningen skifter, ikke hver gang man vælger en kommune.
+    if (!valgtKodeRef.current) {
       laasKortTilDanmark(map);
       if (filterUdstraekningRef.current) {
         map.fitBounds(filterUdstraekningRef.current, { ...FILTER_ZOOM_INDSTILLINGER, duration: 0 });
@@ -2150,17 +2191,19 @@ export function DanmarkKort({
     ),
   );
 
-  const matcherRegion = (k: Kommune) =>
-    !regionFilterAktiv ||
-    [...valgteRegioner].some((id) =>
-      kommuneMatcherFilterId(k.kode, k.regionskode, String(id)),
-    );
-
-  const matcherGruppe = (k: Kommune) =>
-    !gruppeFilterAktiv ||
-    [...valgteGrupper].some((id) => kommuneMatcherGruppeId(k.kode, String(id)));
-
-  const matcherFiltre = (k: Kommune) => matcherRegion(k) && matcherGruppe(k);
+  // Om kommunen er med i Område- og gruppefiltrene.
+  const matcherFiltre = useCallback(
+    (k: Kommune) =>
+      (valgteRegioner === "all" ||
+        valgteRegioner.size === 0 ||
+        [...valgteRegioner].some((id) =>
+          kommuneMatcherFilterId(k.kode, k.regionskode, String(id)),
+        )) &&
+      (valgteGrupper === "all" ||
+        valgteGrupper.size === 0 ||
+        [...valgteGrupper].some((id) => kommuneMatcherGruppeId(k.kode, String(id)))),
+    [valgteRegioner, valgteGrupper],
+  );
 
   const kategoriScorerPrKommune = useMemo(
     () => new Map(kommuneScores.map((s) => [s.kode, s.kategorier])),
@@ -2245,47 +2288,52 @@ export function DanmarkKort({
 
   // Kommunens score i kategorien: gennemsnittet af de valgte nøgletal, som kommunen har
   // værdier for (ligesom kategoriscoren på serveren). null = ingen data for dem.
-  const kategoriScore = (kode: string, kat: KategoriMeta): number | null => {
-    const valgte = valgteNoegletal(kat);
-    if (valgte === undefined) {
-      return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? SCORE_UDEN_DATA;
-    }
-    const scorer = valgte.flatMap(({ id, omvendt }) => {
-      const score = noegletalScorerPrKommune.get(kode)?.[id];
-      if (score === undefined) return [];
-      return [omvendt ? omvendtScore(score, kat.venlighed) : score];
-    });
-    return scorer.length > 0 ? scorer.reduce((a, b) => a + b, 0) / scorer.length : null;
-  };
+  const kategoriScore = useCallback(
+    (kode: string, kat: KategoriMeta): number | null => {
+      const valgte = valgteNoegletal(kat);
+      if (valgte === undefined) {
+        return kategoriScorerPrKommune.get(kode)?.[kat.id] ?? SCORE_UDEN_DATA;
+      }
+      const scorer = valgte.flatMap(({ id, omvendt }) => {
+        const score = noegletalScorerPrKommune.get(kode)?.[id];
+        if (score === undefined) return [];
+        return [omvendt ? omvendtScore(score, kat.venlighed) : score];
+      });
+      return scorer.length > 0 ? scorer.reduce((a, b) => a + b, 0) / scorer.length : null;
+    },
+    [valgteNoegletal, kategoriScorerPrKommune, noegletalScorerPrKommune],
+  );
 
   // null når kommunen ikke har data i nogen af de kategorier, der tæller med.
-  const vaegtetScore = (kode: string): number | null => {
-    if (!kategoriScorerPrKommune.has(kode)) return SCORE_UDEN_DATA;
+  const vaegtetScore = useCallback(
+    (kode: string): number | null => {
+      if (!kategoriScorerPrKommune.has(kode)) return SCORE_UDEN_DATA;
 
-    let sumVaegtetScore = 0;
-    let sumVaegt = 0;
-    let harVaegt = false;
-    for (const kat of kategorier) {
-      if (aktiveKategorier[kat.id] === false) continue;
-      const vaegt = prioriteter[kat.id] ?? standardVaegt(kat);
-      if (vaegt <= 0) continue;
-      harVaegt = true;
-      const score = kategoriScore(kode, kat);
-      if (score === null) continue;
-      sumVaegtetScore += score * vaegt;
-      sumVaegt += vaegt;
-    }
-    if (sumVaegt > 0) return sumVaegtetScore / sumVaegt;
-    return harVaegt ? null : SCORE_UDEN_DATA;
-  };
+      let sumVaegtetScore = 0;
+      let sumVaegt = 0;
+      let harVaegt = false;
+      for (const kat of kategorier) {
+        if (aktiveKategorier[kat.id] === false) continue;
+        const vaegt = prioriteter[kat.id] ?? standardVaegt(kat);
+        if (vaegt <= 0) continue;
+        harVaegt = true;
+        const score = kategoriScore(kode, kat);
+        if (score === null) continue;
+        sumVaegtetScore += score * vaegt;
+        sumVaegt += vaegt;
+      }
+      if (sumVaegt > 0) return sumVaegtetScore / sumVaegt;
+      return harVaegt ? null : SCORE_UDEN_DATA;
+    },
+    [kategoriScorerPrKommune, kategorier, aktiveKategorier, prioriteter, kategoriScore],
+  );
 
-  // Kommuner uden data sorteres sidst.
-  const sammenlignScorer = (a: number | null, b: number | null) =>
-    (b ?? -Infinity) - (a ?? -Infinity) || 0;
-
-  const sorterEfterScore = (a: Kommune, b: Kommune) =>
-    sammenlignScorer(vaegtetScore(a.kode), vaegtetScore(b.kode)) ||
-    sammenlignKommunenavne(a.navn, b.navn);
+  const sorterEfterScore = useCallback(
+    (a: Kommune, b: Kommune) =>
+      sammenlignScorer(vaegtetScore(a.kode), vaegtetScore(b.kode)) ||
+      sammenlignKommunenavne(a.navn, b.navn),
+    [vaegtetScore],
+  );
 
 
   const forslag = useMemo(() => {
@@ -2295,7 +2343,7 @@ export function DanmarkKort({
       .filter((k) => matcherFiltre(k))
       .filter((k) => k.navn.toLowerCase().includes(q))
       .slice(0, 8);
-  }, [kommuner, soegning, valgteRegioner, valgteGrupper]);
+  }, [kommuner, soegning, matcherFiltre]);
 
   const kommunerFiltreret = useMemo(() => {
     const q = soegning.trim().toLowerCase();
@@ -2303,30 +2351,11 @@ export function DanmarkKort({
       .filter((k) => matcherFiltre(k))
       .filter((k) => (q ? k.navn.toLowerCase().includes(q) : true))
       .sort(sorterEfterScore);
-  }, [
-    kommuner,
-    soegning,
-    valgteRegioner,
-    valgteGrupper,
-    kategoriScorerPrKommune,
-    kategorier,
-    prioriteter,
-    aktiveKategorier,
-    noegletalValg,
-  ]);
+  }, [kommuner, soegning, matcherFiltre, sorterEfterScore]);
 
   const kommunerRegionFiltreret = useMemo(
     () => kommuner.filter((k) => matcherFiltre(k)).sort(sorterEfterScore),
-    [
-      kommuner,
-      valgteRegioner,
-      valgteGrupper,
-      kategoriScorerPrKommune,
-      kategorier,
-      prioriteter,
-      aktiveKategorier,
-      noegletalValg,
-    ],
+    [kommuner, matcherFiltre, sorterEfterScore],
   );
 
   useEffect(() => {
@@ -2356,18 +2385,7 @@ export function DanmarkKort({
         { score: score === null ? null : farveScore(score), ingenData: score === null },
       );
     });
-  }, [
-    klar,
-    kommuner,
-    kategoriScorerPrKommune,
-    kategorier,
-    prioriteter,
-    aktiveKategorier,
-    noegletalValg,
-    farvEfterPlacering,
-    valgteRegioner,
-    valgteGrupper,
-  ]);
+  }, [klar, kommuner, kommunerRegionFiltreret, vaegtetScore, farvEfterPlacering]);
 
   const sortFeltNavn = (felt: SortFelt) => {
     if (felt === "score") return "Samlet score";
@@ -2418,7 +2436,7 @@ export function DanmarkKort({
       }
       return retning * (va - vb) || -retning * navnOrden(a, b);
     });
-  }, [kommunerFiltreret, sortFelt, sortRetning, kategoriScorerPrKommune, noegletalValg, favoritter]);
+  }, [kommunerFiltreret, sortFelt, sortRetning, kategorier, kategoriScore, vaegtetScore, favoritter]);
 
   // Listen i alle tre visninger. Placeringerne er stadig blandt alle kommuner i Område.
   const sidepanelListe = kunFavoritter
@@ -2531,22 +2549,6 @@ export function DanmarkKort({
 
   const vaelgFraSidepanel = (k: Kommune) => vaelgKommune(k, { udfyldSoegning: false });
 
-  // /kort?kommune=esbjerg (fx fra husene på forsiden) åbner kortet med kommunen valgt og
-  // zoomet ind, når kortet er klar. Parameteren fjernes bagefter, så adressen er /kort.
-  const kommuneFraLinkRef = useRef(false);
-  useEffect(() => {
-    if (!klar || kommuneFraLinkRef.current) return;
-    kommuneFraLinkRef.current = true;
-    const url = new URL(window.location.href);
-    const slug = url.searchParams.get(KOMMUNE_PARAMETER);
-    if (slug === null) return;
-    url.searchParams.delete(KOMMUNE_PARAMETER);
-    window.history.replaceState(null, "", url);
-    const kommune = kommuner.find((k) => kommuneSlug(k.navn) === slug);
-    if (kommune) vaelgKommune(kommune, { udfyldSoegning: false });
-    // Kun én gang, når kortet første gang er klar.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [klar]);
   const vaelgFraOversigt = (k: Kommune) => setValgtKode(k.kode);
 
   const ingenKommuner = (
@@ -3508,6 +3510,7 @@ export function DanmarkKort({
                 navn={valgtKommune.navn}
                 harBillede={billedKoder.has(valgtKommune.kode)}
                 ikonClassName="h-7 w-7 text-muted/50"
+                sizes="288px"
               />
               {valgtKommuneRang > 0 && (
                 <span
