@@ -19,6 +19,20 @@ const TEKST = "#1c1b22";
 const DAEMPET = "#6b6878";
 const ACCENT = "#5b21e6";
 
+// Sidens skrift, Geist, i almindelig og halvfed vægt (overskrifterne på siden er halvfede).
+// ImageResponse kan ikke læse woff2, så filerne ligger som ttf i lib/og.
+async function geist() {
+  const mappe = path.join(process.cwd(), "lib/og");
+  const [normal, halvfed] = await Promise.all([
+    readFile(path.join(mappe, "Geist-Regular.ttf")),
+    readFile(path.join(mappe, "Geist-SemiBold.ttf")),
+  ]);
+  return [
+    { name: "Geist", data: normal, weight: 400 as const, style: "normal" as const },
+    { name: "Geist", data: halvfed, weight: 600 as const, style: "normal" as const },
+  ];
+}
+
 async function dataUrl(fil: string, type: string) {
   return `data:${type};base64,${(await readFile(fil)).toString("base64")}`;
 }
@@ -26,6 +40,7 @@ async function dataUrl(fil: string, type: string) {
 export default async function Billede({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const rapport = await hentKommuneRapport(slug);
+  const fonts = await geist();
   const logo = await dataUrl(path.join(process.cwd(), "public/brand/kommuna-logo.svg"), "image/svg+xml");
 
   if (!rapport) {
@@ -36,7 +51,7 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
           <img src={logo} alt="" width={540} height={120} />
         </div>
       ),
-      size,
+      { ...size, fonts },
     );
   }
 
@@ -54,7 +69,7 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
 
   return new ImageResponse(
     (
-      <div style={{ display: "flex", width: "100%", height: "100%", background: BAGGRUND }}>
+      <div style={{ display: "flex", width: "100%", height: "100%", background: BAGGRUND, fontFamily: "Geist" }}>
         <div
           style={{
             display: "flex",
@@ -102,7 +117,16 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
 
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 28, color: ACCENT }}>Kommunerapport</div>
-            <div style={{ fontSize: navnStoerrelse, color: TEKST, lineHeight: 1.05, marginTop: 8 }}>
+            <div
+              style={{
+                fontSize: navnStoerrelse,
+                fontWeight: 600,
+                letterSpacing: "-0.025em",
+                color: TEKST,
+                lineHeight: 1.05,
+                marginTop: 8,
+              }}
+            >
               {navn}
             </div>
             {rapport.regionNavn && (
@@ -122,12 +146,13 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
                 background: ACCENT,
                 color: "white",
                 fontSize: 60,
+                fontWeight: 600,
               }}
             >
               {score}
             </div>
             <div style={{ display: "flex", flexDirection: "column", marginLeft: 28 }}>
-              <div style={{ fontSize: 34, color: TEKST }}>Samlet score</div>
+              <div style={{ fontSize: 34, fontWeight: 600, color: TEKST }}>Samlet score</div>
               <div style={{ fontSize: 28, color: DAEMPET, marginTop: 4 }}>
                 {`Nr. ${rapport.samlet.rang} af ${rapport.samlet.antal} kommuner`}
               </div>
@@ -136,6 +161,6 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
         </div>
       </div>
     ),
-    size,
+    { ...size, fonts },
   );
 }
