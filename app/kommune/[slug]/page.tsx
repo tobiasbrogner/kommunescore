@@ -16,7 +16,9 @@ import {
 import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
 import { Broedkrummer } from "@/components/json-ld";
+import { KommuneFlise, type KommuneFliseData } from "@/components/kommune-flise";
 import { billedKredit } from "@/lib/kommuner/billeder";
+import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import {
@@ -27,7 +29,8 @@ import {
   type NoegletalRapport,
 } from "@/lib/scores/kommune-rapport";
 import { formaterTal } from "@/lib/scores/formater";
-import type { NoegletalMeta } from "@/lib/scores/get-scores";
+import { getCachedKommuneScores, type NoegletalMeta } from "@/lib/scores/get-scores";
+import { lignendeKommuner } from "@/lib/scores/lignende";
 import type { ProfilPunkt } from "@/lib/scores/profil";
 import { officieltKommunenavn } from "@/lib/kommuner/navn";
 
@@ -426,6 +429,28 @@ function KategoriOverblik({ kategorier }: { kategorier: KategoriRapport[] }) {
   );
 }
 
+// Kommuner med de mest ens scorer og en lignende størrelse (se lib/scores/lignende.ts),
+// så man opdager steder, man ikke havde tænkt på. Vises ikke i udskriften og PDF'en.
+function LignendeKommuner({ navn, kommuner }: { navn: string; kommuner: KommuneFliseData[] }) {
+  if (kommuner.length === 0) return null;
+  return (
+    <section data-skjul-ved-print className="mt-10">
+      <h2 className="text-xl font-semibold text-foreground">Kommuner, der ligner {navn}</h2>
+      <p className="mt-1 text-sm text-muted">
+        De har de mest ens scorer i kategorierne og omtrent samme størrelse og
+        befolkningstæthed.
+      </p>
+      <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {kommuner.map((k) => (
+          <li key={k.kode}>
+            <KommuneFlise kommune={k} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 // Afslutningen: hvor man kan gå hen, når man har læst rapporten.
 function VidereFra({ navn, slug }: { navn: string; slug: string }) {
   return (
@@ -520,6 +545,12 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
   const rapport = await hentKommuneRapport(slug);
   if (!rapport) notFound();
   const kredit = billedKredit(rapport.kode);
+
+  // Placeringen på kortene regnes blandt alle kommuner, så de fire beholder deres rigtige nr.
+  const { kategorier, kommuner } = await getCachedKommuneScores();
+  const lignendeKoder = lignendeKommuner(rapport.kode, kommuner, kategorier).map((k) => k.kode);
+  const fliser = await byggKommuneFliser(kommuner);
+  const lignende = lignendeKoder.flatMap((kode) => fliser.filter((f) => f.kode === kode));
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
@@ -640,6 +671,8 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
           ))}
         </div>
       </section>
+
+      <LignendeKommuner navn={rapport.navn} kommuner={lignende} />
 
       <VidereFra navn={rapport.navn} slug={kommuneSlug(rapport.navn)} />
 
