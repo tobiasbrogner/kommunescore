@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { billedKredit } from "@/lib/kommuner/billeder";
 import { officieltKommunenavn } from "@/lib/kommuner/navn";
 import { hentKommuneRapport } from "@/lib/scores/kommune-rapport";
@@ -12,12 +13,13 @@ import { hentKommuneRapport } from "@/lib/scores/kommune-rapport";
 
 export const alt = "Kommunerapport fra Kommuna";
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const contentType = "image/jpeg";
 
 const BAGGRUND = "#f9f8f4";
 const TEKST = "#1c1b22";
 const DAEMPET = "#6b6878";
 const ACCENT = "#5b21e6";
+const FOTO_BREDDE = 520;
 
 // Sidens skrift, Geist, i almindelig og halvfed vægt (overskrifterne på siden er halvfede).
 // ImageResponse kan ikke læse woff2, så filerne ligger som ttf i lib/og.
@@ -37,6 +39,26 @@ async function dataUrl(fil: string, type: string) {
   return `data:${type};base64,${(await readFile(fil)).toString("base64")}`;
 }
 
+// Kommunefotoene er store; de skæres til fotofeltets størrelse, før de sættes ind.
+async function fotoDataUrl(fil: string) {
+  const jpeg = await sharp(fil)
+    .resize(FOTO_BREDDE, size.height, { fit: "cover" })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+}
+
+// ImageResponse laver altid PNG, som med et foto fylder ca. 800 KB. Som JPEG fylder billedet
+// en brøkdel; WhatsApp viser fx ikke delebilleder over ca. 300 KB.
+async function somJpeg(billede: ImageResponse) {
+  const png = Buffer.from(await billede.arrayBuffer());
+  const jpeg = await sharp(png).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  const headers = new Headers(billede.headers);
+  headers.set("content-type", "image/jpeg");
+  headers.delete("content-length");
+  return new Response(new Uint8Array(jpeg), { status: billede.status, headers });
+}
+
 export default async function Billede({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const rapport = await hentKommuneRapport(slug);
@@ -44,7 +66,7 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
   const logo = await dataUrl(path.join(process.cwd(), "public/brand/kommuna-logo.svg"), "image/svg+xml");
 
   if (!rapport) {
-    return new ImageResponse(
+    return somJpeg(new ImageResponse(
       (
         <div style={{ display: "flex", width: "100%", height: "100%", background: BAGGRUND, alignItems: "center", justifyContent: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse kender kun <img>. */}
@@ -52,11 +74,11 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
         </div>
       ),
       { ...size, fonts },
-    );
+    ));
   }
 
   const fotoFil = path.join(process.cwd(), "public/kommuner", `${rapport.kode}.jpg`);
-  const foto = existsSync(fotoFil) ? await dataUrl(fotoFil, "image/jpeg") : null;
+  const foto = existsSync(fotoFil) ? await fotoDataUrl(fotoFil) : null;
   // CC-licenserne kræver fotograf og licens, også når fotoet deles; som i rapporten.
   const kredit = foto ? billedKredit(rapport.kode) : null;
   const kreditTekst =
@@ -67,21 +89,21 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
   // Lange navne (fx "Bornholms Regionskommune") får mindre skrift, så de ikke løber ud.
   const navnStoerrelse = navn.length > 20 ? 58 : 72;
 
-  return new ImageResponse(
+  return somJpeg(new ImageResponse(
     (
       <div style={{ display: "flex", width: "100%", height: "100%", background: BAGGRUND, fontFamily: "Geist" }}>
         <div
           style={{
             display: "flex",
             position: "relative",
-            width: 520,
+            width: FOTO_BREDDE,
             height: "100%",
             background: "linear-gradient(135deg, #ece9f8, #d9cff7)",
           }}
         >
           {foto && (
             // eslint-disable-next-line @next/next/no-img-element -- ImageResponse kender kun <img>.
-            <img src={foto} alt="" width={520} height={630} style={{ objectFit: "cover" }} />
+            <img src={foto} alt="" width={FOTO_BREDDE} height={size.height} style={{ objectFit: "cover" }} />
           )}
           {kreditTekst && (
             <div
@@ -162,5 +184,5 @@ export default async function Billede({ params }: { params: Promise<{ slug: stri
       </div>
     ),
     { ...size, fonts },
-  );
+  ));
 }
