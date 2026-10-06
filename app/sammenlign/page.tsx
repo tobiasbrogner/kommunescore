@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { IconArrowLeft, IconHome, IconInfoCircle } from "@tabler/icons-react";
+import { DokumentTitel } from "@/components/dokument-titel";
 import { KategoriIkon } from "@/components/ikon";
 import { SammenlignVaelger } from "@/components/sammenlign-vaelger";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
@@ -24,15 +25,18 @@ export async function generateMetadata(props: PageProps<"/sammenlign">): Promise
     .flatMap((s) => navnPrSlug.get(s) ?? [])
     .slice(0, MAKS);
 
-  const title =
-    navne.length >= 2
-      ? `${navne.join(" vs. ")} – sammenlign kommuner | Kommuna`
-      : "Sammenlign kommuner | Kommuna";
+  const title = titelFor(navne);
   const description =
     navne.length >= 2
       ? `Sammenlign ${navne.slice(0, -1).join(", ")} og ${navne.at(-1)} side om side: samlet score, boligpriser, skat og alle nøgletal.`
       : "Sammenlign op til fire kommuner side om side – score, fakta og nøgletal.";
   return { title, description, openGraph: { title, description, siteName: "Kommuna", locale: "da_DK" } };
+}
+
+function titelFor(navne: string[]) {
+  return navne.length >= 2
+    ? `${navne.join(" vs. ")} – sammenlign kommuner | Kommuna`
+    : "Sammenlign kommuner | Kommuna";
 }
 
 const heltal = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
@@ -268,6 +272,7 @@ export default async function SammenlignSide(props: PageProps<"/sammenlign">) {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <DokumentTitel titel={titelFor(valgte.map((k) => k.navn))} />
       <NextLink
         href="/kort"
         className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
@@ -295,8 +300,11 @@ export default async function SammenlignSide(props: PageProps<"/sammenlign">) {
           <p className="font-medium text-foreground">Ingen kommuner valgt endnu</p>
           <p className="mt-1 text-sm text-muted">
             Skriv et kommunenavn i feltet ovenfor, eller prøv fx{" "}
+            {/* Uden forhåndsindlæsning: Next.js' forhåndsindlæsning af samme side med andre
+                kommuner blev aldrig færdig og holdt en forbindelse åben. */}
             <NextLink
               href="/sammenlign?kommuner=aarhus,odense,aalborg"
+              prefetch={false}
               className="font-medium text-accent hover:underline"
             >
               Aarhus, Odense og Aalborg
