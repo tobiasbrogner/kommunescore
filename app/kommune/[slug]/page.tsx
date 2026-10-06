@@ -15,6 +15,7 @@ import {
 } from "@tabler/icons-react";
 import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
+import { Broedkrummer } from "@/components/json-ld";
 import { billedKredit } from "@/lib/kommuner/billeder";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
 import { kommuneSlug } from "@/lib/kommuner/slug";
@@ -522,6 +523,12 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <Broedkrummer
+        sti={[
+          ["Kommuner", "/kommuner"],
+          [officieltKommunenavn(rapport.navn), `/kommune/${kommuneSlug(rapport.navn)}`],
+        ]}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <NextLink
           href={`/kort?kommune=${kommuneSlug(rapport.navn)}`}

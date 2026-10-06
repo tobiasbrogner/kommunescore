@@ -17,6 +17,7 @@ import {
   IconUserCircle,
 } from "@tabler/icons-react";
 import { ForsideKort } from "@/components/forside-kort";
+import { JsonLd } from "@/components/json-ld";
 import { IllustrationFamilie } from "@/components/illustration-familie";
 import { IllustrationGade } from "@/components/illustration-gade";
 import { IllustrationKontrolpanel } from "@/components/illustration-kontrolpanel";
@@ -34,6 +35,7 @@ import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 import { hentGeoFakta } from "@/lib/scores/kommune-rapport";
 import { byggKategoriFordelinger, byggKommuneProfil } from "@/lib/scores/profil";
 import { PROFILER, profilLink } from "@/lib/scores/profiler";
+import { siteAdresse } from "@/lib/site-adresse";
 
 export const metadata: Metadata = {
   title: "Kommuna – find den kommune, der passer til dit liv",
@@ -175,6 +177,25 @@ export default async function Home() {
 
   return (
     <main className="overflow-hidden">
+      {/* Sidens navn og logo til Google, som viser navnet over søgeresultaterne. */}
+      <JsonLd
+        data={{
+          "@graph": [
+            {
+              "@type": "WebSite",
+              name: "Kommuna",
+              url: `${siteAdresse()}/`,
+              inLanguage: "da-DK",
+            },
+            {
+              "@type": "Organization",
+              name: "Kommuna",
+              url: `${siteAdresse()}/`,
+              logo: `${siteAdresse()}/brand/kommuna-ikon-512.png`,
+            },
+          ],
+        }}
+      />
       {/* HERO */}
       <section id="start" className="relative">
         <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:px-8 lg:pb-24 lg:pt-20">

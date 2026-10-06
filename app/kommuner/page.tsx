@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { IconArrowRight } from "@tabler/icons-react";
+import { Broedkrummer } from "@/components/json-ld";
 import { KommuneSoeg } from "@/components/kommune-soeg";
 import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
@@ -31,6 +32,7 @@ export default async function KommunerSide() {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <Broedkrummer sti={[["Kommuner", "/kommuner"]]} />
       <header className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between lg:gap-20">
         <div className="max-w-2xl">
           <p className="text-sm font-medium tracking-wide text-accent">Alle kommuner</p>
