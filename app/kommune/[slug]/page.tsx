@@ -17,6 +17,7 @@ import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
 import { Broedkrummer } from "@/components/json-ld";
 import { KommuneFlise, type KommuneFliseData } from "@/components/kommune-flise";
+import { KommuneMinikort } from "@/components/kommune-minikort";
 import { billedKredit } from "@/lib/kommuner/billeder";
 import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
@@ -520,14 +521,22 @@ function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
             <p className="whitespace-pre-line leading-relaxed text-foreground">{om.beskrivelse}</p>
           </div>
         )}
-        <dl className="grid content-start gap-3 rounded-2xl border border-border bg-surface p-5 sm:grid-cols-2 md:grid-cols-1">
-          {fakta.map((f) => (
-            <div key={f.etiket}>
-              <dt className="text-xs text-muted">{f.etiket}</dt>
-              <dd className="font-medium tabular-nums text-foreground">{f.vaerdi}</dd>
-            </div>
-          ))}
-        </dl>
+        {/* Kortet står over fakta; på mellemstore skærme uden beskrivelse ved siden af dem. */}
+        <div
+          className={`grid content-start gap-5 rounded-2xl border border-border bg-surface p-5 ${
+            om.beskrivelse ? "" : "sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center"
+          }`}
+        >
+          <KommuneMinikort kode={rapport.kode} navn={rapport.navn} region={rapport.regionNavn} />
+          <dl className="grid content-start gap-3 sm:grid-cols-2 md:grid-cols-1">
+            {fakta.map((f) => (
+              <div key={f.etiket}>
+                <dt className="text-xs text-muted">{f.etiket}</dt>
+                <dd className="font-medium tabular-nums text-foreground">{f.vaerdi}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </div>
     </section>
   );

@@ -2,18 +2,6 @@
 
 Idéer, der er værd at lave, men som ikke er sat i gang endnu. Skriv gerne nye ind her.
 
-## Lille Danmarkskort på kommunesiden
-
-**Hvad:** Et lille kort over Danmark med en prik, der viser, hvor kommunen ligger. Det kan stå i boksen "Om [kommune]" på `/kommune/[navn]`.
-
-**Hvorfor:** Mange ved ikke, hvor fx Lemvig, Faxe eller Struer ligger. I dag står kun regionen på siden.
-
-**Sådan kan det laves:**
-- Genbrug Danmarkskortet fra forsiden: kystlinjen (`DANMARK_STI`, `BORNHOLM_STI`) og `projekterTilDanmarkskort` i `lib/danmarkskort.ts`.
-- Kommunens placering findes allerede i `data/kommune-punkter.json` (kommunens største by som punkt), som forsiden også bruger.
-- Bornholm står i en ramme i hjørnet på forsidekortet; `projekterTilDanmarkskort` flytter selv punkter på Bornholm derop.
-- Ingen nye data eller nye pakker.
-
 ## Del dit resultat fra kommunetesten
 
 **Hvad:** En "Del"-knap ved resultatet på `/kommunetest`, der giver et link til den samme top 6.
