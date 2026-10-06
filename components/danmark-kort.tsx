@@ -1792,6 +1792,13 @@ export function DanmarkKort({
         setValgtKode(kode);
       });
 
+      // Klik uden for en kommune (vand, Sverige osv.) lukker kommuneboksen.
+      map.on("click", (e) => {
+        if (!map.getLayer("kommune-fill")) return;
+        const ramt = map.queryRenderedFeatures(e.point, { layers: ["kommune-fill"] });
+        if (ramt.length === 0) setValgtKode(null);
+      });
+
       mapRef.current = map;
     });
 
@@ -3424,7 +3431,7 @@ export function DanmarkKort({
       </aside>
 
       <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
-        <div ref={containerRef} className="h-full w-full" />
+        <div ref={containerRef} className="danmark-kort h-full w-full" />
         <AiChat />
         {zoomIkonPladser && createPortal(<IconPlus className="h-5 w-5" />, zoomIkonPladser.ind)}
         {zoomIkonPladser && createPortal(<IconMinus className="h-5 w-5" />, zoomIkonPladser.ud)}

@@ -105,6 +105,15 @@ body {
   }
 }
 
+/* Almindelig pil over vand og udland på Danmarkskortet (kommuner får "pointer" fra koden).
+   Mens man trækker, vises stadig den knyttede hånd. */
+.danmark-kort .maplibregl-canvas-container.maplibregl-interactive {
+  cursor: default;
+}
+.danmark-kort .maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: grabbing;
+}
+
 /* Kortets zoom- og fuldskærmsknapper lidt større end standard (29px). Ekstra klasse i
    selektoren, så den vinder over maplibre-gl.css, der indlæses senere. */
 .maplibregl-ctrl.maplibregl-ctrl-group button {
