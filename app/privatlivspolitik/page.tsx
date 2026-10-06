@@ -11,8 +11,9 @@ export const metadata: Metadata = {
 // Opdatér datoen, når teksten ændres.
 const SIDST_OPDATERET = "6. oktober 2026";
 
-// Hvem der står bag siden. Skal udfyldes med navn og e-mail, før siden går i luften.
-const DATAANSVARLIG = "Kommuna";
+// Hvem der står bag siden. Dataansvaret gælder besøgendes oplysninger (feedback, chat,
+// adressesøgning), ikke kommunestatistikken, som ikke er personoplysninger.
+const DATAANSVARLIG = { navn: "Tobias Brogner", email: "tobiasbrogner@gmail.com" };
 
 // Privatlivspolitikken. Hold den i takt med koden: nye tjenester, der får brugerens data
 // (fx statistik eller nyhedsbrev), skal med under "Hvem får oplysningerne".
@@ -40,9 +41,20 @@ export default function PrivatlivspolitikSide() {
 
       <Afsnit titel="Hvem står bag">
         <p>
-          {DATAANSVARLIG} er dataansvarlig for de oplysninger, der behandles på siden. Du kan
-          kontakte os via knappen &quot;Giv feedback&quot; nederst på alle sider. Skriv din e-mail, hvis
-          du vil have svar.
+          Kommuna drives af {DATAANSVARLIG.navn}, som er dataansvarlig for de oplysninger om
+          dig, der behandles, når du bruger siden. Tallene om kommunerne er offentlig statistik
+          og indeholder ingen oplysninger om enkeltpersoner (se{" "}
+          <NextLink href="/kilder" className="font-medium text-accent hover:underline">
+            Kilder
+          </NextLink>
+          ). Du kan skrive til{" "}
+          <a
+            href={`mailto:${DATAANSVARLIG.email}`}
+            className="font-medium text-accent hover:underline"
+          >
+            {DATAANSVARLIG.email}
+          </a>{" "}
+          eller bruge knappen &quot;Giv feedback&quot; nederst på alle sider.
         </p>
       </Afsnit>
 
@@ -128,7 +140,14 @@ export default function PrivatlivspolitikSide() {
         <p>
           Du har ret til at få at vide, hvilke oplysninger vi har om dig, og til at få dem rettet
           eller slettet. Du kan også trække et samtykke tilbage og gøre indsigelse mod
-          behandlingen. Kontakt os via feedbackknappen. Er du utilfreds, kan du klage til{" "}
+          behandlingen. Skriv til{" "}
+          <a
+            href={`mailto:${DATAANSVARLIG.email}`}
+            className="font-medium text-accent hover:underline"
+          >
+            {DATAANSVARLIG.email}
+          </a>
+          . Er du utilfreds, kan du klage til{" "}
           <a
             href="https://www.datatilsynet.dk"
             target="_blank"
