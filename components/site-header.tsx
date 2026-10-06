@@ -4,26 +4,46 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Description, Dropdown, Label } from "@heroui/react";
-import { IconArrowsLeftRight, IconChecklist, IconChevronDown, IconMap } from "@tabler/icons-react";
+import {
+  IconArrowsLeftRight,
+  IconChecklist,
+  IconChevronDown,
+  IconDatabase,
+  IconInfoCircle,
+  IconMap,
+} from "@tabler/icons-react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { FeedbackModal } from "@/components/feedback-modal";
 const link = linkVariants();
 
-// Værktøjerne samles under én menu, så der er plads til flere punkter i topmenuen.
+// Topmenuens punkter samles i dropdown-menuer, så der er plads til flere sider.
 const VAERKTOEJER = [
   { href: "/kort", navn: "Kortet", tekst: "Find din kommune på kortet", Ikon: IconMap },
   { href: "/kommunetest", navn: "Kommunetesten", tekst: "20 spørgsmål finder din top 6", Ikon: IconChecklist },
   { href: "/sammenlign", navn: "Sammenlign rapporter", tekst: "Stil kommuner op side om side", Ikon: IconArrowsLeftRight },
 ];
 
+// Sider om Kommuna selv. "Om os" kommer her, når siden findes.
+const OM_KOMMUNA = [
+  { href: "/saadan-virker-det", navn: "Sådan virker det", tekst: "Hvordan scoren regnes ud", Ikon: IconInfoCircle },
+  { href: "/kilder", navn: "Kilder", tekst: "Hvor tallene kommer fra", Ikon: IconDatabase },
+];
+
+const MENUER = [
+  { titel: "Om Kommuna", punkter: OM_KOMMUNA },
+  { titel: "Værktøjer", punkter: VAERKTOEJER },
+];
+
+type MenuPunkt = (typeof VAERKTOEJER)[number];
+
 // Med mus åbner menuen ved hover (med en lille forsinkelse, så den ikke blinker, når
 // musen blot passerer). Klik og tastatur virker stadig, så touch og skærmlæsere er dækket.
 const AABN_FORSINKELSE = 150;
 const LUK_FORSINKELSE = 200;
 
-function VaerktoejsMenu() {
+function NavMenu({ titel, punkter }: { titel: string; punkter: MenuPunkt[] }) {
   const router = useRouter();
   const [aaben, setAaben] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -63,13 +83,13 @@ function VaerktoejsMenu() {
           setTimeout(() => (musKlik.current = false));
         }}
       >
-        Værktøjer
+        {titel}
         <IconChevronDown className={`h-4 w-4 transition-transform ${aaben ? "rotate-180" : ""}`} />
       </Dropdown.Trigger>
       <Dropdown.Popover className="min-w-[260px]" isNonModal>
         <div onPointerEnter={vedEnter} onPointerLeave={vedLeave}>
-          <Dropdown.Menu aria-label="Værktøjer" onAction={(href) => router.push(String(href))}>
-            {VAERKTOEJER.map(({ href, navn, tekst, Ikon }) => (
+          <Dropdown.Menu aria-label={titel} onAction={(href) => router.push(String(href))}>
+            {punkter.map(({ href, navn, tekst, Ikon }) => (
               <Dropdown.Item key={href} id={href} textValue={navn}>
                 <Ikon className="h-5 w-5 shrink-0 text-muted" />
                 <div className="flex flex-col">
@@ -103,7 +123,9 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-8 md:flex">
-            <VaerktoejsMenu />
+            {MENUER.map(({ titel, punkter }) => (
+              <NavMenu key={titel} titel={titel} punkter={punkter} />
+            ))}
 
             <button
               type="button"
@@ -138,16 +160,20 @@ export function SiteHeader() {
           className="border-t border-border bg-background px-4 py-4 md:hidden"
         >
           <div className={`mx-auto flex ${bredde} flex-col gap-2`}>
-            <p className="px-3 pt-1 text-xs font-medium uppercase tracking-wide text-muted">Værktøjer</p>
-            {VAERKTOEJER.map(({ href, navn }) => (
-              <NextLink
-                key={href}
-                href={href}
-                className={`${link.base()} px-3 py-3`}
-                onClick={() => setMenuOpen(false)}
-              >
-                {navn}
-              </NextLink>
+            {MENUER.map(({ titel, punkter }, i) => (
+              <div key={titel} className={`flex flex-col gap-2 ${i > 0 ? "mt-2" : ""}`}>
+                <p className="px-3 pt-1 text-xs font-medium uppercase tracking-wide text-muted">{titel}</p>
+                {punkter.map(({ href, navn }) => (
+                  <NextLink
+                    key={href}
+                    href={href}
+                    className={`${link.base()} px-3 py-3`}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {navn}
+                  </NextLink>
+                ))}
+              </div>
             ))}
 
             <button
