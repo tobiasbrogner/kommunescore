@@ -3090,15 +3090,15 @@ export function DanmarkKort({
   };
 
   // Prioritet som bjælke til højre på store skærme. Ved kortet går den fra top til bund
-  // og fylder 20 %, men fra 1400 px mindst 520 px, så kategorierne kan stå i to kolonner
-  // (se @[30rem] i prioritetIndhold); i Oversigt og Regneark er den en boks ved siden af
-  // listen, der fylder 30 %.
+  // og fylder 20 %, men fra 1400 px mindst 544 px, så kategorierne kan stå i to kolonner
+  // (se @[30rem] i prioritetIndhold), også når Windows giver rullebjælken 15 px; i Oversigt
+  // og Regneark er den en boks ved siden af listen, der fylder 30 %.
   const prioritetBjaelke = (vedKortet: boolean) => (
     <aside
       aria-label="Prioritet"
       className={`relative z-20 flex shrink-0 flex-col bg-surface ${
         vedKortet
-          ? "w-1/5 min-w-80 border-l border-border min-[1400px]:min-w-[32.5rem]"
+          ? "w-1/5 min-w-80 border-l border-border min-[1400px]:min-w-[34rem]"
           : "w-[30%] min-w-80 max-w-[600px] rounded-[1.75rem] border border-border shadow-sm"
       }`}
     >
