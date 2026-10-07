@@ -7,7 +7,6 @@ import {
   IconCheck,
   IconDownload,
   IconLink,
-  IconPrinter,
   IconShare,
 } from "@tabler/icons-react";
 
@@ -31,7 +30,8 @@ function kopierGammeldags(tekst: string) {
   }
 }
 
-// Værktøjer øverst på kommunerapporten: del, kopiér link, print og gem som PDF.
+// Værktøjer øverst på kommunerapporten: del, kopiér link og gem som PDF. Der er ingen
+// print-knap; PDF'en er pænere og kan udskrives (browserens Udskriv virker stadig).
 // Skjules ved udskrift (data-skjul-ved-print), så de ikke kommer med i PDF'en.
 export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string; slug: string }) {
   // Browserens egen del-menu findes mest på mobil (og i nogle desktop-browsere).
@@ -109,10 +109,6 @@ export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string;
           <IconLink className="h-4 w-4" />
         )}
         {tekst(kopieret ? "Kopieret" : "Kopiér link")}
-      </Button>
-      <Button size="sm" variant="ghost" className={knap} onPress={() => window.print()}>
-        <IconPrinter className="h-4 w-4" />
-        {tekst("Print")}
       </Button>
       <Button size="sm" variant="ghost" className={knap} isPending={pdfStatus === "henter"} onPress={gemPdf}>
         {pdfStatus === "henter" ? (

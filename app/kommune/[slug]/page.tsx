@@ -300,42 +300,46 @@ function NoegletalKort({ n }: { n: NoegletalRapport }) {
   );
 }
 
+// På meget brede skærme (2xl) står scoren og bjælken til venstre og nøgletallene til højre,
+// så tabellen får plads og kortet ikke bliver højere end nødvendigt.
 function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
   const harNoegletal = k.noegletal.length + k.manglendeNoegletal.length > 0;
   return (
     <section
       id={k.kategori.slug}
-      className="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6"
+      className="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6 2xl:grid 2xl:grid-cols-[20rem_minmax(0,1fr)] 2xl:items-start 2xl:gap-x-10"
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-            <KategoriIkon navn={k.kategori.ikon} className="h-5 w-5" />
-          </span>
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">{k.kategori.navn}</h3>
-            <p className="text-sm text-muted">
-              <Placering rang={k.rang} antal={k.antal} /> · Landsgennemsnit{" "}
-              <span className="tabular-nums">{Math.round(k.gennemsnit)}</span>
-            </p>
+      <div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <KategoriIkon navn={k.kategori.ikon} className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">{k.kategori.navn}</h3>
+              <p className="text-sm text-muted">
+                <Placering rang={k.rang} antal={k.antal} /> · Landsgennemsnit{" "}
+                <span className="tabular-nums">{Math.round(k.gennemsnit)}</span>
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-semibold tabular-nums text-foreground">{Math.round(k.score)}</p>
+            <p className="text-xs text-muted">score</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-semibold tabular-nums text-foreground">{Math.round(k.score)}</p>
-          <p className="text-xs text-muted">score</p>
-        </div>
-      </div>
 
-      <div className="mt-4">
-        <ScoreBjaelke score={k.score} gennemsnit={k.gennemsnit} navn={navn} />
-        <div className="mt-1 flex justify-between text-[11px] text-muted">
-          <span>50</span>
-          <span>100</span>
+        <div className="mt-4">
+          <ScoreBjaelke score={k.score} gennemsnit={k.gennemsnit} navn={navn} />
+          <div className="mt-1 flex justify-between text-[11px] text-muted">
+            <span>50</span>
+            <span>100</span>
+          </div>
         </div>
       </div>
 
       {harNoegletal && (
-        <>
+        <div>
           {/* Mobil: nøgletallene stablet. */}
           <ul className="mt-4 text-sm sm:hidden">
             {k.noegletal.map((n) => (
@@ -349,7 +353,7 @@ function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
           </ul>
 
           {/* Større skærme: tabel. */}
-          <table className="mt-4 hidden w-full text-sm sm:table">
+          <table className="mt-4 hidden w-full text-sm sm:table 2xl:mt-0">
             <thead>
               <tr className="text-left text-xs text-muted">
                 <th className="pb-2 pr-4 font-medium">Nøgletal</th>
@@ -374,23 +378,29 @@ function KategoriSektion({ k, navn }: { k: KategoriRapport; navn: string }) {
               ))}
             </tbody>
           </table>
-        </>
+        </div>
       )}
     </section>
   );
 }
 
 // Alle kategorier i ét blik øverst i rapporten, med link ned til hver kategoris tal.
-function KategoriOverblik({ kategorier }: { kategorier: KategoriRapport[] }) {
+function KategoriOverblik({
+  kategorier,
+  className = "",
+}: {
+  kategorier: KategoriRapport[];
+  className?: string;
+}) {
   const procent = (v: number) => Math.min(100, Math.max(0, ((v - 50) / 50) * 100));
   return (
-    <section className="mt-10">
+    <section className={`mt-10 ${className}`}>
       <h2 className="text-xl font-semibold text-foreground">Kategorierne i overblik</h2>
       <p className="mt-1 text-sm text-muted">
         Scoren fra 50 til 100 i hver kategori. Stregen viser landsgennemsnittet. Vælg en
         kategori for at se tallene bag.
       </p>
-      <ul className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
+      <ul className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4">
         {kategorier.map((k) => (
           <li key={k.kategori.id}>
             <a
@@ -489,7 +499,7 @@ function VidereFra({ navn, slug }: { navn: string; slug: string }) {
 }
 
 // Kort beskrivelse (redigeres i admin-panelet) og fakta, der beregnes ud fra data.
-function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
+function OmKommunen({ rapport, className = "" }: { rapport: KommuneRapport; className?: string }) {
   const { om } = rapport;
   const fakta = [
     { etiket: "Region", vaerdi: rapport.regionNavn },
@@ -509,12 +519,12 @@ function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
   ].filter((f): f is { etiket: string; vaerdi: string } => f.vaerdi != null);
 
   return (
-    <section className="mt-10">
+    <section className={`mt-10 ${className}`}>
       <h2 className="text-xl font-semibold text-foreground">
         Om {officieltKommunenavn(rapport.navn)}
       </h2>
       <div
-        className={`mt-4 grid items-start gap-4 ${om.beskrivelse ? "md:grid-cols-[minmax(0,1fr)_18rem]" : ""}`}
+        className={`mt-4 grid items-start gap-4 ${om.beskrivelse ? "md:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-1" : ""}`}
       >
         {om.beskrivelse && (
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
@@ -524,11 +534,11 @@ function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
         {/* Kortet står over fakta; på mellemstore skærme uden beskrivelse ved siden af dem. */}
         <div
           className={`grid content-start gap-5 rounded-2xl border border-border bg-surface p-5 ${
-            om.beskrivelse ? "" : "sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center"
+            om.beskrivelse ? "" : "sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center xl:grid-cols-1"
           }`}
         >
           <KommuneMinikort kode={rapport.kode} navn={rapport.navn} region={rapport.regionNavn} />
-          <dl className="grid content-start gap-3 sm:grid-cols-2 md:grid-cols-1">
+          <dl className="grid content-start gap-3 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
             {fakta.map((f) => (
               <div key={f.etiket}>
                 <dt className="text-xs text-muted">{f.etiket}</dt>
@@ -562,7 +572,10 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
   const lignende = lignendeKoder.flatMap((kode) => fliser.filter((f) => f.kode === kode));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    // Op til 1600 px bred fra lg (som kortet og topmenuen), så rapporten udnytter skærmen.
+    // PDF'en laves i A4-bredde (ca. 700 px), så de brede opstillinger (lg/xl/2xl) kommer
+    // aldrig med i den, og den ser ud som før.
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:max-w-[1600px] lg:px-8 lg:py-12">
       <Broedkrummer
         sti={[
           ["Kommuner", "/kommuner"],
@@ -592,7 +605,7 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
 
       {/* Overblik */}
       <header className="mt-4 overflow-hidden rounded-3xl border border-border bg-surface">
-        <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10 sm:h-56">
+        <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10 sm:h-56 2xl:h-72">
           {rapport.harBillede ? (
             // Optimeret af Next.js (mindre fil i den bredde, siden viser), og hentet med det
             // samme, da det er det første, man ser.
@@ -601,7 +614,7 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
               alt={rapport.navn}
               fill
               priority
-              sizes="(min-width: 1024px) 960px, 100vw"
+              sizes="(min-width: 1600px) 1600px, 100vw"
               className="object-cover"
             />
           ) : (
@@ -642,44 +655,53 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
         </div>
       </header>
 
-      <KategoriOverblik kategorier={rapport.kategorier} />
+      {/* Fra xl to kolonner: rapporten til venstre og Om kommunen i en sidekolonne ved siden af
+          overblikket. Den følger ikke med, når man ruller, da den med beskrivelse og kort er
+          højere end mange bærbares skærm. Rækkefølgen i koden er den samme som på mobil og i
+          PDF'en; kun placeringen i gitteret flytter Om kommunen ud til siden. */}
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start xl:gap-x-10">
+        <KategoriOverblik kategorier={rapport.kategorier} className="xl:col-start-1 xl:row-start-1" />
 
-      <OmKommunen rapport={rapport} />
+        <OmKommunen
+          rapport={rapport}
+          className="xl:col-start-2 xl:row-span-3 xl:row-start-1"
+        />
 
-      {/* Styrker og fokusområder */}
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold text-foreground">Styrker og fokusområder</h2>
-        <p className="mt-1 text-sm text-muted">
-          Hvor kommunen klarer sig bedst og mindst godt, sammenlignet med resten af landet.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <ProfilListe
-            titel="Styrker"
-            Ikon={IconTrendingUp}
-            farve="text-success"
-            punkter={rapport.profil.styrker}
-          />
-          <ProfilListe
-            titel="Fokusområder"
-            Ikon={IconTarget}
-            farve="text-accent"
-            punkter={rapport.profil.fokus}
-          />
-        </div>
-      </section>
+        {/* Styrker og fokusområder */}
+        <section className="mt-10 xl:col-start-1 xl:row-start-2">
+          <h2 className="text-xl font-semibold text-foreground">Styrker og fokusområder</h2>
+          <p className="mt-1 text-sm text-muted">
+            Hvor kommunen klarer sig bedst og mindst godt, sammenlignet med resten af landet.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <ProfilListe
+              titel="Styrker"
+              Ikon={IconTrendingUp}
+              farve="text-success"
+              punkter={rapport.profil.styrker}
+            />
+            <ProfilListe
+              titel="Fokusområder"
+              Ikon={IconTarget}
+              farve="text-accent"
+              punkter={rapport.profil.fokus}
+            />
+          </div>
+        </section>
 
-      {/* Kategorier og nøgletal */}
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold text-foreground">Kategorier og nøgletal</h2>
-        <p className="mt-1 text-sm text-muted">
-          Scoren i hver kategori går fra 50 til 100 og sammenlignes med landsgennemsnittet.
-        </p>
-        <div className="mt-4 flex flex-col gap-4">
-          {rapport.kategorier.map((k) => (
-            <KategoriSektion key={k.kategori.id} k={k} navn={rapport.navn} />
-          ))}
-        </div>
-      </section>
+        {/* Kategorier og nøgletal */}
+        <section className="mt-10 xl:col-start-1 xl:row-start-3">
+          <h2 className="text-xl font-semibold text-foreground">Kategorier og nøgletal</h2>
+          <p className="mt-1 text-sm text-muted">
+            Scoren i hver kategori går fra 50 til 100 og sammenlignes med landsgennemsnittet.
+          </p>
+          <div className="mt-4 flex flex-col gap-4">
+            {rapport.kategorier.map((k) => (
+              <KategoriSektion key={k.kategori.id} k={k} navn={rapport.navn} />
+            ))}
+          </div>
+        </section>
+      </div>
 
       <LignendeKommuner navn={rapport.navn} kommuner={lignende} />
 

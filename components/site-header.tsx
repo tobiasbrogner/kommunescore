@@ -108,8 +108,10 @@ function NavMenu({ titel, punkter }: { titel: string; punkter: MenuPunkt[] }) {
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  // Kortsiden er bredere end resten af sitet; headeren følger med, så den flugter med værktøjslinjen.
-  const bredde = usePathname().startsWith("/kort") ? "max-w-[1600px]" : "max-w-7xl";
+  // Kortsiden og kommunerapporterne er bredere end resten af sitet; headeren følger med,
+  // så den flugter med indholdet.
+  const sti = usePathname();
+  const bredde = sti.startsWith("/kort") || sti.startsWith("/kommune/") ? "max-w-[1600px]" : "max-w-7xl";
 
   return (
     <header data-skjul-ved-print className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-md">
