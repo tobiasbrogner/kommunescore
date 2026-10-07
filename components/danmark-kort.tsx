@@ -1191,6 +1191,7 @@ function KommuneKort({
   noegletalTekst,
   lavtBillede = false,
   harBillede,
+  hentBillede = true,
   favorit,
   onFavorit,
   onVaelg,
@@ -1205,6 +1206,8 @@ function KommuneKort({
   noegletalTekst: (kat: KategoriMeta, styrke: boolean) => string | null;
   // Lidt lavere billede i sidepanelet, så de øverste tre kort kan ses hele.
   lavtBillede?: boolean;
+  // false: kun baggrunden, indtil fotoet må hentes (se sidepanelet).
+  hentBillede?: boolean;
   favorit: boolean;
   onFavorit: (k: Kommune) => void;
   onVaelg: (k: Kommune) => void;
@@ -1227,14 +1230,16 @@ function KommuneKort({
         <div
           className={`relative flex ${lavtBillede ? "h-24" : "h-28"} items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10`}
         >
-          <KommuneBillede
-            kode={k.kode}
-            navn={k.navn}
-            harBillede={harBillede}
-            ikonClassName="h-8 w-8 text-muted/50"
-            // Sidepanelet er 20 % bredt; i Oversigt står kortene i op til fire kolonner.
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-          />
+          {hentBillede && (
+            <KommuneBillede
+              kode={k.kode}
+              navn={k.navn}
+              harBillede={harBillede}
+              ikonClassName="h-8 w-8 text-muted/50"
+              // Sidepanelet er 20 % bredt; i Oversigt står kortene i op til fire kolonner.
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            />
+          )}
           <span
             className={`absolute -bottom-4 left-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-md ring-4 ring-surface ${rankFarve(
               rang,
@@ -1318,8 +1323,8 @@ function VisFlere({
 
 // Sættes på <html>, når forhåndsvisningen skal være grå i stedet for farvet med
 // standardvægtene: har brugeren sin egen Prioritet eller adresse (gemt eller fra et delt
-// link), passer serverens farver ikke. Scriptet kører i HTML'en, før billederne vises;
-// bagefter holdes attributten ajour af kortet selv (se gemningen af Prioritet).
+// link), passer serverens farver og rækkefølge ikke. Scriptet kører i HTML'en, før kortet og
+// listen vises; bagefter holdes attributten ajour af kortet selv (se gemningen af Prioritet).
 const KORT_EGNE_VALG_ATTRIBUT = "data-kort-egne-valg";
 const KORT_EGNE_VALG_SCRIPT = `try{if(/[?&](${PRIORITET_PARAMETRE.join("|")})=/.test(location.search)||localStorage.getItem(${JSON.stringify(PRIORITET_LAGER)})||localStorage.getItem(${JSON.stringify(ADRESSE_LAGER)}))document.documentElement.setAttribute(${JSON.stringify(KORT_EGNE_VALG_ATTRIBUT)},"")}catch(e){}`;
 
@@ -1345,7 +1350,6 @@ function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ width: `min(100cqw, ${forhold} * 100cqh)`, aspectRatio: forhold }}
         >
-          <script dangerouslySetInnerHTML={{ __html: KORT_EGNE_VALG_SCRIPT }} />
           <div
             className="absolute hidden bg-size-[100%_100%] [html[data-kort-egne-valg]_&]:block"
             style={{ ...placering, backgroundImage: "url(/data/kort-forhaandsvisning.svg)" }}
@@ -1433,10 +1437,13 @@ function VaegtSkyder({
 export function DanmarkKort({
   kategorier: databaseKategorier,
   kommuneScores: databaseScorer,
+  kommuner: serverKommuner,
   kommunerMedBillede,
 }: {
   kategorier: KategoriMeta[];
   kommuneScores: KommuneScore[];
+  /** Kommunerne med region fra serveren, så listen kan vises, før kortets grænser er hentet. */
+  kommuner: Kommune[];
   kommunerMedBillede: string[];
 }) {
   // Skal matche fetch() i hentKommuner (cors, samme-origin-cookies), ellers genbruges den ikke.
@@ -1496,14 +1503,16 @@ export function DanmarkKort({
   const soegRef = useRef<HTMLDivElement | null>(null);
   const valgteRegionerRef = useRef<Selection>(new Set<string>());
   const valgteGrupperRef = useRef<Selection>(new Set<string>());
-  const kommuneRegionerRef = useRef<Map<string, string>>(new Map());
+  const kommuneRegionerRef = useRef<Map<string, string>>(
+    new Map(serverKommuner.map((k) => [k.kode, k.regionskode])),
+  );
   const kommuneUdstraekningRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map(),
   );
   const farvePaletIdRef = useRef<KortPaletId>(KORT_PALET_STANDARD);
   const museOverAktivRef = useRef(true);
 
-  const [kommuner, setKommuner] = useState<Kommune[]>([]);
+  const [kommuner, setKommuner] = useState<Kommune[]>(serverKommuner);
   const [valgtKode, setValgtKode] = useState<string | null>(null);
   const [soegning, setSoegning] = useState("");
   const [forslagAabent, setForslagAabent] = useState(false);
@@ -1753,7 +1762,13 @@ export function DanmarkKort({
           kommuneUdstraekningRef.current.set(kode, kommuneUdstraekning(feature.geometry));
         });
         liste.sort((a, b) => sammenlignKommunenavne(a.navn, b.navn));
-        setKommuner(liste);
+        // Normalt de samme kommuner som fra serveren; så tegnes listen ikke om for intet.
+        setKommuner((nu) =>
+          nu.length === liste.length &&
+          nu.every((k, i) => k.kode === liste[i].kode && k.navn === liste[i].navn && k.regionskode === liste[i].regionskode)
+            ? nu
+            : liste,
+        );
         kommuneRegionerRef.current = new Map(liste.map((k) => [k.kode, k.regionskode]));
 
         // /kort?kommune=esbjerg (fx fra husene på forsiden) åbner kortet med kommunen valgt
@@ -3067,6 +3082,9 @@ export function DanmarkKort({
             "gap-4 py-12 lg:h-[calc(100dvh-4.5rem-1px)] lg:gap-0 lg:pt-0 lg:pb-6"
       }`}
     >
+      {/* Først på siden, så forhåndsvisningen og listen ved siden af kortet aldrig vises med
+          standardvægtene, når brugeren har sine egne valg. */}
+      <script dangerouslySetInnerHTML={{ __html: KORT_EGNE_VALG_SCRIPT }} />
       <div
         className={`${INDHOLD_BREDDE} flex flex-wrap items-center gap-3 lg:py-3`}
       >
@@ -3397,16 +3415,20 @@ export function DanmarkKort({
           {listeVaerktoej}
         </div>
 
-        {/* Kortene (med fotos) tegnes først, når kortet er tegnet; ellers konkurrerer de med
-            kortet om browserens tid og net lige før, og kortet kommer ca. 0,2 s senere. */}
-        {!tegnet ? (
-          <div className="flex flex-col gap-3 p-4" aria-hidden="true">
+        {/* Kortene står allerede i serverens HTML med standardvægtene. Har brugeren egne valg
+            (se KORT_EGNE_VALG_ATTRIBUT), vises pladsholdere, indtil de er læst ind; ellers ville
+            listen springe rundt, når rækkefølgen skifter. Fotoene hentes først, når kortet er
+            tegnet; ellers konkurrerer de med kortet om nettet, og det bliver klar ca. 0,4 s senere. */}
+        <div data-venter={!prioritetGendannet}>
+          <div
+            className="hidden flex-col gap-3 p-4 [html[data-kort-egne-valg]_[data-venter=true]>&]:flex"
+            aria-hidden="true"
+          >
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-44 animate-pulse rounded-2xl bg-surface-secondary" />
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col gap-3 p-4">
+          <div className="flex flex-col gap-3 p-4 [html[data-kort-egne-valg]_[data-venter=true]>&]:hidden">
             {sidepanelListe.slice(0, antalVist).map((k) => (
               <KommuneKort
                 key={k.kode}
@@ -3418,6 +3440,7 @@ export function DanmarkKort({
                 noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
                 lavtBillede
                 harBillede={billedKoder.has(k.kode)}
+                hentBillede={tegnet}
                 favorit={favoritter.includes(k.kode)}
                 onFavorit={(k) => skiftFavorit(k.kode)}
                 onVaelg={vaelgFraSidepanel}
@@ -3435,7 +3458,7 @@ export function DanmarkKort({
 
             {sidepanelListe.length === 0 && ingenKommunerEllerFavoritter}
           </div>
-        )}
+        </div>
       </aside>
 
       <div className="relative mx-4 h-[520px] overflow-hidden rounded-[1.75rem] border border-border shadow-sm sm:mx-6 sm:h-[620px] lg:mx-0 lg:h-full lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none">
