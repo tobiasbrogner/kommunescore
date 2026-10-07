@@ -1112,17 +1112,32 @@ type ValgtKategori = {
   aktiv: boolean;
 };
 
+// Så mange kategorier vises i boksen på lave skærme (fx bærbare), før man folder resten ud.
+const VALGT_KOMMUNE_KORT_ANTAL = 3;
+
 // Kategorierne for den valgte kommune: score som bjælke (50-100) med landsgennemsnittet
 // som streg, og tallet bag. Kategorier, der ikke tæller med, står nedtonet til sidst.
-function ValgtKommuneKategorier({ raekker }: { raekker: ValgtKategori[] }) {
+// Listen er sorteret efter vægt, så på lave skærme vises kun de vigtigste, indtil man
+// folder den ud (se ValgtKommuneBund); fra 1200 px skærmhøjde er der plads til dem alle.
+function ValgtKommuneKategorier({
+  raekker,
+  udvidet,
+}: {
+  raekker: ValgtKategori[];
+  udvidet: boolean;
+}) {
   const procent = (v: number) => Math.min(100, Math.max(0, ((v - 50) / 50) * 100));
 
   return (
     <ul className="flex flex-col gap-3 border-t border-border p-3.5">
-      {raekker.map(({ kategori, score, gennemsnit, tal, aktiv }) => (
+      {raekker.map(({ kategori, score, gennemsnit, tal, aktiv }, i) => (
         <li
           key={kategori.id}
-          className={aktiv ? "" : "opacity-45"}
+          className={`${aktiv ? "" : "opacity-45"} ${
+            !udvidet && i >= VALGT_KOMMUNE_KORT_ANTAL
+              ? "hidden [@media(min-height:75rem)]:block"
+              : ""
+          }`}
           title={aktiv ? undefined : "Tæller ikke med under Prioritet"}
         >
           <div className="flex items-center gap-2">
@@ -1156,13 +1171,48 @@ function ValgtKommuneKategorier({ raekker }: { raekker: ValgtKategori[] }) {
   );
 }
 
-// Forklaring til stregen på kategoriernes bjælker, vist nederst i boksen over rapportlinket.
-function GennemsnitForklaring() {
+// Bunden af boksen over rapportlinket. På lave skærme står kun knappen, der folder resten
+// af kategorierne ud; forklaringen til stregen på bjælkerne kommer først med, når listen er
+// foldet ud, så den er noget af det sidste, man læser. På høje skærme står kun forklaringen.
+function ValgtKommuneBund({
+  antal,
+  udvidet,
+  onSkift,
+}: {
+  antal: number;
+  udvidet: boolean;
+  onSkift: () => void;
+}) {
+  const kanFoldes = antal > VALGT_KOMMUNE_KORT_ANTAL;
+  const visForklaring = !kanFoldes || udvidet;
   return (
-    <p className="flex items-center justify-center gap-1.5 border-t border-border px-3.5 py-2 text-xs text-muted">
-      <span aria-hidden className="h-2.5 w-0.5 rounded-full bg-foreground/60" />
-      Landsgennemsnit
-    </p>
+    <div
+      className={`flex items-center gap-2 border-t border-border px-3.5 py-1.5 text-xs text-muted ${
+        visForklaring ? "justify-between" : "justify-center"
+      } [@media(min-height:75rem)]:justify-center`}
+    >
+      <span
+        className={`items-center gap-1.5 py-1 ${
+          visForklaring ? "flex" : "hidden [@media(min-height:75rem)]:flex"
+        }`}
+      >
+        <span aria-hidden className="h-2.5 w-0.5 rounded-full bg-foreground/60" />
+        Landsgennemsnit
+      </span>
+      {kanFoldes && (
+        <button
+          type="button"
+          onClick={onSkift}
+          aria-expanded={udvidet}
+          className="flex items-center gap-1 rounded-lg px-1.5 py-1 font-medium text-accent transition-colors duration-150 hover:bg-accent/10 [@media(min-height:75rem)]:hidden"
+        >
+          {udvidet ? "Vis færre" : `Vis alle ${antal}`}
+          <IconChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-150 ${udvidet ? "rotate-180" : ""}`}
+          />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -2508,6 +2558,8 @@ export function DanmarkKort({
   // Kategorierne i boksen for den valgte kommune. De tæller med efter Prioritet: vigtigste
   // først, og kategorier, der er slået fra eller har vægt 0, nedtonet til sidst. Score,
   // gennemsnit og tal følger de valgte nøgletal (fx kun ejerlejligheder).
+  // Om alle kategorier vises i boksen på lave skærme; huskes, når man vælger en anden kommune.
+  const [valgtKommuneUdvidet, setValgtKommuneUdvidet] = useState(false);
   const valgtKommuneKategorier: ValgtKategori[] = valgtKommune
     ? kategorier
         .map((kat) => {
@@ -3505,7 +3557,7 @@ export function DanmarkKort({
         {klar && valgtKommune && (
           // Højst kortets højde; er der ikke plads til alle kategorier, ruller listen.
           <div className="absolute right-4 top-4 z-10 flex max-h-[calc(100%-2rem)] w-64 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg sm:w-72">
-            <div className="relative flex h-20 shrink-0 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10">
+            <div className="relative flex h-16 shrink-0 items-center justify-center bg-gradient-to-br from-surface-secondary to-accent/10 [@media(min-height:75rem)]:h-20">
               <KommuneBillede
                 key={valgtKommune.kode}
                 kode={valgtKommune.kode}
@@ -3548,10 +3600,17 @@ export function DanmarkKort({
               <ScoreBadge score={vaegtetScore(valgtKommune.kode)} />
             </div>
             <div className="min-h-0 overflow-y-auto">
-              <ValgtKommuneKategorier raekker={valgtKommuneKategorier} />
+              <ValgtKommuneKategorier
+                raekker={valgtKommuneKategorier}
+                udvidet={valgtKommuneUdvidet}
+              />
             </div>
             <div className="shrink-0">
-              <GennemsnitForklaring />
+              <ValgtKommuneBund
+                antal={valgtKommuneKategorier.length}
+                udvidet={valgtKommuneUdvidet}
+                onSkift={() => setValgtKommuneUdvidet((v) => !v)}
+              />
               <RapportLink navn={valgtKommune.navn} />
             </div>
           </div>
