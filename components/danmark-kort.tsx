@@ -2975,16 +2975,7 @@ export function DanmarkKort({
                   {...panelInfo.knapProps(kat.id)}
                 />
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span
-                  className={`text-xs tabular-nums transition-opacity duration-150 ${
-                    aktiv ? "text-muted" : "text-muted opacity-50"
-                  }`}
-                  title="Kategoriens andel af den samlede score"
-                >
-                  {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
-                  <span className="sr-only"> af den samlede score</span>
-                </span>
+              <div className="flex shrink-0 items-center">
                 <Switch
                   size="sm"
                   isSelected={aktiv}
@@ -3002,14 +2993,12 @@ export function DanmarkKort({
               </div>
             </div>
 
-            <div className="flex items-end gap-2.5">
+            {/* Kun ét tal: kategoriens andel af den samlede score. Selve vægten (0-100) er
+                et internt tal, som skyderen viser uden at skrive det. */}
+            <div className="flex items-center gap-2.5">
               <div className="min-w-0 flex-1">
-                <div className="flex justify-between text-[10px] text-muted">
-                  <span>Lav</span>
-                  <span>Høj</span>
-                </div>
                 <Slider
-                  className={`mt-0.5 w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
+                  className={`w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
                   minValue={0}
                   maxValue={100}
                   step={5}
@@ -3021,7 +3010,7 @@ export function DanmarkKort({
                       [kat.id]: Array.isArray(v) ? v[0] : v,
                     }))
                   }
-                  aria-label={kat.navn}
+                  aria-label={`Vægt for ${kat.navn}`}
                 >
                   <Slider.Track>
                     <Slider.Fill />
@@ -3029,31 +3018,15 @@ export function DanmarkKort({
                   </Slider.Track>
                 </Slider>
               </div>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={100}
-                step={5}
-                disabled={!aktiv}
-                value={prioriteter[kat.id] ?? standardVaegt(kat)}
-                onChange={(e) => {
-                  const raa = e.target.value;
-                  if (raa === "") return;
-                  const tal = Number(raa);
-                  if (!Number.isFinite(tal)) return;
-                  const klemt = Math.min(100, Math.max(0, Math.round(tal)));
-                  setPrioriteter((p) => ({ ...p, [kat.id]: klemt }));
-                }}
-                onBlur={(e) => {
-                  const tal = e.target.value === "" ? standardVaegt(kat) : Number(e.target.value);
-                  const basis = Number.isFinite(tal) ? tal : standardVaegt(kat);
-                  const afrundet = Math.min(100, Math.max(0, Math.round(basis / 5) * 5));
-                  setPrioriteter((p) => ({ ...p, [kat.id]: afrundet }));
-                }}
-                aria-label={`${kat.navn} – vægt i tal`}
-                className="w-9 shrink-0 rounded-md border border-border bg-surface px-1 py-1 text-right text-xs tabular-nums text-foreground outline-none transition-colors focus:border-accent disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
+              <span
+                className={`w-10 shrink-0 text-right text-sm font-medium tabular-nums transition-opacity duration-150 ${
+                  aktiv ? "text-foreground" : "text-muted opacity-50"
+                }`}
+                title="Kategoriens andel af den samlede score"
+              >
+                {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
+                <span className="sr-only"> af den samlede score</span>
+              </span>
             </div>
 
             {noegletalValgFor(kat) && (
