@@ -9,26 +9,9 @@ import {
   IconLink,
   IconShare,
 } from "@tabler/icons-react";
+import { kopierTekst } from "@/lib/kopier-tekst";
 
 const ingenAbonnement = () => () => {};
-
-// Reserve, når Clipboard-API'et er blokeret (fx i indlejrede browsere).
-function kopierGammeldags(tekst: string) {
-  const felt = document.createElement("textarea");
-  felt.value = tekst;
-  felt.setAttribute("readonly", "");
-  felt.style.position = "fixed";
-  felt.style.opacity = "0";
-  document.body.appendChild(felt);
-  felt.select();
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    felt.remove();
-  }
-}
 
 // Værktøjer øverst på kommunerapporten: del, kopiér link og gem som PDF. Der er ingen
 // print-knap; PDF'en er pænere og kan udskrives (browserens Udskriv virker stadig).
@@ -47,14 +30,7 @@ export function RapportVaerktoejer({ kommunenavn, slug }: { kommunenavn: string;
   useEffect(() => () => clearTimeout(nulstilTimer.current), []);
 
   const kopierLink = async () => {
-    const url = window.location.href;
-    let ok = true;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      ok = kopierGammeldags(url);
-    }
-    if (!ok) return;
+    if (!(await kopierTekst(window.location.href))) return;
     setKopieret(true);
     clearTimeout(nulstilTimer.current);
     nulstilTimer.current = setTimeout(() => setKopieret(false), 2000);

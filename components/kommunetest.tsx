@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import NextLink from "next/link";
 import { Button, Card, ProgressBar, Slider } from "@heroui/react";
@@ -12,8 +12,10 @@ import {
   IconCheck,
   IconClock,
   IconHome,
+  IconLink,
   IconMap,
   IconRefresh,
+  IconShare,
 } from "@tabler/icons-react";
 import { IllustrationSpoergsmaal } from "@/components/illustration-spoergsmaal";
 import { KategoriIkon } from "@/components/ikon";
@@ -24,6 +26,9 @@ import {
   VIGTIGHED_TRIN,
   byggPrioritet,
   findMatch,
+  fjernSvarParametre,
+  svarFraParametre,
+  svarTilParametre,
   synligeSpoergsmaal,
   type Mulighed,
   type Spoergsmaal,
@@ -31,6 +36,7 @@ import {
 } from "@/lib/kommunetest";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 import { prioritetTilParametre } from "@/lib/scores/prioritet-link";
+import { kopierTekst } from "@/lib/kopier-tekst";
 
 type TestKommuneData = {
   kode: string;
@@ -60,22 +66,44 @@ export function Kommunetest({
 }) {
   const [trin, setTrin] = useState<Trin>("intro");
   const [svar, setSvar] = useState<Svar>({});
+  // Resultatet kommer fra et link, som en anden har delt (se svarFraParametre).
+  const [delt, setDelt] = useState(false);
   const overskriftRef = useRef<HTMLHeadingElement>(null);
   const videreTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // React kører effekter to gange i udvikling; anden gang er linket allerede fjernet, og så
+  // ville de gemte svar blive lagt oven i de delte.
+  const laestRef = useRef(false);
 
+  // Et delt link vinder over de gemte svar, og dets parametre fjernes, så adressen igen er
+  // /kommunetest. Ellers fortsættes, hvor man slap i fanen.
   useEffect(() => {
-    try {
-      const gemt = JSON.parse(sessionStorage.getItem(LAGER) ?? "null") as {
-        trin: Trin;
-        svar: Svar;
-      } | null;
-      if (gemt?.svar) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage findes kun i browseren.
-        setSvar(gemt.svar);
-        setTrin(gemt.trin);
+    if (!laestRef.current) {
+      laestRef.current = true;
+      const url = new URL(window.location.href);
+      const delteSvar = svarFraParametre(url.searchParams, kategorier);
+      if (delteSvar) {
+        fjernSvarParametre(url.searchParams);
+        window.history.replaceState(null, "", url);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- linket og sessionStorage findes kun i browseren.
+        setSvar(delteSvar);
+        setTrin("resultat");
+        setDelt(true);
+      } else {
+        try {
+          const gemt = JSON.parse(sessionStorage.getItem(LAGER) ?? "null") as {
+            trin: Trin;
+            svar: Svar;
+          } | null;
+          if (gemt?.svar) {
+            setSvar(gemt.svar);
+            setTrin(gemt.trin);
+          }
+        } catch {}
       }
-    } catch {}
+    }
     return () => clearTimeout(videreTimer.current);
+    // Kun ved første visning.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -99,6 +127,7 @@ export function Kommunetest({
   const forrige = () => setTrin(index === 0 ? "intro" : index - 1);
   const start = () => {
     setSvar({});
+    setDelt(false);
     setTrin(0);
   };
 
@@ -113,8 +142,12 @@ export function Kommunetest({
         kategorier={kategorier}
         scorer={scorer}
         kommuner={kommuner}
+        delt={delt}
         overskriftRef={overskriftRef}
-        onRet={() => setTrin(synlige.length - 1)}
+        onRet={() => {
+          setDelt(false);
+          setTrin(synlige.length - 1);
+        }}
         onIgen={start}
       />
     );
@@ -395,6 +428,7 @@ function Resultat({
   kategorier,
   scorer,
   kommuner,
+  delt,
   overskriftRef,
   onRet,
   onIgen,
@@ -403,6 +437,7 @@ function Resultat({
   kategorier: KategoriMeta[];
   scorer: KommuneScore[];
   kommuner: TestKommuneData[];
+  delt: boolean;
   overskriftRef: React.RefObject<HTMLHeadingElement | null>;
   onRet: () => void;
   onIgen: () => void;
@@ -445,12 +480,25 @@ function Resultat({
         tabIndex={-1}
         className="mt-2 text-3xl font-semibold tracking-tight outline-none sm:text-5xl"
       >
-        Din top {Math.min(ANTAL_RESULTATER, top.length)}
+        {delt ? "En delt" : "Din"} top {Math.min(ANTAL_RESULTATER, top.length)}
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-muted">
         De kommuner i {omraadeTekst}
-        {prioritet.udenOeer ? " (uden øer uden bro)" : ""}, der passer bedst til dine svar.
+        {prioritet.udenOeer ? " (uden øer uden bro)" : ""}, der passer bedst til{" "}
+        {delt ? "svarene" : "dine svar"}.
       </p>
+
+      {delt && (
+        <div className="mt-6 flex max-w-2xl flex-wrap items-center justify-between gap-4 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-4">
+          <p className="text-sm text-foreground">
+            Nogen har delt deres resultat med dig. Vil du se, hvilke kommuner der passer til dig?
+          </p>
+          <Button variant="primary" size="sm" onPress={onIgen}>
+            Tag testen selv
+            <IconArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {top.length === 0 ? (
         <p className="mt-10 text-muted">Ingen kommuner passer til dit område. Prøv at vælge flere.</p>
@@ -461,7 +509,7 @@ function Resultat({
             if (!k) return null;
             return (
               <li key={m.kode}>
-                <ResultatKort kommune={k} plads={i + 1} score={m.score} styrker={m.styrker} />
+                <ResultatKort kommune={k} plads={i + 1} score={m.score} styrker={m.styrker} delt={delt} />
               </li>
             );
           })}
@@ -478,6 +526,12 @@ function Resultat({
             <IconArrowsLeftRight className="h-4 w-4" />
             Sammenlign top {Math.min(4, top.length)}
           </NextLink>
+        )}
+        {top.length > 0 && (
+          <DelResultat
+            svar={svar}
+            navne={top.flatMap((m) => kommunePrKode.get(m.kode)?.navn ?? [])}
+          />
         )}
         <Button variant="ghost" onPress={onRet}>
           <IconArrowLeft className="h-4 w-4" />
@@ -519,16 +573,66 @@ function Resultat({
   );
 }
 
+const ingenAbonnement = () => () => {};
+
+// Deler resultatet som et link med svarene (svarTilParametre): telefonens del-menu, hvor den
+// findes, ellers kopieres linket. Den, der åbner linket, ser samme top 6.
+function DelResultat({ svar, navne }: { svar: Svar; navne: string[] }) {
+  const kanDele = useSyncExternalStore(
+    ingenAbonnement,
+    () => typeof navigator.share === "function",
+    () => false,
+  );
+  const [kopieret, setKopieret] = useState(false);
+  const nulstilTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(nulstilTimer.current), []);
+
+  const del = async () => {
+    const url = `${window.location.origin}/kommunetest?${svarTilParametre(svar)}`;
+    if (kanDele) {
+      try {
+        await navigator.share({
+          title: "Min top 6 i Kommunetesten",
+          text: `Min top ${navne.length} i Kommunetesten: ${navne.join(", ")}`,
+          url,
+        });
+      } catch {
+        // Brugeren lukkede del-menuen.
+      }
+      return;
+    }
+    if (!(await kopierTekst(url))) return;
+    setKopieret(true);
+    clearTimeout(nulstilTimer.current);
+    nulstilTimer.current = setTimeout(() => setKopieret(false), 2000);
+  };
+
+  return (
+    <Button variant="outline" onPress={del}>
+      {kopieret ? (
+        <IconCheck className="h-4 w-4 text-success" />
+      ) : kanDele ? (
+        <IconShare className="h-4 w-4" />
+      ) : (
+        <IconLink className="h-4 w-4" />
+      )}
+      {kopieret ? "Link kopieret" : "Del dit resultat"}
+    </Button>
+  );
+}
+
 function ResultatKort({
   kommune,
   plads,
   score,
   styrker,
+  delt,
 }: {
   kommune: TestKommuneData;
   plads: number;
   score: number;
   styrker: string[];
+  delt: boolean;
 }) {
   return (
     <NextLink
@@ -567,7 +671,7 @@ function ResultatKort({
         </div>
         {styrker.length > 0 && (
           <div className="mt-4 border-t border-border/70 pt-3">
-            <p className="text-xs text-muted">Passer til dig med</p>
+            <p className="text-xs text-muted">{delt ? "Passer til svarene med" : "Passer til dig med"}</p>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {styrker.map((s) => (
                 <li

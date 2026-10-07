@@ -1,7 +1,15 @@
 // Tests af kommunetesten: fra svar til vægte og fra vægte til top 6. Kør med: pnpm test
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { byggPrioritet, findMatch, HELE_LANDET, type TestPrioritet } from "@/lib/kommunetest";
+import {
+  byggPrioritet,
+  findMatch,
+  HELE_LANDET,
+  svarFraParametre,
+  svarTilParametre,
+  type Svar,
+  type TestPrioritet,
+} from "@/lib/kommunetest";
 import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 
 const SLUGS = [
@@ -146,5 +154,38 @@ describe("findMatch", () => {
       KOMMUNER,
     );
     assert.deepEqual(m.styrker, ["Natur"]);
+  });
+});
+
+describe("delt resultat", () => {
+  const svar: Svar = {
+    omraade: ["midtjylland", "fyn"],
+    oe: "nej",
+    sted: "mindre-by",
+    bolig: "hus",
+    boligpriser: 75,
+    natur: 100,
+    naturtype: "pr-indbygger",
+    vigtigst: "natur",
+  };
+
+  test("svar -> link -> svar giver de samme svar og den samme prioritet", () => {
+    const params = svarTilParametre(svar);
+    assert.equal(params.get("omraade"), "midtjylland_fyn");
+    const igen = svarFraParametre(new URLSearchParams(params.toString()), KATEGORIER);
+    assert.deepEqual(igen, svar);
+    assert.deepEqual(byggPrioritet(igen!, KATEGORIER), byggPrioritet(svar, KATEGORIER));
+  });
+
+  test("ukendte spørgsmål og muligheder springes over, og vigtighed rundes til et trin", () => {
+    const igen = svarFraParametre(
+      new URLSearchParams("omraade=midtjylland_maanen&sted=rumstation&boligpriser=63&ukendt=1"),
+      KATEGORIER,
+    );
+    assert.deepEqual(igen, { omraade: ["midtjylland"], boligpriser: 75 });
+  });
+
+  test("uden område er det ikke et resultat", () => {
+    assert.equal(svarFraParametre(new URLSearchParams("sted=storby&kommune=esbjerg"), KATEGORIER), null);
   });
 });

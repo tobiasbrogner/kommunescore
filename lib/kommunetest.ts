@@ -335,6 +335,52 @@ export function synligeSpoergsmaal(svar: Svar) {
   return SPOERGSMAAL.filter((s) => !s.vis || s.vis(svar));
 }
 
+// Et delt resultat (Del-knappen): hvert svar er en parameter med spørgsmålets id, fx
+// ?omraade=midtjylland_fyn&sted=provinsby&boligpriser=75. Flere valg skilles med "_",
+// som ingen af mulighedernes id'er indeholder. Resultatet regnes ud fra svarene, så linket
+// giver samme top 6, så længe tallene er de samme.
+const SVAR_LISTE = "_";
+
+export function svarTilParametre(svar: Svar) {
+  const params = new URLSearchParams();
+  for (const s of SPOERGSMAAL) {
+    const v = svar[s.id];
+    if (v === undefined) continue;
+    params.set(s.id, Array.isArray(v) ? v.join(SVAR_LISTE) : String(v));
+  }
+  return params;
+}
+
+/** Svarene fra et delt link, eller null, når linket ikke er et resultat (intet område).
+ * Ukendte spørgsmål og muligheder springes over, fx fra et link til en ældre udgave. */
+export function svarFraParametre(params: URLSearchParams, kategorier: KategoriMeta[]): Svar | null {
+  const svar: Svar = {};
+  // I spørgsmålenes rækkefølge, da mulighederne til "vigtigst" afhænger af de tidligere svar.
+  for (const s of SPOERGSMAAL) {
+    const raa = params.get(s.id);
+    if (raa === null || raa === "") continue;
+    if (s.type === "vigtighed") {
+      const tal = Number(raa);
+      if (Number.isFinite(tal)) svar[s.id] = Math.min(100, Math.max(0, Math.round(tal / 25) * 25));
+      continue;
+    }
+    const muligheder = typeof s.muligheder === "function" ? s.muligheder(svar, kategorier) : s.muligheder;
+    const kendt = new Set(muligheder.map((m) => m.id));
+    if (s.flere) {
+      const ider = [...new Set(raa.split(SVAR_LISTE))].filter((id) => kendt.has(id));
+      if (ider.length > 0) svar[s.id] = ider;
+    } else if (kendt.has(raa)) {
+      svar[s.id] = raa;
+    }
+  }
+  return svar.omraade ? svar : null;
+}
+
+/** Fjerner et delt resultats parametre fra en adresse (resten bliver stående). */
+export function fjernSvarParametre(params: URLSearchParams) {
+  for (const s of SPOERGSMAAL) params.delete(s.id);
+}
+
 export type TestPrioritet = GemtPrioritet & {
   /** Kommuner, der kan komme med (null = alle). */
   omraader: string[] | null;
