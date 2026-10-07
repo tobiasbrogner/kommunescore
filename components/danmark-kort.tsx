@@ -2894,9 +2894,10 @@ export function DanmarkKort({
       )}
 
       {/* To kolonner, der fyldes række for række, så den sidste kategori står nederst: i
-          panelet altid, i bjælken kun når der er plads til dem; ellers én kolonne. */}
+          panelet altid, i bjælken kun når der er plads til dem; ellers én kolonne. Under
+          30rem bliver navne som "Boligpriser" og knapper som "Parcel/Rækkehus" skåret af. */}
       <div
-        className={`grid gap-3 ${iBjaelke ? "@[28rem]:grid-cols-2" : "sm:grid-cols-2"}`}
+        className={`grid gap-3 ${iBjaelke ? "@[30rem]:grid-cols-2" : "sm:grid-cols-2"}`}
       >
       {kategorier.map((kat) => {
         const aktiv = aktiveKategorier[kat.id] ?? true;
@@ -3037,14 +3038,15 @@ export function DanmarkKort({
   };
 
   // Prioritet som bjælke til højre på store skærme. Ved kortet går den fra top til bund
-  // og er lige så bred som kommunelisten til venstre (20 %); i Oversigt og Regneark er den
-  // en boks ved siden af listen, der fylder 30 %.
+  // og fylder 20 %, men fra 1400 px mindst 520 px, så kategorierne kan stå i to kolonner
+  // (se @[30rem] i prioritetIndhold); i Oversigt og Regneark er den en boks ved siden af
+  // listen, der fylder 30 %.
   const prioritetBjaelke = (vedKortet: boolean) => (
     <aside
       aria-label="Prioritet"
       className={`relative z-20 flex shrink-0 flex-col bg-surface ${
         vedKortet
-          ? "w-1/5 min-w-80 border-l border-border"
+          ? "w-1/5 min-w-80 border-l border-border min-[1400px]:min-w-[32.5rem]"
           : "w-[30%] min-w-80 max-w-[600px] rounded-[1.75rem] border border-border shadow-sm"
       }`}
     >
