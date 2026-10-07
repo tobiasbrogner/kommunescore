@@ -559,9 +559,11 @@ function LaesMere({ href }: { href: string }) {
   );
 }
 
-// På store skærme (Tailwinds lg) er Prioritet en bjælke til højre i stedet for et panel
-// under knappen. Om bjælken er åben i Kort, huskes i localStorage.
-const STOR_SKAERM = "(min-width: 64rem)";
+// På store skærme (fra 1280 px, Tailwinds xl) er Prioritet en bjælke til højre i stedet
+// for et panel under knappen. Først fra xl, for med både kommunelisten og bjælken åbne
+// ville kortet ellers kun være ca. 385 px bredt ved 1024 px. Om bjælken er åben i Kort,
+// huskes i localStorage.
+const STOR_SKAERM = "(min-width: 80rem)";
 const PRIORITET_BJAELKE_LAGER = "kommuna-prioritet-aaben";
 
 function useErStorSkaerm() {

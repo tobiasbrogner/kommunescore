@@ -73,7 +73,7 @@ function NavMenu({ titel, punkter }: { titel: string; punkter: MenuPunkt[] }) {
       }}
     >
       <Dropdown.Trigger
-        className={`${link.base()} inline-flex cursor-pointer items-center gap-1 data-[pressed=true]:no-underline`}
+        className={`${link.base()} inline-flex cursor-pointer items-center gap-1 whitespace-nowrap data-[pressed=true]:no-underline`}
         onPointerEnter={vedEnter}
         onPointerLeave={vedLeave}
         onPointerDown={(e) => {
@@ -122,7 +122,8 @@ export function SiteHeader() {
         </NextLink>
 
         <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-8 md:flex">
+          {/* Tættere på tablet (768 px), så "Om Kommuna" ikke brydes over to linjer. */}
+          <div className="hidden items-center gap-4 whitespace-nowrap md:flex lg:gap-8">
             {MENUER.map(({ titel, punkter }) => (
               <NavMenu key={titel} titel={titel} punkter={punkter} />
             ))}
