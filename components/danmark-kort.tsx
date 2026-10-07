@@ -213,6 +213,9 @@ function medAfstand(scorer: KommuneScore[], adresse: Adresse): KommuneScore[] {
 // vises kommunens bedste under Styrker og dens svageste under Fokusområder, mens boksen
 // for den valgte kommune på kortet viser dem alle, så kommunerne kan sammenlignes. Kategorier,
 // der ikke står her, viser deres første nøgletal med enheden fra databasen.
+// Teksterne holdes under ca. 125 px (text-xs), så de står på én linje i kommunekortenes
+// smalle kolonner ved 1920 px; "pr. 1.000" betyder pr. 1.000 indbyggere, og den fulde
+// forklaring står på kommunens rapportside.
 // noegletal er nøgletallets navn i databasen; v er værdien, allerede formateret.
 type KortNoegletal = { noegletal: string; tekst: (v: string) => string };
 const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
@@ -224,8 +227,7 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   // Ikke ledigheden: en lav ledighed ved siden af "Under snit" (fordi der
   // er få job) ser ud som en modsigelse.
   jobmuligheder: [
-    { noegletal: "Job inden for pendlingsafstand", tekst: (v) => `${v} job inden for rækkevidde` },
-    { noegletal: "Job pr. 1.000 indbyggere", tekst: (v) => `${v} job pr. 1.000 indb.` },
+    { noegletal: "Job inden for pendlingsafstand", tekst: (v) => `${v} job tæt på` },
   ],
   spisesteder: [
     { noegletal: "Spisesteder pr. 1.000 indbyggere", tekst: (v) => `${v} pr. 1.000 indb.` },
@@ -242,20 +244,20 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
   tryghed: [
     {
       noegletal: "Indbrud i beboelser pr. 1.000 indbyggere",
-      tekst: (v) => `${v} indbrud pr. 1.000 indb.`,
+      tekst: (v) => `${v} indbrud pr. 1.000`,
     },
     {
       noegletal: "Vold og røveri pr. 1.000 indbyggere",
-      tekst: (v) => `${v} vold/røveri pr. 1.000 indb.`,
+      tekst: (v) => `${v} vold pr. 1.000`,
     },
     {
       noegletal: "Anmeldte forbrydelser pr. 1.000 indbyggere",
-      tekst: (v) => `${v} anmeldelser pr. 1.000 indb.`,
+      tekst: (v) => `${v} lovbrud pr. 1.000`,
     },
   ],
   natur: [
     { noegletal: "Andel natur og grønne områder", tekst: (v) => `${v} % natur` },
-    { noegletal: "Natur pr. indbygger", tekst: (v) => `${v} m² natur pr. indb.` },
+    { noegletal: "Natur pr. indbygger", tekst: (v) => `${v} m² natur/indb.` },
   ],
   pendling: [
     { noegletal: "Pendlingsafstand", tekst: (v) => `${v} km til arbejde` },
@@ -266,12 +268,12 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
     { noegletal: "Afstand til nærmeste læge", tekst: (v) => `${v} km til læge` },
   ],
   idraet: [
-    { noegletal: "Medlemskaber af idrætsforeninger", tekst: (v) => `${v} % i idrætsforening` },
-    { noegletal: "Idrætsanlæg pr. 10.000 indbyggere", tekst: (v) => `${v} anlæg pr. 10.000 indb.` },
+    { noegletal: "Medlemskaber af idrætsforeninger", tekst: (v) => `${v} % i forening` },
+    { noegletal: "Idrætsanlæg pr. 10.000 indbyggere", tekst: (v) => `${v} anlæg pr. 10.000` },
   ],
   aeldre: [
-    { noegletal: "Ventetid på plejebolig", tekst: (v) => `${v} dages ventetid på plejebolig` },
-    { noegletal: "Hjemmehjælp pr. modtager", tekst: (v) => `${v} timers hjemmehjælp/uge` },
+    { noegletal: "Ventetid på plejebolig", tekst: (v) => `${v} dages ventetid` },
+    { noegletal: "Hjemmehjælp pr. modtager", tekst: (v) => `${v} timers hjælp/uge` },
   ],
 };
 
