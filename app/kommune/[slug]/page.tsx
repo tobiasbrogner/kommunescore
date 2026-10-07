@@ -499,7 +499,7 @@ function VidereFra({ navn, slug }: { navn: string; slug: string }) {
 }
 
 // Kort beskrivelse (redigeres i admin-panelet) og fakta, der beregnes ud fra data.
-function OmKommunen({ rapport, className = "" }: { rapport: KommuneRapport; className?: string }) {
+function OmKommunen({ rapport }: { rapport: KommuneRapport }) {
   const { om } = rapport;
   const fakta = [
     { etiket: "Region", vaerdi: rapport.regionNavn },
@@ -519,7 +519,7 @@ function OmKommunen({ rapport, className = "" }: { rapport: KommuneRapport; clas
   ].filter((f): f is { etiket: string; vaerdi: string } => f.vaerdi != null);
 
   return (
-    <section className={`mt-10 ${className}`}>
+    <section className="mt-10">
       <h2 className="text-xl font-semibold text-foreground">
         Om {officieltKommunenavn(rapport.navn)}
       </h2>
@@ -655,42 +655,41 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
         </div>
       </header>
 
-      {/* Fra xl to kolonner: rapporten til venstre og Om kommunen i en sidekolonne ved siden af
-          overblikket. Den følger ikke med, når man ruller, da den med beskrivelse og kort er
-          højere end mange bærbares skærm. Rækkefølgen i koden er den samme som på mobil og i
-          PDF'en; kun placeringen i gitteret flytter Om kommunen ud til siden. */}
+      {/* Fra xl to kolonner: overblikket og nøgletallene til venstre, og en sidekolonne med
+          styrker og fokusområder øverst og Om kommunen under. Sidekolonnen følger ikke med, når
+          man ruller, da den er højere end mange bærbares skærm. Rækkefølgen i koden er den samme
+          som på mobil og i PDF'en; kun gitteret og order flytter tingene på brede skærme. */}
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start xl:gap-x-10">
         <KategoriOverblik kategorier={rapport.kategorier} className="xl:col-start-1 xl:row-start-1" />
 
-        <OmKommunen
-          rapport={rapport}
-          className="xl:col-start-2 xl:row-span-3 xl:row-start-1"
-        />
+        <div className="xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:flex xl:flex-col">
+          <OmKommunen rapport={rapport} />
 
-        {/* Styrker og fokusområder */}
-        <section className="mt-10 xl:col-start-1 xl:row-start-2">
-          <h2 className="text-xl font-semibold text-foreground">Styrker og fokusområder</h2>
-          <p className="mt-1 text-sm text-muted">
-            Hvor kommunen klarer sig bedst og mindst godt, sammenlignet med resten af landet.
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <ProfilListe
-              titel="Styrker"
-              Ikon={IconTrendingUp}
-              farve="text-success"
-              punkter={rapport.profil.styrker}
-            />
-            <ProfilListe
-              titel="Fokusområder"
-              Ikon={IconTarget}
-              farve="text-accent"
-              punkter={rapport.profil.fokus}
-            />
-          </div>
-        </section>
+          {/* Styrker og fokusområder: øverst i sidekolonnen, under hinanden. */}
+          <section className="mt-10 xl:order-first">
+            <h2 className="text-xl font-semibold text-foreground">Styrker og fokusområder</h2>
+            <p className="mt-1 text-sm text-muted">
+              Hvor kommunen klarer sig bedst og mindst godt, sammenlignet med resten af landet.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              <ProfilListe
+                titel="Styrker"
+                Ikon={IconTrendingUp}
+                farve="text-success"
+                punkter={rapport.profil.styrker}
+              />
+              <ProfilListe
+                titel="Fokusområder"
+                Ikon={IconTarget}
+                farve="text-accent"
+                punkter={rapport.profil.fokus}
+              />
+            </div>
+          </section>
+        </div>
 
         {/* Kategorier og nøgletal */}
-        <section className="mt-10 xl:col-start-1 xl:row-start-3">
+        <section className="mt-10 xl:col-start-1 xl:row-start-2">
           <h2 className="text-xl font-semibold text-foreground">Kategorier og nøgletal</h2>
           <p className="mt-1 text-sm text-muted">
             Scoren i hver kategori går fra 50 til 100 og sammenlignes med landsgennemsnittet.
