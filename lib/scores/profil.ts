@@ -4,7 +4,8 @@ import type { KategoriMeta, KommuneScore } from "@/lib/scores/compute";
 // Hver kommune sammenlignes med alle landets kommuner, kategori for kategori. Det
 // virker for et vilkårligt antal kategorier, så nye kategorier kommer automatisk med.
 // Teksterne er bevidst nøgterne: styrker fremhæves, og fokusområder beskrives
-// sagligt i forhold til landsgennemsnittet, uden at tale kommunen ned.
+// sagligt i forhold til landsgennemsnittet, uden at tale kommunen ned. De er korte, så de
+// kan stå på én linje i kommunekortenes smalle kolonner.
 
 export type ProfilPunkt = { kategori: KategoriMeta; tekst: string };
 export type KommuneProfil = { styrker: ProfilPunkt[]; fokus: ProfilPunkt[] };
@@ -32,15 +33,13 @@ function styrkeTekst(rang: number, antal: number, overGennemsnit: boolean) {
   if (rang <= 5) return "Top 5 i landet";
   if (rang <= 10) return "Top 10 i landet";
   // Hårdt mellemrum, så "%" aldrig står alene på en ny linje.
-  if (rang / antal <= 0.25) return "Blandt de bedste 25 %";
-  if (overGennemsnit) return "Over landsgennemsnittet";
-  return "Kommunens stærkeste område";
+  if (rang / antal <= 0.25) return "Top 25 %";
+  if (overGennemsnit) return "Over snit";
+  return "Stærkeste område";
 }
 
 function fokusTekst(overGennemsnit: boolean) {
-  return overGennemsnit
-    ? "Over snittet, men mindre stærk end resten"
-    : "Svagere end landsgennemsnittet";
+  return overGennemsnit ? "Svagere, men over snit" : "Under snit";
 }
 
 export function byggKommuneProfil(

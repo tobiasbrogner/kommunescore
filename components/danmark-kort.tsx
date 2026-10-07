@@ -221,7 +221,7 @@ const KORT_NOEGLETAL: Record<string, KortNoegletal[]> = {
     { noegletal: "Indbyggere pr. km²", tekst: (v) => `${v} pr. km²` },
   ],
   boern: [{ noegletal: "Gennemsnitspris årligt", tekst: (v) => `${v} kr./år i snit` }],
-  // Ikke ledigheden: en lav ledighed ved siden af "Svagere end landsgennemsnittet" (fordi der
+  // Ikke ledigheden: en lav ledighed ved siden af "Under snit" (fordi der
   // er få job) ser ud som en modsigelse.
   jobmuligheder: [
     { noegletal: "Job inden for pendlingsafstand", tekst: (v) => `${v} job inden for rækkevidde` },
