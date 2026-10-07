@@ -126,6 +126,8 @@ export function Kommunetest({
   const naeste = () => setTrin(index + 1 >= synlige.length ? "resultat" : index + 1);
   const forrige = () => setTrin(index === 0 ? "intro" : index - 1);
   const start = () => {
+    // Et delt resultat har sin top 6 i fanens titel (se generateMetadata); den passer ikke længere.
+    if (delt) document.title = "Kommunetesten | Kommuna";
     setSvar({});
     setDelt(false);
     setTrin(0);

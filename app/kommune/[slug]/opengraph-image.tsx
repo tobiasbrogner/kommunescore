@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { billedKredit } from "@/lib/kommuner/billeder";
+import { dataUrl, DELEBILLEDE_STOERRELSE, geist, OG_FARVER, somJpeg } from "@/lib/og/billede";
 import { officieltKommunenavn } from "@/lib/kommuner/navn";
 import { hentKommuneRapport } from "@/lib/scores/kommune-rapport";
 
@@ -12,32 +12,11 @@ import { hentKommuneRapport } from "@/lib/scores/kommune-rapport";
 // farveflade i stedet.
 
 export const alt = "Kommunerapport fra Kommuna";
-export const size = { width: 1200, height: 630 };
+export const size = DELEBILLEDE_STOERRELSE;
 export const contentType = "image/jpeg";
 
-const BAGGRUND = "#f9f8f4";
-const TEKST = "#1c1b22";
-const DAEMPET = "#6b6878";
-const ACCENT = "#5b21e6";
+const { baggrund: BAGGRUND, tekst: TEKST, daempet: DAEMPET, accent: ACCENT } = OG_FARVER;
 const FOTO_BREDDE = 520;
-
-// Sidens skrift, Geist, i almindelig og halvfed vægt (overskrifterne på siden er halvfede).
-// ImageResponse kan ikke læse woff2, så filerne ligger som ttf i lib/og.
-async function geist() {
-  const mappe = path.join(process.cwd(), "lib/og");
-  const [normal, halvfed] = await Promise.all([
-    readFile(path.join(mappe, "Geist-Regular.ttf")),
-    readFile(path.join(mappe, "Geist-SemiBold.ttf")),
-  ]);
-  return [
-    { name: "Geist", data: normal, weight: 400 as const, style: "normal" as const },
-    { name: "Geist", data: halvfed, weight: 600 as const, style: "normal" as const },
-  ];
-}
-
-async function dataUrl(fil: string, type: string) {
-  return `data:${type};base64,${(await readFile(fil)).toString("base64")}`;
-}
 
 // Kommunefotoene er store; de skæres til fotofeltets størrelse, før de sættes ind.
 async function fotoDataUrl(fil: string) {
@@ -46,17 +25,6 @@ async function fotoDataUrl(fil: string) {
     .jpeg({ quality: 90 })
     .toBuffer();
   return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
-}
-
-// ImageResponse laver altid PNG, som med et foto fylder ca. 800 KB. Som JPEG fylder billedet
-// en brøkdel; WhatsApp viser fx ikke delebilleder over ca. 300 KB.
-async function somJpeg(billede: ImageResponse) {
-  const png = Buffer.from(await billede.arrayBuffer());
-  const jpeg = await sharp(png).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
-  const headers = new Headers(billede.headers);
-  headers.set("content-type", "image/jpeg");
-  headers.delete("content-length");
-  return new Response(new Uint8Array(jpeg), { status: billede.status, headers });
 }
 
 export default async function Billede({ params }: { params: Promise<{ slug: string }> }) {
