@@ -1370,6 +1370,66 @@ function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
   );
 }
 
+// Skyderen for en kategoris vægt under Prioritet med kategoriens andel af den samlede score
+// ved siden af (det eneste tal; selve vægten 0-100 er et internt tal). Mens man trækker,
+// opdateres kun skyderen og procenten her; vægten gives videre (onSlip) først, når man
+// slipper (eller ved hvert tastetryk), så kortet, listen og placeringerne ikke regnes om
+// mange gange i sekundet.
+function VaegtSkyder({
+  navn,
+  aktiv,
+  vaegt,
+  samletAktivVaegt,
+  onSlip,
+}: {
+  navn: string;
+  aktiv: boolean;
+  vaegt: number;
+  samletAktivVaegt: number;
+  onSlip: (vaegt: number) => void;
+}) {
+  const [kladde, setKladde] = useState<number | null>(null);
+  const vist = kladde ?? vaegt;
+  // Andelen af den samlede score med den vægt, man er ved at trække til.
+  const samlet = samletAktivVaegt - vaegt + vist;
+  const andel = aktiv && samlet > 0 ? (vist / samlet) * 100 : 0;
+  const tal = (v: number | number[]) => (Array.isArray(v) ? v[0] : v);
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="min-w-0 flex-1">
+        <Slider
+          className={`w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
+          minValue={0}
+          maxValue={100}
+          step={5}
+          isDisabled={!aktiv}
+          value={vist}
+          onChange={(v) => setKladde(tal(v))}
+          onChangeEnd={(v) => {
+            setKladde(null);
+            onSlip(tal(v));
+          }}
+          aria-label={`Vægt for ${navn}`}
+        >
+          <Slider.Track>
+            <Slider.Fill />
+            <Slider.Thumb />
+          </Slider.Track>
+        </Slider>
+      </div>
+      <span
+        className={`w-10 shrink-0 text-right text-sm font-medium tabular-nums transition-opacity duration-150 ${
+          aktiv ? "text-foreground" : "text-muted opacity-50"
+        }`}
+        title="Kategoriens andel af den samlede score"
+      >
+        {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
+        <span className="sr-only"> af den samlede score</span>
+      </span>
+    </div>
+  );
+}
+
 export function DanmarkKort({
   kategorier: databaseKategorier,
   kommuneScores: databaseScorer,
@@ -2137,18 +2197,14 @@ export function DanmarkKort({
     }
   };
 
-  // Kategoriens andel af den samlede score i procent: dens vægt delt med summen af de
-  // aktive kategoriers vægte, som i vaegtetScore. Vises ved hver kategori under Prioritet,
-  // så man kan se, hvor meget en vægt reelt betyder, når der er mange kategorier.
+  // Summen af de aktive kategoriers vægte, som i vaegtetScore. En kategoris andel af den
+  // samlede score er dens vægt delt med summen; den vises ved hver kategori under Prioritet
+  // (se VaegtSkyder), så man kan se, hvor meget en vægt reelt betyder.
   const samletAktivVaegt = kategorier.reduce(
     (sum, k) =>
       aktiveKategorier[k.id] === false ? sum : sum + (prioriteter[k.id] ?? standardVaegt(k)),
     0,
   );
-  const andelAfScore = (kat: KategoriMeta) =>
-    aktiveKategorier[kat.id] === false || samletAktivVaegt === 0
-      ? 0
-      : ((prioriteter[kat.id] ?? standardVaegt(kat)) / samletAktivVaegt) * 100;
 
   const vaelgProfil = (profil: Profil) => {
     setPrioriteter(
@@ -2896,7 +2952,6 @@ export function DanmarkKort({
       >
       {kategorier.map((kat) => {
         const aktiv = aktiveKategorier[kat.id] ?? true;
-        const andel = andelAfScore(kat);
         return (
           <div
             key={kat.id}
@@ -2936,41 +2991,13 @@ export function DanmarkKort({
               </div>
             </div>
 
-            {/* Kun ét tal: kategoriens andel af den samlede score. Selve vægten (0-100) er
-                et internt tal, som skyderen viser uden at skrive det. */}
-            <div className="flex items-center gap-2.5">
-              <div className="min-w-0 flex-1">
-                <Slider
-                  className={`w-full transition-opacity duration-150 ${aktiv ? "" : "opacity-40"}`}
-                  minValue={0}
-                  maxValue={100}
-                  step={5}
-                  isDisabled={!aktiv}
-                  value={prioriteter[kat.id] ?? standardVaegt(kat)}
-                  onChange={(v) =>
-                    setPrioriteter((p) => ({
-                      ...p,
-                      [kat.id]: Array.isArray(v) ? v[0] : v,
-                    }))
-                  }
-                  aria-label={`Vægt for ${kat.navn}`}
-                >
-                  <Slider.Track>
-                    <Slider.Fill />
-                    <Slider.Thumb />
-                  </Slider.Track>
-                </Slider>
-              </div>
-              <span
-                className={`w-10 shrink-0 text-right text-sm font-medium tabular-nums transition-opacity duration-150 ${
-                  aktiv ? "text-foreground" : "text-muted opacity-50"
-                }`}
-                title="Kategoriens andel af den samlede score"
-              >
-                {andel > 0 && andel < 1 ? "<1" : Math.round(andel)} %
-                <span className="sr-only"> af den samlede score</span>
-              </span>
-            </div>
+            <VaegtSkyder
+              navn={kat.navn}
+              aktiv={aktiv}
+              vaegt={prioriteter[kat.id] ?? standardVaegt(kat)}
+              samletAktivVaegt={samletAktivVaegt}
+              onSlip={(v) => setPrioriteter((p) => ({ ...p, [kat.id]: v }))}
+            />
 
             {noegletalValgFor(kat) && (
               <NoegletalVaelger
