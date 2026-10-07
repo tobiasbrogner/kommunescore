@@ -2788,9 +2788,11 @@ export function DanmarkKort({
   // (store skærme), hvor kategorierne står i to kolonner, når der er plads, ellers én.
   const prioritetIndhold = (iBjaelke: boolean) => {
     // Nulstilling sker med "Nulstil filtre" i værktøjslinjen.
+    // Er der ikke plads til hele overskriften på én linje (smal bjælke eller mobil), viser
+    // "Profil", "Slå alle fra" og "Del" kun deres ikon.
     const hoved = (
       <div
-        className={`flex flex-wrap items-center gap-1 gap-y-2 ${iBjaelke ? "shrink-0 border-b border-border px-4 py-3" : ""}`}
+        className={`@container/hoved flex flex-wrap items-center gap-1 gap-y-2 ${iBjaelke ? "shrink-0 border-b border-border px-4 py-3" : ""}`}
       >
         <p className="text-sm font-medium text-foreground">Vægt pr. kategori</p>
         <InfoKnap label="Hvad er Prioritet?" {...panelInfo.knapProps("prioritet")} />
@@ -2800,6 +2802,7 @@ export function DanmarkKort({
             <Button
               variant={aktivProfil ? "primary" : "outline"}
               size="sm"
+              aria-label={aktivProfil ? `Profil: ${aktivProfil.navn}` : "Profil"}
               className="ml-auto h-7 gap-1 rounded-md px-2 text-xs"
             >
               {aktivProfil ? (
@@ -2807,7 +2810,7 @@ export function DanmarkKort({
               ) : (
                 <IconUserCircle className="h-3.5 w-3.5" />
               )}
-              {aktivProfil?.navn ?? "Profil"}
+              <span className="hidden @[25rem]/hoved:inline">{aktivProfil?.navn ?? "Profil"}</span>
             </Button>
             <Dropdown.Popover className="w-84 max-w-[calc(100vw-2rem)]">
               <Dropdown.Menu
@@ -2859,17 +2862,18 @@ export function DanmarkKort({
               const alleTil = antalAktiveKategorier < kategorier.length;
               setAktiveKategorier(Object.fromEntries(kategorier.map((k) => [k.id, alleTil])));
             }}
+            aria-label={antalAktiveKategorier < kategorier.length ? "Slå alle til" : "Slå alle fra"}
             className="h-7 gap-1 rounded-md px-2 text-xs"
           >
             {antalAktiveKategorier < kategorier.length ? (
               <>
                 <IconToggleRight className="h-3.5 w-3.5" />
-                Slå alle til
+                <span className="hidden @[25rem]/hoved:inline">Slå alle til</span>
               </>
             ) : (
               <>
                 <IconToggleLeft className="h-3.5 w-3.5" />
-                Slå alle fra
+                <span className="hidden @[25rem]/hoved:inline">Slå alle fra</span>
               </>
             )}
           </Button>
@@ -2885,12 +2889,12 @@ export function DanmarkKort({
           {prioritetKopieret ? (
             <>
               <IconCheck className="h-3.5 w-3.5" />
-              Kopieret
+              <span className="hidden @[25rem]/hoved:inline">Kopieret</span>
             </>
           ) : (
             <>
               <IconShare className="h-3.5 w-3.5" />
-              Del
+              <span className="hidden @[25rem]/hoved:inline">Del</span>
             </>
           )}
         </Button>
@@ -3416,12 +3420,14 @@ export function DanmarkKort({
         }
       >
       {/* Sidepanel til venstre for kortet (kun på store skærme): samme kommunekort som i
-          Oversigt, sorteret efter score og filtreret af søgning og Område. */}
+          Oversigt, sorteret efter score og filtreret af søgning og Område. Mindst 320 px, og fra
+          1280 px mindst 384 px, så Styrker og Fokusområder kan stå side om side (@xs i kortet),
+          også når Windows giver rullebjælken 15 px. */}
       <aside
         aria-label="Kommuner"
-        className={`hidden w-1/5 shrink-0 overflow-y-auto border-r border-border bg-surface ${
+        className={`hidden w-1/5 min-w-80 shrink-0 overflow-y-auto border-r border-border bg-surface ${
           sidepanelSkjult ? "" : "lg:block"
-        }`}
+        } min-[1280px]:min-w-[24rem]`}
       >
         <div className="@container sticky top-0 z-20 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
           {listeVaerktoej}
