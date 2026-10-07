@@ -52,6 +52,8 @@ const ANTAL_RESULTATER = 6;
 const LAGER = "kommuna-kommunetest";
 // Efter et valg går testen videre af sig selv, men så langsomt, at man ser markeringen.
 const VIDERE_EFTER_MS = 220;
+// Hvor langt sliderens håndtag (HeroUI) står fra sporets kant ved 0 og 100.
+const SLIDER_KANT = 12;
 
 type Trin = "intro" | number | "resultat";
 
@@ -342,11 +344,12 @@ function Valg({
       </div>
 
       {spoergsmaal.flere && (
-        // På mobil står knappen fast i bunden, så den ikke gemmer sig under mulighederne.
-        <div className="mt-8 flex justify-end max-sm:sticky max-sm:bottom-4">
+        // Knappen står fast i bunden af skærmen, så den ikke gemmer sig under mulighederne
+        // (på mobil og på bærbare med lav skærm).
+        <div className="sticky bottom-4 mt-8 flex justify-end">
           <Button
             variant="primary"
-            className="max-sm:shadow-lg"
+            className="shadow-lg"
             isDisabled={!Array.isArray(valgt) || valgt.length === 0}
             onPress={onNaeste}
           >
@@ -399,20 +402,40 @@ function Vigtighed({
           <Slider.Thumb />
         </Slider.Track>
       </Slider>
-      {/* Trinene under slideren kan også trykkes på. På mobil kun yderpunkterne. */}
-      <div className="mt-3 grid grid-cols-5 text-xs text-muted">
-        {VIGTIGHED_TRIN.map((navn, i) => (
-          <button
-            key={navn}
-            type="button"
-            onClick={() => onAendr(i * 25)}
-            className={`cursor-pointer ${i === 0 ? "text-left" : i === 4 ? "text-right" : "max-sm:invisible text-center"} ${
-              i === trin ? "font-medium text-foreground" : "hover:text-foreground"
-            }`}
-          >
-            {navn}
-          </button>
-        ))}
+      {/* Trinene under slideren kan også trykkes på og står ud for dens stop: håndtaget går
+          SLIDER_KANT ind fra hver kant, så stoppene ligger ved kant + (bredde - 2 · kant) · andel.
+          På pc står navnene der (yderpunkterne ud til kanten); på mobil er der kun plads til
+          prikker, og yderpunkternes navne står på linjen under. Den store tekst over slideren
+          viser det valgte trin. */}
+      <div className="relative mt-2 h-8 text-xs text-muted">
+        {VIGTIGHED_TRIN.map((navn, i) => {
+          const valgt = i === trin;
+          return (
+            <button
+              key={navn}
+              type="button"
+              aria-label={navn}
+              aria-pressed={valgt}
+              onClick={() => onAendr(i * 25)}
+              style={{ left: `calc(${SLIDER_KANT}px + (100% - ${2 * SLIDER_KANT}px) * ${i / 4})` }}
+              className={`absolute top-0 flex h-8 -translate-x-1/2 cursor-pointer items-center justify-center whitespace-nowrap max-sm:w-8 ${
+                i === 0 ? "sm:left-0! sm:translate-x-0" : i === 4 ? "sm:right-0 sm:left-auto! sm:translate-x-0" : ""
+              } ${valgt ? "font-medium text-foreground" : "hover:text-foreground"}`}
+            >
+              <span
+                aria-hidden
+                className={`h-2.5 w-2.5 rounded-full sm:hidden ${valgt ? "bg-accent" : "bg-border"}`}
+              />
+              <span aria-hidden className="max-sm:hidden">
+                {navn}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div aria-hidden className="flex justify-between text-xs text-muted sm:hidden">
+        <span>{VIGTIGHED_TRIN[0]}</span>
+        <span>{VIGTIGHED_TRIN[4]}</span>
       </div>
 
       <div className="mt-10 flex justify-end">
