@@ -98,6 +98,15 @@ import {
 } from "@/lib/kommuner/omraader";
 import { opdelIKommuneDele } from "@/lib/kommuner/kommune-dele";
 import { FORHAANDSVISNING } from "@/lib/kommuner/kort-forhaandsvisning";
+import {
+  byggFarveSkala,
+  FARVESKALA_MIN_SPAEND,
+  KORT_PALET_STANDARD,
+  KORT_PALETTER,
+  kortScoreTaerskler,
+  scoreTilProcent,
+  type KortPaletId,
+} from "@/lib/kommuner/kort-farver";
 import { DANMARK_BOUNDS, KORT_KANT } from "@/lib/kommuner/kort-udsnit";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
@@ -366,100 +375,8 @@ function byggHoverOmridsSynlighed(): any {
   return ["step", ["zoom"], synligVed(0), ...zoomTrin.flatMap((z) => [z, synligVed(z)])];
 }
 
-// Score-farveskalaer på kortet: alle har 12 trin. Standard går fra rød til grøn;
-// Lilla er en sammenhængende OKLCH-rampe fra lys til mørk i sidens accent-nuance (hue 295).
-// Viridis er læselig ved alle typer farveblindhed; den er vendt, så mørkere betyder højere
-// score ligesom i Lilla.
+// Farven på den valgte kommune.
 const KORT_FARVE_VALGT = "#4b5563";
-type KortPaletId = "groen-gul-orange" | "lilla" | "viridis";
-const KORT_PALETTER: Record<KortPaletId, { navn: string; farver: readonly string[] }> = {
-  "groen-gul-orange": {
-    navn: "Standard",
-    farver: [
-      "#a6011c", // 1 – laveste (rød)
-      "#b5472d",
-      "#c46735",
-      "#d4873e",
-      "#e7ab48",
-      "#ffd453",
-      "#fde763", // 7 – gul
-      "#d7d95f",
-      "#b0cc5d",
-      "#86c05a",
-      "#54b558",
-      "#00ab57", // 12 – højeste (grøn)
-    ],
-  },
-  viridis: {
-    navn: "Viridis",
-    farver: [
-      "#fde725", // 1 – laveste (gul)
-      "#c2df23",
-      "#86d549",
-      "#52c569",
-      "#2ab07f",
-      "#1e9b8a",
-      "#25858e",
-      "#2d708e",
-      "#38588c",
-      "#433e85",
-      "#482173",
-      "#440154", // 12 – højeste (mørk lilla)
-    ],
-  },
-  lilla: {
-    navn: "Lilla",
-    farver: [
-      "#dcd7f0", // 1 – laveste
-      "#ccc3ef",
-      "#bdafec",
-      "#af9ce8",
-      "#a188e3",
-      "#9375dc",
-      "#8562d3",
-      "#774ec8",
-      "#6a3bbb",
-      "#5d28ac",
-      "#4f1699",
-      "#410185", // 12 – højeste
-    ],
-  },
-};
-const KORT_PALET_STANDARD: KortPaletId = "groen-gul-orange";
-// Skæringspunkter, der deler 50-100 i lige så mange lige store score-intervaller,
-// som paletten har farver.
-function kortScoreTaerskler(antalFarver: number) {
-  return Array.from(
-    { length: antalFarver - 1 },
-    (_, i) => 50 + ((i + 1) * 50) / antalFarver,
-  );
-}
-
-// Den samlede score er et vægtet gennemsnit, så kommunerne ligger tæt (typisk 10-20 point).
-// Farveskalaen strækkes derfor over de viste kommuners faktiske spænd i stedet for 50-100.
-// Er spændet under FARVESKALA_MIN_SPAEND, udvides det om midten, så små forskelle (fx når
-// filtret kun viser få kommuner) ikke ser store ud.
-const FARVESKALA_MIN_SPAEND = 10;
-type FarveSkala = { fra: number; til: number };
-function byggFarveSkala(scorer: number[]): FarveSkala {
-  if (scorer.length === 0) return { fra: 50, til: 100 };
-  let fra = Math.min(...scorer);
-  let til = Math.max(...scorer);
-  const mangler = FARVESKALA_MIN_SPAEND - (til - fra);
-  if (mangler > 0) {
-    fra -= mangler / 2;
-    til += mangler / 2;
-    // Hold skalaen inden for 50-100 ved at skubbe den ind fra kanten.
-    if (fra < 50) [fra, til] = [50, til + (50 - fra)];
-    if (til > 100) [fra, til] = [fra - (til - 100), 100];
-  }
-  return { fra, til };
-}
-
-// En scores placering (0-100 %) på farveskalaen.
-function scoreTilProcent(score: number, skala: FarveSkala) {
-  return Math.min(100, Math.max(0, ((score - skala.fra) / (skala.til - skala.fra)) * 100));
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
 function byggKommuneFyldFarve(farver: readonly string[]): any {
@@ -1399,12 +1316,23 @@ function VisFlere({
   );
 }
 
-// Vises, mens MapLibre starter: et let billede af kortet (public/data/kort-forhaandsvisning.svg,
-// lavet af scripts/byg-kortgraenser.ts) med Danmark samme sted, som MapLibre lægger det
-// (fitBounds med KORT_KANT luft). Udsnittets kasse beregnes med container-enheder, så
-// billedet følger kortets størrelse uden JavaScript og står der fra første visning.
+// Sættes på <html>, når forhåndsvisningen skal være grå i stedet for farvet med
+// standardvægtene: har brugeren sin egen Prioritet eller adresse (gemt eller fra et delt
+// link), passer serverens farver ikke. Scriptet kører i HTML'en, før billederne vises;
+// bagefter holdes attributten ajour af kortet selv (se gemningen af Prioritet).
+const KORT_EGNE_VALG_ATTRIBUT = "data-kort-egne-valg";
+const KORT_EGNE_VALG_SCRIPT = `try{if(/[?&](${PRIORITET_PARAMETRE.join("|")})=/.test(location.search)||localStorage.getItem(${JSON.stringify(PRIORITET_LAGER)})||localStorage.getItem(${JSON.stringify(ADRESSE_LAGER)}))document.documentElement.setAttribute(${JSON.stringify(KORT_EGNE_VALG_ATTRIBUT)},"")}catch(e){}`;
+
+// Vises, mens MapLibre starter: et let billede af kortet med Danmark samme sted, som
+// MapLibre lægger det (fitBounds med KORT_KANT luft). Udsnittets kasse beregnes med
+// container-enheder, så billedet følger kortets størrelse uden JavaScript og står der fra
+// første visning. Billedet er farvet med standardvægtene af serveren
+// (app/kort/forhaandsvisning.svg), så man ser et færdigt kort, længe før MapLibre er klar.
+// Med egne valg vises i stedet det grå billede (public/data/kort-forhaandsvisning.svg); som
+// baggrund hentes det kun, når det vises.
 function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
   const { forhold, venstre, top, bredde, hoejde } = FORHAANDSVISNING;
+  const placering = { left: `${venstre}%`, top: `${top}%`, width: `${bredde}%`, height: `${hoejde}%` };
   return (
     <div
       aria-hidden={skjult}
@@ -1417,13 +1345,18 @@ function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ width: `min(100cqw, ${forhold} * 100cqh)`, aspectRatio: forhold }}
         >
+          <script dangerouslySetInnerHTML={{ __html: KORT_EGNE_VALG_SCRIPT }} />
+          <div
+            className="absolute hidden bg-size-[100%_100%] [html[data-kort-egne-valg]_&]:block"
+            style={{ ...placering, backgroundImage: "url(/data/kort-forhaandsvisning.svg)" }}
+          />
           {/* eslint-disable-next-line @next/next/no-img-element -- en SVG, der skal vises med det samme. */}
           <img
-            src="/data/kort-forhaandsvisning.svg"
+            src="/kort/forhaandsvisning.svg"
             alt=""
             fetchPriority="high"
-            className="absolute max-w-none"
-            style={{ left: `${venstre}%`, top: `${top}%`, width: `${bredde}%`, height: `${hoejde}%` }}
+            className="absolute max-w-none [html[data-kort-egne-valg]_&]:hidden"
+            style={placering}
           />
         </div>
       </div>
@@ -2184,8 +2117,10 @@ export function DanmarkKort({
       if (params.size > 0) localStorage.setItem(PRIORITET_LAGER, params.toString());
       else localStorage.removeItem(PRIORITET_LAGER);
     } catch {}
+    // Så forhåndsvisningen er rigtig, hvis man kommer tilbage til kortet uden at genindlæse.
+    document.documentElement.toggleAttribute(KORT_EGNE_VALG_ATTRIBUT, params.size > 0 || minAdresse !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- prioritetParametre bygger på de samme værdier.
-  }, [prioritetGendannet, prioriteter, aktiveKategorier, noegletalValg, kategorier]);
+  }, [prioritetGendannet, prioriteter, aktiveKategorier, noegletalValg, kategorier, minAdresse]);
 
   // Link til /kort med hele Prioritet, så en anden ser samme rangering.
   const [prioritetKopieret, setPrioritetKopieret] = useState(false);

@@ -9,7 +9,9 @@
 //
 // Samtidig gemmes navnenes placering på kortet (public/data/kommune-navne.geojson), så
 // browseren ikke skal regne dem ud, før kortet kan vises, og en grov forhåndsvisning af
-// kortet (public/data/kort-forhaandsvisning.svg), som vises, mens kortet indlæses.
+// kortet (public/data/kort-forhaandsvisning.svg), som vises, mens kortet indlæses. Hver
+// kommune er sin egen flade med farven fra CSS-variablen --k<kode> (fx --k0101), så
+// serveren kan farve billedet med standardvægtene (app/kort/forhaandsvisning.svg).
 //
 // Kør: pnpm kort:graenser
 import { readFileSync, writeFileSync } from "node:fs";
@@ -80,8 +82,8 @@ const punkt = ([lon, lat]: GeoJSON.Position) => {
   const [x, y] = mercator(lon, lat);
   return [(x - bMin[0]) * skala, (y - bMax[1]) * skala];
 };
-const sti = (geojson: GeoJSON.FeatureCollection) =>
-  geojson.features
+const sti = (geojson: GeoJSON.FeatureCollection | GeoJSON.Feature) =>
+  ("features" in geojson ? geojson.features : [geojson])
     .flatMap((f) => {
       const g = f.geometry;
       return g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
@@ -99,11 +101,19 @@ function polygonAreal(ring: number[][]) {
 }
 const hele = [punkt([5.16, 59.5]), punkt([18, 52.5])];
 const vb = { x: hele[0][0], y: hele[0][1], bredde: hele[1][0] - hele[0][0], hoejde: hele[1][1] - hele[0][1] };
+const viewBox = [vb.x, vb.y, vb.bredde, vb.hoejde].map((v) => v.toFixed(1)).join(" ");
+// Kommunerne er grå (#dcd8c9), indtil serveren lægger et <style> med deres farver ind
+// foran <g id="kort">.
+const kommuneStier = forenkl(kilde, FORHAANDSVISNING_FORENKLING)
+  .features.map((f, i) => ({ kode: String(kilde.features[i].properties?.kode), d: sti(f) }))
+  .filter(({ d }) => d.length > 0)
+  .map(({ kode, d }) => `<path style="fill:var(--k${kode},#dcd8c9)" d="${d}"/>`)
+  .join("");
 const svg =
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.bredde.toFixed(1)} ${vb.hoejde.toFixed(1)}">` +
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"><g id="kort">` +
   `<path fill="#e8e5d9" d="${sti(forenkl(nabolande, FORHAANDSVISNING_FORENKLING_NABOLANDE))}"/>` +
-  `<path fill="#dcd8c9" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" d="${sti(forenkl(kilde, FORHAANDSVISNING_FORENKLING))}"/>` +
-  `</svg>`;
+  `<g stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round">${kommuneStier}</g>` +
+  `</g></svg>`;
 writeFileSync(FORHAANDSVISNING_MAAL, svg);
 // Billedets placering i forhold til Danmarks udsnit, i procent af udsnittet.
 const pct = (v: number) => +(v * 100).toFixed(3);
