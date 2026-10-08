@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal, preload, preloadModule } from "react-dom";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import NextLink from "next/link";
 import type {
   Map as MapLibreMap,
@@ -104,8 +105,10 @@ import {
   KORT_PALET_STANDARD,
   KORT_PALETTER,
   kortScoreTaerskler,
+  KORT_TEMA_FARVER,
   scoreTilProcent,
   type KortPaletId,
+  type KortTema,
 } from "@/lib/kommuner/kort-farver";
 import { DANMARK_BOUNDS, KORT_KANT } from "@/lib/kommuner/kort-udsnit";
 import { boligsidenLink } from "@/lib/kommuner/boligsiden";
@@ -376,20 +379,18 @@ function byggHoverOmridsSynlighed(): any {
   return ["step", ["zoom"], synligVed(0), ...zoomTrin.flatMap((z) => [z, synligVed(z)])];
 }
 
-// Farven på den valgte kommune.
-const KORT_FARVE_VALGT = "#4b5563";
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapLibre style-expression typing is too deep to model here.
-function byggKommuneFyldFarve(farver: readonly string[]): any {
+function byggKommuneFyldFarve(farver: readonly string[], tema: KortTema): any {
   const taerskler = kortScoreTaerskler(farver.length);
+  const { valgt, land } = KORT_TEMA_FARVER[tema];
   return [
     "case",
     ["boolean", ["feature-state", "valgt"], false],
-    KORT_FARVE_VALGT,
+    valgt,
     ["boolean", ["feature-state", "udenforFilter"], false],
-    LAND_FARVE,
+    land,
     ["boolean", ["feature-state", "ingenData"], false],
-    LAND_FARVE,
+    land,
     [
       "step",
       ["coalesce", ["feature-state", "score"], taerskler[0]],
@@ -421,30 +422,35 @@ function laasKortTilDanmark(map: MapLibreMap) {
 // Tyskland, Sverige, Norge og Polen (Natural Earth 1:10m, klippet til kortets udsnit).
 // Rent baggrundslag: ingen hændelser er bundet til det, så landene kan ikke klikkes.
 const NABOLANDE_URL = "/data/nabolande.geojson";
-// Neutral landfarve til nabolandene og til kommuner, der er valgt fra i filtrene.
-const LAND_FARVE = "#e8e5d9";
 
-const KORT_STYLE: StyleSpecification = {
-  version: 8,
-  // Skrifttype til kommunenavnene (OpenMapTiles' fri fontserver, Open Sans).
-  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
-  sources: {
-    nabolande: { type: "geojson", data: NABOLANDE_URL },
-  },
-  layers: [
-    {
-      id: "hav",
-      type: "background",
-      paint: { "background-color": "#90c1de" },
+function byggKortStyle(tema: KortTema): StyleSpecification {
+  return {
+    version: 8,
+    // Skrifttype til kommunenavnene (OpenMapTiles' fri fontserver, Open Sans).
+    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+    sources: {
+      nabolande: { type: "geojson", data: NABOLANDE_URL },
     },
-    {
-      id: "nabolande",
-      type: "fill",
-      source: "nabolande",
-      paint: { "fill-color": LAND_FARVE },
-    },
-  ],
-};
+    layers: [
+      {
+        id: "hav",
+        type: "background",
+        paint: { "background-color": KORT_TEMA_FARVER[tema].hav },
+      },
+      {
+        id: "nabolande",
+        type: "fill",
+        source: "nabolande",
+        paint: { "fill-color": KORT_TEMA_FARVER[tema].land },
+      },
+    ],
+  };
+}
+
+// Temaet står som klassen "dark" på <html> (next-themes), før siden vises.
+function aktueltKortTema(): KortTema {
+  return document.documentElement.classList.contains("dark") ? "moerk" : "lys";
+}
 
 function RegionAfkrydsning() {
   return (
@@ -1353,15 +1359,17 @@ const KORT_EGNE_VALG_SCRIPT = `try{if(/[?&](${PRIORITET_PARAMETRE.join("|")})=/.
 // container-enheder, så billedet følger kortets størrelse uden JavaScript og står der fra
 // første visning. Billedet er farvet med standardvægtene af serveren
 // (app/kort/forhaandsvisning.svg), så man ser et færdigt kort, længe før MapLibre er klar.
-// Med egne valg vises i stedet det grå billede (public/data/kort-forhaandsvisning.svg); som
-// baggrund hentes det kun, når det vises.
+// Med egne valg vises i stedet det grå billede (public/data/kort-forhaandsvisning.svg).
+// I mørkt tema vises billederne i det mørke temas farver (?tema=moerk). Baggrundsbilleder
+// hentes kun, når de vises. Havets to farver er KORT_TEMA_FARVER's hav (Tailwind skal
+// have dem skrevet ud).
 function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
   const { forhold, venstre, top, bredde, hoejde } = FORHAANDSVISNING;
   const placering = { left: `${venstre}%`, top: `${top}%`, width: `${bredde}%`, height: `${hoejde}%` };
   return (
     <div
       aria-hidden={skjult}
-      className={`pointer-events-none absolute inset-0 overflow-hidden bg-[#90c1de] transition-opacity duration-300 ${
+      className={`pointer-events-none absolute inset-0 overflow-hidden bg-[#90c1de] transition-opacity [html.dark_&]:bg-[#172130] duration-300 ${
         skjult ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -1371,15 +1379,23 @@ function KortForhaandsvisning({ skjult }: { skjult: boolean }) {
           style={{ width: `min(100cqw, ${forhold} * 100cqh)`, aspectRatio: forhold }}
         >
           <div
-            className="absolute hidden bg-size-[100%_100%] [html[data-kort-egne-valg]_&]:block"
+            className="absolute hidden bg-size-[100%_100%] [html:not(.dark)[data-kort-egne-valg]_&]:block"
             style={{ ...placering, backgroundImage: "url(/data/kort-forhaandsvisning.svg)" }}
+          />
+          <div
+            className="absolute hidden bg-size-[100%_100%] [html.dark:not([data-kort-egne-valg])_&]:block"
+            style={{ ...placering, backgroundImage: "url(/kort/forhaandsvisning.svg?tema=moerk)" }}
+          />
+          <div
+            className="absolute hidden bg-size-[100%_100%] [html.dark[data-kort-egne-valg]_&]:block"
+            style={{ ...placering, backgroundImage: "url(/kort/forhaandsvisning.svg?tema=moerk&farver=nej)" }}
           />
           {/* eslint-disable-next-line @next/next/no-img-element -- en SVG, der skal vises med det samme. */}
           <img
             src="/kort/forhaandsvisning.svg"
             alt=""
             fetchPriority="high"
-            className="absolute max-w-none [html[data-kort-egne-valg]_&]:hidden"
+            className="absolute max-w-none [html.dark_&]:hidden [html[data-kort-egne-valg]_&]:hidden"
             style={placering}
           />
         </div>
@@ -1530,6 +1546,7 @@ export function DanmarkKort({
     new Map(),
   );
   const farvePaletIdRef = useRef<KortPaletId>(KORT_PALET_STANDARD);
+  const kortTemaRef = useRef<KortTema>("lys");
   const museOverAktivRef = useRef(true);
 
   const [kommuner, setKommuner] = useState<Kommune[]>(serverKommuner);
@@ -1537,6 +1554,7 @@ export function DanmarkKort({
   const [soegning, setSoegning] = useState("");
   const [forslagAabent, setForslagAabent] = useState(false);
   const [klar, setKlar] = useState(false);
+  const { resolvedTheme } = useTheme();
   // Kommunerne er tegnet med farver; indtil da vises forhåndsvisningen.
   const [tegnet, setTegnet] = useState(false);
   const [visning, setVisning] = useState<Visning>("kort");
@@ -1623,9 +1641,10 @@ export function DanmarkKort({
     // MapLibre hentes først nu (se hentMapLibre); filerne er forudindlæst i <head>.
     hentMapLibre().then((maplibre) => {
       if (fjernet) return;
+      kortTemaRef.current = aktueltKortTema();
       const map = new maplibre.Map({
         container,
-        style: KORT_STYLE,
+        style: byggKortStyle(kortTemaRef.current),
         bounds: DANMARK_BOUNDS,
         fitBoundsOptions: { padding: KORT_KANT },
         attributionControl: false,
@@ -1684,7 +1703,10 @@ export function DanmarkKort({
           type: "fill",
           source: SOURCE_ID,
           paint: {
-            "fill-color": byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver),
+            "fill-color": byggKommuneFyldFarve(
+              KORT_PALETTER[farvePaletIdRef.current].farver,
+              kortTemaRef.current,
+            ),
             "fill-opacity": [
               "case",
               ["boolean", ["feature-state", "valgt"], false],
@@ -1721,7 +1743,7 @@ export function DanmarkKort({
           source: LINJE_SOURCE_ID,
           layout: { "line-join": "round" },
           paint: {
-            "line-color": "#ffffff",
+            "line-color": KORT_TEMA_FARVER[kortTemaRef.current].linje,
             "line-width": 1,
           },
         });
@@ -2032,9 +2054,29 @@ export function DanmarkKort({
     map.setPaintProperty(
       "kommune-fill",
       "fill-color",
-      byggKommuneFyldFarve(KORT_PALETTER[farvePaletId].farver),
+      byggKommuneFyldFarve(KORT_PALETTER[farvePaletId].farver, kortTemaRef.current),
     );
   }, [farvePaletId, klar]);
+
+  // Skift kortets farver, når temaet skiftes, mens kortet er åbent. Stilen indlæses ikke
+  // igen (så forsvandt kommunelagene); kun farverne sættes om.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !klar || resolvedTheme === undefined) return;
+    const tema: KortTema = resolvedTheme === "dark" ? "moerk" : "lys";
+    if (tema === kortTemaRef.current) return;
+    kortTemaRef.current = tema;
+
+    const f = KORT_TEMA_FARVER[tema];
+    map.setPaintProperty("hav", "background-color", f.hav);
+    map.setPaintProperty("nabolande", "fill-color", f.land);
+    map.setPaintProperty(
+      "kommune-fill",
+      "fill-color",
+      byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver, tema),
+    );
+    map.setPaintProperty("kommune-linje", "line-color", f.linje);
+  }, [resolvedTheme, klar]);
 
   useEffect(() => {
     museOverAktivRef.current = museOverAktiv;

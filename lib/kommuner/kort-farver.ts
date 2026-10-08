@@ -128,3 +128,38 @@ export function standardKortFarver(kategorier: KategoriMeta[], kommuner: Kommune
     scorer.map((s) => [s.kode, kortFarve(50 + scoreTilProcent(s.score, skala) / 2, farver)]),
   );
 }
+
+// Kortets baggrund og streger i lyst og mørkt tema. Kommunenavnene står på de farvede
+// kommuner og er derfor ens i begge temaer. Bruges af MapLibre-kortet og af
+// serveren, der tegner forhåndsvisningen (app/kort/forhaandsvisning.svg) i samme farver.
+export type KortTema = "lys" | "moerk";
+export const KORT_TEMA_FARVER: Record<
+  KortTema,
+  {
+    /** Havet. */
+    hav: string;
+    /** Nabolandene og kommuner, der er valgt fra i filtrene eller mangler data. */
+    land: string;
+    /** Kommuner i den grå forhåndsvisning, før de har fået farve. */
+    graaKommune: string;
+    /** De tynde grænser mellem kommunerne. */
+    linje: string;
+    /** Den valgte kommune. */
+    valgt: string;
+  }
+> = {
+  lys: {
+    hav: "#90c1de",
+    land: "#e8e5d9",
+    graaKommune: "#dcd8c9",
+    linje: "#ffffff",
+    valgt: "#4b5563",
+  },
+  moerk: {
+    hav: "#172130",
+    land: "#2c2b34",
+    graaKommune: "#3a3942",
+    linje: "#16151b",
+    valgt: "#d4d4d8",
+  },
+};
