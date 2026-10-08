@@ -27,9 +27,8 @@ const LUK_FORSINKELSE = 150;
 
 // Husene på forsidens Danmarkskort. Musen eller tastaturfokus på et hus åbner en boks med
 // kommunens tal, som lukker igen, når musen eller fokus forlader huset. Boksen står forrest,
-// men musen går igennem den, så et hus, den dækker, stadig kan vælges. Huset åbner kortet
-// med kommunen valgt i et nyt faneblad, så forsiden bliver stående; på mobilen går et tryk
-// direkte dertil.
+// men musen går igennem den, så et hus, den dækker, stadig kan vælges. Et klik eller
+// tryk på huset går til kommunens rapport.
 export function ForsideHuse({ huse }: { huse: ForsideHus[] }) {
   const [aktiv, setAktiv] = useState<number | null>(null);
   const lukTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -65,10 +64,8 @@ export function ForsideHuse({ huse }: { huse: ForsideHus[] }) {
       {huse.map((hus, i) => (
         <NextLink
           key={hus.slug}
-          href={`/kort?kommune=${hus.slug}`}
-          target="_blank"
-          rel="noopener"
-          aria-label={`${hus.navn}: samlet score ${hus.score}, nr. ${hus.rang} af ${hus.antal}. Se den på kortet (åbner i nyt vindue)`}
+          href={`/kommune/${hus.slug}`}
+          aria-label={`${hus.navn}: samlet score ${hus.score}, nr. ${hus.rang} af ${hus.antal}. Se kommunens rapport`}
           onMouseEnter={() => aabn(i)}
           onMouseLeave={lukSnart}
           onFocus={() => aabn(i)}
@@ -142,7 +139,7 @@ export function ForsideHuse({ huse }: { huse: ForsideHus[] }) {
             )}
 
             <p className="mt-2.5 flex items-center gap-1 text-xs font-medium text-accent">
-              Klik på huset for at se den på kortet <IconArrowRight className="h-3.5 w-3.5" />
+              Klik på huset for at se rapporten <IconArrowRight className="h-3.5 w-3.5" />
             </p>
           </div>
         </div>
