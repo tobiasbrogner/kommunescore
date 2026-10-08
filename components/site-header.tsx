@@ -11,6 +11,7 @@ import {
   IconDatabase,
   IconInfoCircle,
   IconMap,
+  IconBulb,
 } from "@tabler/icons-react";
 import { buttonVariants, linkVariants } from "@heroui/styles";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -25,10 +26,11 @@ const VAERKTOEJER = [
   { href: "/sammenlign", navn: "Sammenlign rapporter", tekst: "Stil kommuner op side om side", Ikon: IconArrowsLeftRight },
 ];
 
-// Sider om Kommuna selv. "Om os" kommer her, når siden findes.
+// Sider om Kommuna selv.
 const OM_KOMMUNA = [
   { href: "/saadan-virker-det", navn: "Sådan virker det", tekst: "Hvordan scoren regnes ud", Ikon: IconInfoCircle },
   { href: "/kilder", navn: "Kilder", tekst: "Hvor tallene kommer fra", Ikon: IconDatabase },
+  { href: "/ideen-bag", navn: "Idéen bag", tekst: "Hvorfor Kommuna findes", Ikon: IconBulb },
 ];
 
 const MENUER = [
