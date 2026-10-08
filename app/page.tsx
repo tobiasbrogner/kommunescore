@@ -132,7 +132,7 @@ export default async function Home() {
     Math.floor(kommuner.reduce((sum, k) => sum + Object.keys(k.vaerdier).length, 0) / 100) * 100,
   );
 
-  // Kortene under "Kender du allerede en kommune?": de største byer plus de højest
+  // Kortene under "Er der en kommune, du gerne vil vide mere om?": de største byer plus de højest
   // placerede med standardvægte, så der altid er otte, sorteret efter placering.
   const fliser = await byggKommuneFliser(kommuner);
   const hoejestPlacerede = [...fliser]
@@ -395,7 +395,7 @@ export default async function Home() {
             <div className="max-w-2xl">
               <p className="text-sm font-medium tracking-wide text-accent">Alle kommuner</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-                Kender du allerede en kommune?
+                Er der en kommune, du gerne vil vide mere om?
               </h2>
               <p className="mt-5 text-lg leading-8 text-muted">
                 Åbn dens rapport og se score, styrker og alle tallene.
@@ -413,10 +413,7 @@ export default async function Home() {
               </li>
             ))}
           </ul>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-            <p className="text-sm text-muted">
-              De fire største byer og de højest placerede kommuner med standardvægtene.
-            </p>
+          <div className="mt-6 flex justify-end">
             <NextLink href="/kommuner" className={`${link.base()} inline-flex items-center gap-1.5`}>
               Se alle {kommuner.length} kommuner
               <IconArrowRight className="h-4 w-4" />
