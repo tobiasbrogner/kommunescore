@@ -108,6 +108,7 @@ import {
   type KortPaletId,
 } from "@/lib/kommuner/kort-farver";
 import { DANMARK_BOUNDS, KORT_KANT } from "@/lib/kommuner/kort-udsnit";
+import { boligsidenLink } from "@/lib/kommuner/boligsiden";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { formaterTal } from "@/lib/scores/formater";
@@ -1137,18 +1138,28 @@ function ValgtKommuneBund({
   );
 }
 
-// Åbner kommunens rapport (/kommune/[navn], fx /kommune/aarhus) i en ny fane, så kortet og ens valg bevares.
+// Bunden af kommunekortene: kommunens rapport (/kommune/[navn], fx /kommune/aarhus) og
+// boligerne til salg på Boligsiden. Begge åbner i en ny fane, så kortet og ens valg bevares.
 function RapportLink({ navn }: { navn: string }) {
+  const knap =
+    "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20";
   return (
-    <a
-      href={`/kommune/${kommuneSlug(navn)}`}
-      target="_blank"
-      rel="noopener"
-      className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-accent/10 py-2.5 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/20"
-    >
-      <IconFileText className="h-3.5 w-3.5" />
-      Se fuld rapport
-    </a>
+    <div className="flex divide-x divide-border border-t border-border bg-accent/10">
+      <a href={`/kommune/${kommuneSlug(navn)}`} target="_blank" rel="noopener" className={knap}>
+        <IconFileText className="h-3.5 w-3.5" />
+        Se fuld rapport
+      </a>
+      <a
+        href={boligsidenLink(navn, "kort")}
+        target="_blank"
+        rel="noopener"
+        aria-label={`Se boliger til salg i ${navn} på Boligsiden (åbner i nyt vindue)`}
+        className={knap}
+      >
+        <IconHome className="h-3.5 w-3.5" />
+        Boliger til salg
+      </a>
+    </div>
   );
 }
 

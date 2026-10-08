@@ -7,6 +7,7 @@ import {
   IconAdjustmentsHorizontal,
   IconArrowLeft,
   IconArrowsLeftRight,
+  IconExternalLink,
   IconHome,
   IconInfoCircle,
   IconMap,
@@ -19,6 +20,7 @@ import { Broedkrummer } from "@/components/json-ld";
 import { KommuneFlise, type KommuneFliseData } from "@/components/kommune-flise";
 import { KommuneMinikort } from "@/components/kommune-minikort";
 import { billedKredit } from "@/lib/kommuner/billeder";
+import { boligsidenLink } from "@/lib/kommuner/boligsiden";
 import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
 import { kommuneSlug } from "@/lib/kommuner/slug";
@@ -468,8 +470,8 @@ function VidereFra({ navn, slug }: { navn: string; slug: string }) {
     <section data-skjul-ved-print className="mt-10 rounded-2xl border border-border bg-surface-secondary p-6 sm:p-8">
       <h2 className="text-xl font-semibold text-foreground">Gå videre med {navn}</h2>
       <p className="mt-1 text-sm text-muted">
-        Se kommunen på kortet, sammenlign den med andre, eller sæt dine egne prioriteter og se,
-        hvor den lander for dig.
+        Se kommunen på kortet, sammenlign den med andre, sæt dine egne prioriteter og se, hvor
+        den lander for dig, eller find en bolig i kommunen.
       </p>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <NextLink
@@ -486,6 +488,16 @@ function VidereFra({ navn, slug }: { navn: string; slug: string }) {
           <IconArrowsLeftRight className="h-4 w-4" />
           Sammenlign med andre kommuner
         </NextLink>
+        <a
+          href={boligsidenLink(navn, "kommunerapport")}
+          target="_blank"
+          rel="noopener"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <IconHome className="h-4 w-4" />
+          Se boliger til salg på Boligsiden
+          <IconExternalLink className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+        </a>
         <NextLink
           href="/kort"
           className="inline-flex items-center gap-1.5 px-2 text-sm font-medium text-accent hover:underline"
