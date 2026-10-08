@@ -4,6 +4,7 @@ import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { BilledKreditTekst } from "@/components/billed-kredit";
 import { KategoriIkon } from "@/components/ikon";
 import { dstTabeller, statistikbankenUrl } from "@/lib/kilder";
+import { DATA_OPDATERET } from "@/lib/om-kommuna";
 import { alleBilledKreditter } from "@/lib/kommuner/billeder";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
@@ -55,7 +56,8 @@ export default async function KilderSide() {
       <header className="mt-4">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Kilder</h1>
         <p className="mt-3 max-w-2xl text-muted">
-          Her kan du se, hvilke tal hver kategori bygger på, og hvor de kommer fra.
+          Her kan du se, hvilke tal hver kategori bygger på, og hvor de kommer fra. Tallene er
+          senest opdateret i {DATA_OPDATERET}.
         </p>
       </header>
 

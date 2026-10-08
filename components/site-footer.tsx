@@ -4,6 +4,7 @@ import { useState } from "react";
 import NextLink from "next/link";
 import { Logo, LogoMark } from "@/components/logo";
 import { FeedbackModalLazy } from "@/components/feedback-modal-lazy";
+import { DATA_OPDATERET } from "@/lib/om-kommuna";
 
 // Linkkolonner i det blå bånd. Nye sider tilføjes her, efterhånden som de kommer.
 const linkGrupper: { titel: string; links: { href: string; label: string }[] }[] = [
@@ -13,6 +14,7 @@ const linkGrupper: { titel: string; links: { href: string; label: string }[] }[]
       { href: "/kommuner", label: "Alle kommuner" },
       { href: "/saadan-virker-det", label: "Sådan virker det" },
       { href: "/kilder", label: "Kilder" },
+      { href: "/ideen-bag", label: "Idéen bag" },
       { href: "/privatlivspolitik", label: "Privatlivspolitik" },
     ],
   },
@@ -97,7 +99,12 @@ export function SiteFooter() {
             <span className="font-semibold text-accent">Kommuna</span>
             <span className="text-muted"> – find den kommune, der passer til dit liv</span>
           </p>
-          <p className="text-xs text-muted">© {aar} Kommuna</p>
+          <p className="text-xs text-muted">
+            <NextLink href="/kilder" className="hover:text-foreground hover:underline">
+              Data opdateret {DATA_OPDATERET}
+            </NextLink>
+            <span aria-hidden="true"> · </span>© {aar} Kommuna
+          </p>
         </div>
       </div>
       <FeedbackModalLazy isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />

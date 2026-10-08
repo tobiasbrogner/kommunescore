@@ -21,6 +21,7 @@ import { KommuneFlise, type KommuneFliseData } from "@/components/kommune-flise"
 import { KommuneMinikort } from "@/components/kommune-minikort";
 import { billedKredit } from "@/lib/kommuner/billeder";
 import { boligsidenLink } from "@/lib/kommuner/boligsiden";
+import { DATA_OPDATERET } from "@/lib/om-kommuna";
 import { byggKommuneFliser } from "@/lib/kommuner/fliser";
 import { RapportVaerktoejer } from "@/components/rapport-vaerktoejer";
 import { kommuneSlug } from "@/lib/kommuner/slug";
@@ -640,7 +641,10 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
         </div>
         <div className="flex flex-wrap items-end justify-between gap-6 p-6 sm:p-8">
           <div>
-            <p className="text-sm font-medium text-accent">Kommunerapport</p>
+            <p className="text-sm font-medium text-accent">
+              Kommunerapport
+              <span className="font-normal text-muted"> · Data opdateret {DATA_OPDATERET}</span>
+            </p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               {rapport.navn}
             </h1>
@@ -722,7 +726,12 @@ export default async function KommuneRapportSide(props: PageProps<"/kommune/[slu
         <IconInfoCircle className="mt-0.5 h-4 w-4 shrink-0" />
         Den samlede score er beregnet med standardvægte for alle kategorier, så dine valg under
         Prioritet på kortet ikke påvirker rapporten. Placeringer og landsgennemsnit gælder alle{" "}
-        {rapport.samlet.antal} kommuner.
+        {rapport.samlet.antal} kommuner. Tallene er senest opdateret i {DATA_OPDATERET}. Hvor de kommer
+        fra, står under{" "}
+        <NextLink href="/kilder" className="font-medium text-accent hover:underline">
+          Kilder
+        </NextLink>
+        .
       </p>
     </main>
   );

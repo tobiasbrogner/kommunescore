@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 import { IconArrowLeft } from "@tabler/icons-react";
+import { KONTAKT } from "@/lib/om-kommuna";
 
 export const metadata: Metadata = {
   title: "Privatlivspolitik | Kommuna",
@@ -11,9 +12,9 @@ export const metadata: Metadata = {
 // Opdatér datoen, når teksten ændres.
 const SIDST_OPDATERET = "6. oktober 2026";
 
-// Hvem der står bag siden. Dataansvaret gælder besøgendes oplysninger (feedback, chat,
-// adressesøgning), ikke kommunestatistikken, som ikke er personoplysninger.
-const DATAANSVARLIG = { navn: "Tobias Brogner", email: "tobiasbrogner@gmail.com" };
+// Dataansvaret gælder besøgendes oplysninger (feedback, chat, adressesøgning), ikke
+// kommunestatistikken, som ikke er personoplysninger.
+const DATAANSVARLIG = KONTAKT;
 
 // Privatlivspolitikken. Hold den i takt med koden: nye tjenester, der får brugerens data
 // (fx statistik eller nyhedsbrev), skal med under "Hvem får oplysningerne".
