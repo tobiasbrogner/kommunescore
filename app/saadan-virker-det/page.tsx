@@ -125,7 +125,9 @@ export default async function SaadanVirkerDetSide() {
               Den samlede score er et vægtet gennemsnit af kategorierne.
             </strong>{" "}
             Under Prioritet på kortet bestemmer du selv, hvor meget hver kategori vægter, eller
-            du kan vælge en færdig profil.
+            du kan vælge en færdig profil. Procenten ved hver skyder viser, hvor stor en del af
+            den samlede score kategorien udgør. Du kan også tage{" "}
+            <Link href="/kommunetest">Kommunetesten</Link>, hvor dine svar bliver til vægte.
           </li>
         </ol>
       </Afsnit>
@@ -169,6 +171,12 @@ export default async function SaadanVirkerDetSide() {
           I hver kommunes rapport viser vi styrker og fokusområder. Et fokusområde er en kategori,
           hvor kommunen ligger lavere end i sine andre kategorier eller under landsgennemsnittet.
           Det er ikke et problem, men noget, du måske vil se nærmere på.
+        </p>
+        <p>
+          Rapporten viser også fire kommuner, der ligner. Det er de kommuner, hvis scorer ligger
+          tættest på i alle kategorier, og som har et lignende antal indbyggere og en lignende
+          befolkningstæthed. Så ligner en storby andre store byer frem for en lille kommune med
+          tilfældigt ens scorer.
         </p>
       </Afsnit>
 
