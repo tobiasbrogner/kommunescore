@@ -75,8 +75,8 @@ export default async function IdeenBagSide() {
       <Afsnit id="spoergsmaalet" titel="Spørgsmålet">
         <p>
           I og omkring de store byer er boligpriserne steget så meget, at mange ikke længere har
-          råd til at blive boende dér, hvor de er vokset op. Derfor kigger flere mod
-          nabokommunerne.
+          råd til at komme ind på boligmarkedet og bo der, hvor de er vokset op. Derfor kigger
+          flere mod nabokommunerne.
         </p>
         <p>Men hvad får man egentlig dér – og hvad giver man afkald på?</p>
         <p>
@@ -109,6 +109,21 @@ export default async function IdeenBagSide() {
         </p>
       </Afsnit>
 
+      {/* Tobias' egen tekst om sig selv. */}
+      <Afsnit id="mig" titel="Mig">
+        <p>
+          Jeg hedder Tobias, og det her er et lille hobbyprojekt, jeg går og arbejder på. Mest
+          fordi jeg altid har været nysgerrig og godt kan lide at lære nye ting – men også fordi
+          jeg hurtigt kan blive ret opslugt, når jeg finder et formål med noget, der virkelig
+          giver mening for mig.
+        </p>
+        <p>
+          Det er vigtigt for mig at sige, at jeg har et fast arbejde, som jeg elsker, og som
+          betyder rigtig meget for mig. Det her er derfor ikke et forsøg på at erstatte det, men
+          snarere et sted, hvor jeg kan følge min nysgerrighed og fordybe mig i noget, jeg synes
+          er spændende.
+        </p>
+      </Afsnit>
     </main>
   );
 }
