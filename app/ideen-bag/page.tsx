@@ -75,7 +75,7 @@ export default async function IdeenBagSide() {
       <Afsnit id="spoergsmaalet" titel="Spørgsmålet">
         <p>
           I og omkring de store byer er boligpriserne steget så meget, at mange ikke længere har
-          råd til at komme ind på boligmarkedet og bo der, hvor de er vokset op. Derfor kigger
+          råd til at komme ind på boligmarkedet og bo der, hvor de er vokset op. Derfor&nbsp;kigger
           flere mod nabokommunerne.
         </p>
         <p>Men hvad får man egentlig dér – og hvad giver man afkald på?</p>
@@ -86,7 +86,7 @@ export default async function IdeenBagSide() {
           hverdagen – og nogle af dem skal man kunne leve med i mange år frem.
         </p>
         <p>
-          Så hvad er det egentlig, der gør nabokommunerne forskellige? Hvad får man for pengene,
+          Så hvad er det egentlig, der gør nabokommunerne forskellige? Hvad&nbsp;får man for pengene,
           hvad skal man gå på kompromis med, og hvad kan i sidste ende være det, der afgør, hvor
           man vælger at slå sig ned?
         </p>
@@ -112,16 +112,35 @@ export default async function IdeenBagSide() {
       {/* Tobias' egen tekst om sig selv. */}
       <Afsnit id="mig" titel="Mig">
         <p>
-          Jeg hedder Tobias, og det her er et lille hobbyprojekt, jeg går og arbejder på. Mest
-          fordi jeg altid har været nysgerrig og godt kan lide at lære nye ting – men også fordi
+          Jeg hedder Tobias, og det her er et lille hobbyprojekt, jeg går og arbejder på. Mest&nbsp;fordi
+          jeg altid har været nysgerrig og godt kan lide at lære nye ting – men også fordi
           jeg hurtigt kan blive ret opslugt, når jeg finder et formål med noget, der virkelig
           giver mening for mig.
         </p>
         <p>
           Det er vigtigt for mig at sige, at jeg har et fast arbejde, som jeg elsker, og som
-          betyder rigtig meget for mig. Det her er derfor ikke et forsøg på at erstatte det, men
+          betyder rigtig meget for mig. Det&nbsp;her er derfor ikke et forsøg på at erstatte det, men
           snarere et sted, hvor jeg kan følge min nysgerrighed og fordybe mig i noget, jeg synes
           er spændende.
+        </p>
+        <p>
+          Jeg er selv ny på boligmarkedet, og sammen med min kæreste har jeg også stået i
+          situationer, hvor et værktøj som Kommuna kunne have været brugbart.
+        </p>
+        <p>
+          Der er mange faktorer, der spiller ind, når man ønsker at købe sin egen bolig frem for at
+          bo til leje. Vi&nbsp;valgte blandt andet at gå på kompromis med afstanden til arbejde og
+          venner. Til&nbsp;gengæld fik vi en kommune med mere natur, gode muligheder for foreningsliv –
+          og ikke mindst en helt anden boligpris.
+        </p>
+        <p>
+          Hvor stort et behov har man egentlig for at kunne gå i byen? Og&nbsp;hvor meget betyder ro og
+          natur?
+        </p>
+        <p>
+          Det var nogle af de spørgsmål, der fik mig til at tænke over, hvordan man egentlig
+          vælger, hvor man skal bo. Der&nbsp;findes ikke ét rigtigt svar, da vores prioriteter,
+          livssituationer og behov er forskellige. Og&nbsp;det var her, idéen til Kommuna opstod.
         </p>
       </Afsnit>
     </main>
