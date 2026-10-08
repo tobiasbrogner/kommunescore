@@ -1326,6 +1326,15 @@ function VisFlere({
 // link), passer serverens farver og rækkefølge ikke. Scriptet kører i HTML'en, før kortet og
 // listen vises; bagefter holdes attributten ajour af kortet selv (se gemningen af Prioritet).
 const KORT_EGNE_VALG_ATTRIBUT = "data-kort-egne-valg";
+const ingenAendringer = () => () => {};
+
+// Sand på serveren og under hydreringen, falsk når React selv tegner siden i browseren (fx
+// ved et klik hertil fra forsiden). Et <script>, som React laver i browseren, kører aldrig og
+// giver en advarsel, så scriptet kommer kun med i serverens HTML.
+function useFraServerHtml() {
+  return useSyncExternalStore(ingenAendringer, () => false, () => true);
+}
+
 const KORT_EGNE_VALG_SCRIPT = `try{if(/[?&](${PRIORITET_PARAMETRE.join("|")})=/.test(location.search)||localStorage.getItem(${JSON.stringify(PRIORITET_LAGER)})||localStorage.getItem(${JSON.stringify(ADRESSE_LAGER)}))document.documentElement.setAttribute(${JSON.stringify(KORT_EGNE_VALG_ATTRIBUT)},"")}catch(e){}`;
 
 // Vises, mens MapLibre starter: et let billede af kortet med Danmark samme sted, som
@@ -1522,6 +1531,7 @@ export function DanmarkKort({
   const [visning, setVisning] = useState<Visning>("kort");
   const [sidepanelSkjult, setSidepanelSkjult] = useState(false);
   const erStorSkaerm = useErStorSkaerm();
+  const fraServerHtml = useFraServerHtml();
   const [prioritetAaben, setPrioritetAaben] = useState(false);
   const visPrioritetBjaelke = erStorSkaerm && prioritetAaben;
   const [zoomIkonPladser, setZoomIkonPladser] = useState<{
@@ -3084,7 +3094,7 @@ export function DanmarkKort({
     >
       {/* Først på siden, så forhåndsvisningen og listen ved siden af kortet aldrig vises med
           standardvægtene, når brugeren har sine egne valg. */}
-      <script dangerouslySetInnerHTML={{ __html: KORT_EGNE_VALG_SCRIPT }} />
+      {fraServerHtml && <script dangerouslySetInnerHTML={{ __html: KORT_EGNE_VALG_SCRIPT }} />}
       <div
         className={`${INDHOLD_BREDDE} flex flex-wrap items-center gap-3 lg:py-3`}
       >
