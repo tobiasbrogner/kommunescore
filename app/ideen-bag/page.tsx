@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import { Card } from "@heroui/react";
 import { IconArrowLeft } from "@tabler/icons-react";
+import { IllustrationIdeTilPlan } from "@/components/illustration-ide-til-plan";
 import { DATA_OPDATERET } from "@/lib/om-kommuna";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 
@@ -109,40 +111,54 @@ export default async function IdeenBagSide() {
         </p>
       </Afsnit>
 
+      {/* Illustrationen og boksen står i samme kolonne som teksten (max-w-2xl). */}
+      <div className="mt-12 max-w-2xl">
+        <IllustrationIdeTilPlan className="mx-auto w-full max-w-lg" />
+      </div>
+
       {/* Tobias' egen tekst om sig selv. */}
-      <Afsnit id="mig" titel="Mig">
-        <p>
-          Jeg hedder Tobias, og det her er et lille hobbyprojekt, jeg går og arbejder på. Mest&nbsp;fordi
-          jeg altid har været nysgerrig og godt kan lide at lære nye ting – men også fordi
-          jeg hurtigt kan blive ret opslugt, når jeg finder et formål med noget, der virkelig
-          giver mening for mig.
-        </p>
-        <p>
-          Det er vigtigt for mig at sige, at jeg har et fast arbejde, som jeg elsker, og som
-          betyder rigtig meget for mig. Det&nbsp;her er derfor ikke et forsøg på at erstatte det, men
-          snarere et sted, hvor jeg kan følge min nysgerrighed og fordybe mig i noget, jeg synes
-          er spændende.
-        </p>
-        <p>
-          Jeg er selv ny på boligmarkedet, og sammen med min kæreste har jeg også stået i
-          situationer, hvor et værktøj som Kommuna kunne have været brugbart.
-        </p>
-        <p>
-          Der er mange faktorer, der spiller ind, når man ønsker at købe sin egen bolig frem for at
-          bo til leje. Vi&nbsp;valgte blandt andet at gå på kompromis med afstanden til arbejde og
-          venner. Til&nbsp;gengæld fik vi en kommune med mere natur, gode muligheder for foreningsliv –
-          og ikke mindst en helt anden boligpris.
-        </p>
-        <p>
-          Hvor stort et behov har man egentlig for at kunne gå i byen? Og&nbsp;hvor meget betyder ro og
-          natur?
-        </p>
-        <p>
-          Det var nogle af de spørgsmål, der fik mig til at tænke over, hvordan man egentlig
-          vælger, hvor man skal bo. Der&nbsp;findes ikke ét rigtigt svar, da vores prioriteter,
-          livssituationer og behov er forskellige. Og&nbsp;det var her, idéen til Kommuna opstod.
-        </p>
-      </Afsnit>
+      {/* I en boks som afslutningen på forsiden. */}
+      <section id="mig" className="mt-12 max-w-2xl scroll-mt-24">
+        <Card variant="secondary" className="overflow-hidden rounded-[2rem] border border-border">
+          <Card.Content className="p-6 sm:p-10">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Mig</h2>
+            <div className="mt-4 flex flex-col gap-3 text-sm leading-relaxed text-pretty text-muted">
+              <p>
+                Jeg hedder Tobias, og det her er et lille hobbyprojekt, jeg går og arbejder på. Mest&nbsp;fordi
+                jeg altid har været nysgerrig og godt kan lide at lære nye ting – men også fordi
+                jeg hurtigt kan blive ret opslugt, når jeg finder et formål med noget, der virkelig
+                giver mening for mig.
+              </p>
+              <p>
+                Det er vigtigt for mig at sige, at jeg har et fast arbejde, som jeg elsker, og som
+                betyder rigtig meget for mig. Det&nbsp;her er derfor ikke et forsøg på at erstatte det, men
+                snarere et sted, hvor jeg kan følge min nysgerrighed og fordybe mig i noget, jeg synes
+                er spændende.
+              </p>
+              <p>
+                Jeg er selv ny på boligmarkedet, og sammen med min kæreste har jeg også stået i
+                situationer, hvor et værktøj som Kommuna kunne have været brugbart.
+              </p>
+              <p>
+                Der er mange faktorer, der spiller ind, når man ønsker at købe sin egen bolig frem for at
+                bo til leje. Vi&nbsp;valgte blandt andet at gå på kompromis med afstanden til arbejde og
+                venner. Til&nbsp;gengæld fik vi en kommune med mere natur, gode muligheder for foreningsliv –
+                og ikke mindst en helt anden boligpris.
+              </p>
+              <p>
+                Hvor stort et behov har man egentlig for at kunne gå i byen?
+                <br />
+                Og hvor meget betyder ro og natur?
+              </p>
+              <p>
+                Det var nogle af de spørgsmål, der fik mig til at tænke over, hvordan man egentlig
+                vælger, hvor man skal bo. Der&nbsp;findes ikke ét rigtigt svar, da vores prioriteter,
+                livssituationer og behov er forskellige. Og&nbsp;det var her, idéen til Kommuna opstod.
+              </p>
+            </div>
+          </Card.Content>
+        </Card>
+      </section>
     </main>
   );
 }
