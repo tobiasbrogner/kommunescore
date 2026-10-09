@@ -11,7 +11,12 @@ declare global {
 // og hver serverproces har sin egen pulje: dev-serveren, hver proces i buildet og senere
 // produktionen. Derfor højst 5 pr. proces (pg's standard er 10); ledige forbindelser lukkes
 // efter 10 sekunder. Kan ændres med DATABASE_POOL_MAX.
-const POOL_MAX = Number(process.env.DATABASE_POOL_MAX) || 5;
+//
+// Under buildet kører flere processer samtidig (se experimental.cpus i next.config.ts),
+// mens den kørende side på Vercel også bruger forbindelser. Derfor kun 2 pr. proces dér.
+const POOL_MAX =
+  Number(process.env.DATABASE_POOL_MAX) ||
+  (process.env.NEXT_PHASE === "phase-production-build" ? 2 : 5);
 
 const pool =
   globalThis.__kommunescoreDbPool ??

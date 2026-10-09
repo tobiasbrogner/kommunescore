@@ -43,6 +43,10 @@ const nextConfig: NextConfig = {
     // Fejler en side under buildet (fx fordi databasen kortvarigt er løbet tør for
     // forbindelser, se lib/db/index.ts), prøves den én gang til, før buildet stopper.
     staticGenerationRetryCount: 1,
+    // Højst 4 processer laver sider samtidig, så buildet (4 × 2 forbindelser, se
+    // lib/db/index.ts) ikke bruger alle databasens 17 forbindelser. Vercels byggemaskine
+    // har flere kerner end det, og så fik sitemap'et "too many clients".
+    cpus: 4,
   },
 };
 
