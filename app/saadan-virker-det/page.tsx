@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { IconArrowLeft, IconHeart } from "@tabler/icons-react";
+import {
+  IconArrowLeft,
+  IconCalculator,
+  IconChartBar,
+  IconHeart,
+  IconHomeHeart,
+  IconPalette,
+  IconRefresh,
+  IconScale,
+  type Icon,
+} from "@tabler/icons-react";
 import { getCachedRapportData } from "@/lib/scores/get-scores";
 
 export const metadata: Metadata = {
@@ -9,10 +19,23 @@ export const metadata: Metadata = {
     "Hvordan Kommuna regner kommunernes score ud, hvad farverne på kortet betyder, og hvad tallene ikke kan fortælle.",
 };
 
-function Afsnit({ id, titel, children }: { id: string; titel: string; children: React.ReactNode }) {
+function Afsnit({
+  id,
+  titel,
+  ikon: Ikon,
+  children,
+}: {
+  id: string;
+  titel: string;
+  ikon: Icon;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="mt-10 scroll-mt-24">
-      <h2 className="text-xl font-semibold text-foreground">{titel}</h2>
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+        <Ikon className="h-5 w-5 shrink-0 text-accent" />
+        {titel}
+      </h2>
       <div className="mt-3 flex max-w-2xl flex-col gap-3 text-sm leading-relaxed text-muted">
         {children}
       </div>
@@ -81,7 +104,7 @@ export default async function SaadanVirkerDetSide() {
         </div>
       </aside>
 
-      <Afsnit id="beregning" titel="Sådan regnes scoren ud">
+      <Afsnit id="beregning" titel="Sådan regnes scoren ud" ikon={IconCalculator}>
         <ol className="flex list-decimal flex-col gap-2 pl-5">
           <li>
             <strong className="font-medium text-foreground">Tallene er offentlige.</strong> De kommer
@@ -132,7 +155,7 @@ export default async function SaadanVirkerDetSide() {
         </ol>
       </Afsnit>
 
-      <Afsnit id="standardvaegte" titel="Standardvægtene">
+      <Afsnit id="standardvaegte" titel="Standardvægtene" ikon={IconScale}>
         <p>
           Før du selv ændrer noget, tæller {opremsning(fuldVaegt.map((k) => k.navn))} lige meget.
           {delvisVaegt.length > 0 && (
@@ -156,7 +179,7 @@ export default async function SaadanVirkerDetSide() {
         </p>
       </Afsnit>
 
-      <Afsnit id="laes-scoren" titel="Sådan skal du læse scoren">
+      <Afsnit id="laes-scoren" titel="Sådan skal du læse scoren" ikon={IconChartBar}>
         <p>
           Scoren siger, hvordan en kommune ligger i forhold til de andre kommuner. Den siger ikke,
           om noget er godt eller skidt i sig selv. 50 betyder, at kommunen er blandt dem med de
@@ -180,7 +203,7 @@ export default async function SaadanVirkerDetSide() {
         </p>
       </Afsnit>
 
-      <Afsnit id="farver" titel="Farverne på kortet">
+      <Afsnit id="farver" titel="Farverne på kortet" ikon={IconPalette}>
         <p>
           Rød kan godt virke skræmmende, men på kortet betyder rød kun &quot;lavest af de viste
           kommuner&quot; og grøn &quot;højest&quot;. Fordi scorerne ligger tæt, strækkes farverne
@@ -193,7 +216,7 @@ export default async function SaadanVirkerDetSide() {
         </p>
       </Afsnit>
 
-      <Afsnit id="hvad-tallene-ikke-viser" titel="Hvad tallene ikke kan fortælle">
+      <Afsnit id="hvad-tallene-ikke-viser" titel="Hvad tallene ikke kan fortælle" ikon={IconHomeHeart}>
         <p>
           Tal kan ikke måle alt. Naboerne, fællesskabet i landsbyen, udsigten fra køkkenvinduet,
           afstanden til familien eller følelsen af at komme hjem står ikke i nogen statistik.
@@ -206,7 +229,7 @@ export default async function SaadanVirkerDetSide() {
         </p>
       </Afsnit>
 
-      <Afsnit id="aendringer" titel="Scoren kan ændre sig">
+      <Afsnit id="aendringer" titel="Scoren kan ændre sig" ikon={IconRefresh}>
         <p>
           Scoren er ikke endelig. Den ændrer sig, når der kommer nye tal, og når vi bliver
           klogere på, hvordan tallene bedst bruges. Vi har fx ændret, hvordan tryghed og

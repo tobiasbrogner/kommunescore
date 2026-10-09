@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Card } from "@heroui/react";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconBulb, IconHelpCircle, type Icon } from "@tabler/icons-react";
 import { IllustrationIdeTilPlan } from "@/components/illustration-ide-til-plan";
 import { DATA_OPDATERET } from "@/lib/om-kommuna";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
@@ -12,10 +12,23 @@ export const metadata: Metadata = {
     "Hvorfor Kommuna findes: Når man ikke kan bo, hvor man plejer, skal man kunne se, hvad man får og giver afkald på i nabokommunerne.",
 };
 
-function Afsnit({ id, titel, children }: { id: string; titel: string; children: React.ReactNode }) {
+function Afsnit({
+  id,
+  titel,
+  ikon: Ikon,
+  children,
+}: {
+  id: string;
+  titel: string;
+  ikon: Icon;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="mt-10 scroll-mt-24">
-      <h2 className="text-xl font-semibold text-foreground">{titel}</h2>
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+        <Ikon className="h-5 w-5 shrink-0 text-accent" />
+        {titel}
+      </h2>
       <div className="mt-3 flex max-w-2xl flex-col gap-3 text-sm leading-relaxed text-pretty text-muted">
         {children}
       </div>
@@ -74,7 +87,7 @@ export default async function IdeenBagSide() {
         </dl>
       </header>
 
-      <Afsnit id="spoergsmaalet" titel="Spørgsmålet">
+      <Afsnit id="spoergsmaalet" titel="Spørgsmålet" ikon={IconHelpCircle}>
         <p>
           I og omkring de store byer er boligpriserne steget så meget, at mange ikke længere har
           råd til at komme ind på boligmarkedet og bo der, hvor de er vokset op. Derfor&nbsp;kigger
@@ -94,7 +107,7 @@ export default async function IdeenBagSide() {
         </p>
       </Afsnit>
 
-      <Afsnit id="ideen" titel="Idéen">
+      <Afsnit id="ideen" titel="Idéen" ikon={IconBulb}>
         <p>
           Hvordan laver man et brugervenligt, interaktivt, ærligt og transparent billede af,
           hvordan landets kommuner ser ud? Og&nbsp;hvordan sikrer vi, at den enkelte kan indstille
