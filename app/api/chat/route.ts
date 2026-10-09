@@ -11,19 +11,21 @@ import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 // streames tilbage som ren tekst. Botten kan kun læse data via værktøjerne.
 
 // Haiku er den billigste model og rigelig til at forklare siden og slå tal op.
-const MODEL = "claude-haiku-4-5";
-// Korte svar holder prisen nede; systemprompten beder også om korte svar.
-const MAKS_TOKENS = 1024;
+const MODEL = "claude-haiku-5-5";
+// Haiku 5.5 tænker som standard, og tænkningen tæller med i max_tokens. Lav effort
+// holder tænkningen kort, og loftet giver plads til både tænkning og et kort svar.
+const EFFORT = "low";
+const MAKS_TOKENS = 2048;
 // Værktøjsrunder pr. besked, så en forvirret model ikke kan køre i ring på vores regning.
 const MAKS_RUNDER = 4;
 // Samtalen må højst have så mange beskeder (bruger + bot) og så lange brugerbeskeder.
 const MAKS_BESKEDER = 16;
 const MAKS_BRUGER_TEGN = 500;
 const MAKS_BOT_TEGN = 4000;
-// Haiku 4.5-priser i dollar pr. million tokens, kun til at anslå prisen i loggen.
-// Cache-skrivning koster 1,25x input og cache-læsning 0,1x.
-const PRIS_INPUT = 1;
-const PRIS_OUTPUT = 5;
+// Haiku 5.5-priser i dollar pr. million tokens (prompter op til 100K tokens), kun til
+// at anslå prisen i loggen. Cache-skrivning koster 1,25x input og cache-læsning 0,1x.
+const PRIS_INPUT = 0.1;
+const PRIS_OUTPUT = 0.5;
 
 type IndBesked = { rolle: "bruger" | "assistent"; tekst: string };
 
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
             {
               model: MODEL,
               max_tokens: MAKS_TOKENS,
+              output_config: { effort: EFFORT },
               system,
               tools: CHAT_VAERKTOEJER,
               messages,
