@@ -43,15 +43,79 @@ const DECIMALER = 4;
 const kilde = JSON.parse(readFileSync(KILDE, "utf8")) as GeoJSON.FeatureCollection;
 type KommuneTopologi = Topology<{ kommuner: GeometryCollection<Record<string, unknown>> }>;
 const topo = presimplify(topology({ kommuner: kilde }) as unknown as KommuneTopologi);
-const forenklet = simplify(topo, quantile(topo, FORENKLING)) as KommuneTopologi;
-const resultat = feature(forenklet, forenklet.objects.kommuner) as GeoJSON.FeatureCollection;
-resultat.features.forEach((f, i) => {
-  f.properties = kilde.features[i].properties;
-});
+const graense = quantile(topo, FORENKLING);
 
 const afrund = (_noegle: string, vaerdi: unknown) =>
   typeof vaerdi === "number" && !Number.isInteger(vaerdi) ? +vaerdi.toFixed(DECIMALER) : vaerdi;
-const tekst = JSON.stringify(resultat, afrund);
+
+// Forenklingen (og afrundingen) kan få en grænse til at krydse sig selv, typisk i smalle
+// havne og fjorde. MapLibre deler så fladen forkert op i trekanter, og dele af kommunen
+// tegnes to gange og ser lysere ud (fx ved Lemvig havn). Punkterne omkring hvert kryds
+// beholdes derfor uforenklede, og der forenkles igen, til der ikke er flere kryds, end
+// den fulde fil selv har.
+const kildeKryds = new Set(selvkryds(kilde).map((k) => k.noegle));
+let tekst = "";
+for (let runde = 1; ; runde++) {
+  const forenklet = simplify(topo, graense) as KommuneTopologi;
+  const resultat = feature(forenklet, forenklet.objects.kommuner) as GeoJSON.FeatureCollection;
+  resultat.features.forEach((f, i) => {
+    f.properties = kilde.features[i].properties;
+  });
+  tekst = JSON.stringify(resultat, afrund);
+  const kryds = selvkryds(JSON.parse(tekst)).filter((k) => !kildeKryds.has(k.noegle));
+  if (kryds.length === 0) break;
+  if (runde === 10) throw new Error(`${kryds.length} selvkryds efter forenkling: ${kryds.map((k) => k.noegle)}`);
+  // Lidt luft om krydset, så også de punkter, der blev fjernet lige ved siden af, kommer med.
+  const luft = 0.002;
+  for (const arc of topo.arcs as number[][][]) {
+    for (const p of arc) {
+      if (kryds.some(({ boks: [x0, y0, x1, y1] }) => p[0] >= x0 - luft && p[0] <= x1 + luft && p[1] >= y0 - luft && p[1] <= y1 + luft)) {
+        p[2] = Infinity;
+      }
+    }
+  }
+}
+
+/** Steder, hvor en kommunes grænse krydser sig selv (også mellem en ø og dens hul). */
+function selvkryds(fc: GeoJSON.FeatureCollection) {
+  const krydsPunkt = (a: number[], b: number[], c: number[]) =>
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const fund: { noegle: string; boks: number[] }[] = [];
+  for (const f of fc.features) {
+    const g = f.geometry;
+    const polygoner = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+    for (const ringe of polygoner) {
+      const stykker = ringe.flatMap((ring, r) =>
+        ring.slice(0, -1).map((a, i) => {
+          const b = ring[i + 1];
+          return { r, i, a, b, x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), y0: Math.min(a[1], b[1]), y1: Math.max(a[1], b[1]) };
+        }),
+      );
+      stykker.sort((s, t) => s.x0 - t.x0);
+      for (let i = 0; i < stykker.length; i++) {
+        const s = stykker[i];
+        for (let j = i + 1; j < stykker.length && stykker[j].x0 <= s.x1; j++) {
+          const t = stykker[j];
+          if (t.y1 < s.y0 || t.y0 > s.y1) continue;
+          // Naboer på samme ring deler et punkt og tæller ikke som kryds.
+          const n = ringe[s.r].length - 1;
+          if (s.r === t.r && (Math.abs(s.i - t.i) === 1 || Math.abs(s.i - t.i) === n - 1)) continue;
+          const d1 = krydsPunkt(t.a, t.b, s.a);
+          const d2 = krydsPunkt(t.a, t.b, s.b);
+          const d3 = krydsPunkt(s.a, s.b, t.a);
+          const d4 = krydsPunkt(s.a, s.b, t.b);
+          if (d1 * d2 < 0 && d3 * d4 < 0) {
+            fund.push({
+              noegle: `${f.properties?.navn}@${s.a[0].toFixed(2)},${s.a[1].toFixed(2)}`,
+              boks: [Math.min(s.x0, t.x0), Math.min(s.y0, t.y0), Math.max(s.x1, t.x1), Math.max(s.y1, t.y1)],
+            });
+          }
+        }
+      }
+    }
+  }
+  return fund;
+}
 writeFileSync(MAAL, tekst);
 // Navnene regnes ud fra den forenklede (og afrundede) udgave, som kortet viser.
 const navne = JSON.stringify(kommuneNavnePunkter(JSON.parse(tekst)), afrund);
