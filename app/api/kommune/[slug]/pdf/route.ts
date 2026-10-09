@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
-import puppeteer, { type Browser } from "puppeteer";
+import chromium from "@sparticuz/chromium";
+import puppeteer, { type Browser } from "puppeteer-core";
 import { kommuneSlug } from "@/lib/kommuner/slug";
 import { hentKommuneRapport } from "@/lib/scores/kommune-rapport";
+
+// Første PDF efter en kold start skal også pakke Chrome ud, så den kan tage lidt tid.
+export const maxDuration = 60;
 
 // Kommunerapporten som PDF-fil ("Gem som PDF" på rapporten). En skjult Chrome åbner
 // selve rapportsiden med print-stylingen fra globals.css, så PDF'en ligner udskriften
@@ -22,9 +26,24 @@ const MAKS_GEMTE = 20;
 // hvis den er gået ned.
 let browserLoefte: Promise<Browser> | null = null;
 
+// På Vercel er der ingen Chrome installeret, så der bruges @sparticuz/chromium, som er
+// bygget til serverless og pakkes ud i /tmp. Lokalt (og på en almindelig server) bruges
+// den Chrome, som puppeteer (devDependency) har hentet.
+async function startBrowser(): Promise<Browser> {
+  if (process.env.VERCEL) {
+    return puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
+  const { default: lokalPuppeteer } = await import("puppeteer");
+  return lokalPuppeteer.launch({ headless: true });
+}
+
 function hentBrowser() {
   if (!browserLoefte) {
-    browserLoefte = puppeteer.launch({ headless: true }).then((browser) => {
+    browserLoefte = startBrowser().then((browser) => {
       browser.on("disconnected", () => {
         browserLoefte = null;
       });

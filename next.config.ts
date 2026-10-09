@@ -31,6 +31,11 @@ const nextConfig: NextConfig = {
   env: { MAPLIBRE_VERSION: maplibreVersion },
   // Fortæl ikke alle, at siden kører Next.js (X-Powered-By).
   poweredByHeader: false,
+  // PDF-ruten pakker Chrome ud fra @sparticuz/chromium's bin-mappe, som Next.js ikke selv
+  // kan se, at den bruger. Uden dette mangler Chrome på Vercel.
+  outputFileTracingIncludes: {
+    "/api/kommune/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: SIKKERHEDS_HEADERE }];
   },
