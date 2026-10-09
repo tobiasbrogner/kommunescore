@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 // Opdatér datoen, når teksten ændres.
-const SIDST_OPDATERET = "6. oktober 2026";
+const SIDST_OPDATERET = "9. oktober 2026";
 
 // Dataansvaret gælder besøgendes oplysninger (feedback, chat, adressesøgning), ikke
 // kommunestatistikken, som ikke er personoplysninger.
@@ -34,8 +34,9 @@ export default function PrivatlivspolitikSide() {
           Privatlivspolitik
         </h1>
         <p className="mt-3 max-w-2xl text-muted">
-          Kommuna bruger ikke annoncer, statistik eller sporing. Vi behandler kun de
-          oplysninger, der skal til for at siden virker, og dem, du selv sender til os.
+          Kommuna bruger ikke annoncer, sporing eller cookies til statistik. Vi tæller besøg
+          anonymt og behandler ellers kun de oplysninger, der skal til for at siden virker, og
+          dem, du selv sender til os.
         </p>
         <p className="mt-2 text-xs text-muted">Sidst opdateret {SIDST_OPDATERET}</p>
       </header>
@@ -84,11 +85,26 @@ export default function PrivatlivspolitikSide() {
             søgninger og feedbacks der kan sendes, så siden ikke bliver misbrugt. Den gemmes
             ikke i databasen, kun midlertidigt i serverens hukommelse.
           </li>
+          <li>
+            <strong className="font-medium text-foreground">Besøgsstatistik.</strong> Vi bruger
+            Vercel Web Analytics til at se, hvor mange der besøger siden, og hvilke sider de
+            læser. Der bruges ingen cookies, og der gemmes intet i din browser. Vercel ser,
+            hvilken side du er på, hvilken side du kom fra, dit land og din type af enhed og
+            browser. Din IP-adresse gemmes ikke, og besøg kan ikke føres tilbage til dig eller
+            følges på tværs af dage eller andre hjemmesider.
+          </li>
+          <li>
+            <strong className="font-medium text-foreground">Serverlogs.</strong> Som på alle
+            hjemmesider registrerer serveren kortvarigt forespørgsler (bl.a. IP-adresse og
+            tidspunkt), så fejl og misbrug kan opdages. Loggene slettes automatisk efter kort
+            tid.
+          </li>
         </Punkter>
         <p className="mt-3 text-xs">
           Retsgrundlag efter GDPR art. 6, stk. 1: feedback sker med dit samtykke (litra a).
-          AI-chatten, adressesøgningen og begrænsningen pr. IP-adresse sker af hensyn til vores
-          legitime interesse i at drive siden (litra f).
+          AI-chatten, adressesøgningen, besøgsstatistikken, serverlogs og begrænsningen pr.
+          IP-adresse sker af hensyn til vores legitime interesse i at drive og forbedre siden
+          (litra f).
         </p>
       </Afsnit>
 
@@ -114,8 +130,14 @@ export default function PrivatlivspolitikSide() {
       <Afsnit titel="Hvem får oplysningerne">
         <Punkter>
           <li>
-            <strong className="font-medium text-foreground">Vores hostingudbyder</strong>, som
-            driver serveren og databasen.
+            <strong className="font-medium text-foreground">Vercel</strong> (USA) driver
+            hjemmesiden og besøgsstatistikken. Serveren kører i Frankfurt, men Vercel er et
+            amerikansk firma, så oplysninger kan blive behandlet i USA. Overførslen er beskyttet
+            af EU-Kommissionens standardkontrakter.
+          </li>
+          <li>
+            <strong className="font-medium text-foreground">Aiven</strong> (Finland) driver
+            databasen, hvor feedback gemmes. Databasen ligger i EU.
           </li>
           <li>
             <strong className="font-medium text-foreground">Anthropic</strong> (USA) får
