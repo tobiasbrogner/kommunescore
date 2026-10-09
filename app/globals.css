@@ -175,6 +175,32 @@ body {
   color: #333;
 }
 
+/* Mørkt tema: knapperne følger sidens flader i stedet for MapLibres hvide. */
+.dark .maplibregl-ctrl.maplibregl-ctrl-group {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.dark .maplibregl-ctrl.maplibregl-ctrl-group button:not(:disabled):hover {
+  background-color: var(--surface-secondary);
+}
+
+.dark .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in {
+  border-left-color: var(--border);
+}
+
+.dark
+  .maplibregl-ctrl.maplibregl-ctrl-group
+  :is(.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out)
+  .maplibregl-ctrl-icon {
+  color: var(--foreground);
+}
+
+/* Fuldskærmsikonerne er MapLibres mørkegrå SVG-baggrunde; vendes til lyse. */
+.dark .maplibregl-ctrl :is(.maplibregl-ctrl-fullscreen, .maplibregl-ctrl-shrink) .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.9);
+}
+
 .maplibregl-popup-content {
   border-radius: 0.75rem;
   padding: 0.5rem 0.85rem;
