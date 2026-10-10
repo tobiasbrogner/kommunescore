@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx scripts/kopier-maplibre-worker.ts && next dev",
-    "build": "tsx scripts/kopier-maplibre-worker.ts && next build",
+    "build": "tsx scripts/kopier-maplibre-worker.ts && tsx scripts/byg-kortbilleder.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "node --conditions=react-server --import tsx --test \"lib/**/*.test.ts\"",
