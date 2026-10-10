@@ -53,6 +53,13 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" },
         ],
       },
+      // Kortenes små fotos har fotoets version i navnet (se scripts/byg-kortbilleder.ts), så
+      // et nyt foto får en ny adresse, og de gamle filer må gemmes i et år. Står efter
+      // reglen ovenfor, så den vinder.
+      {
+        source: "/kommuner/kort/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
   experimental: {

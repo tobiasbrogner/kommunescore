@@ -114,6 +114,7 @@ import { DANMARK_BOUNDS, KORT_KANT } from "@/lib/kommuner/kort-udsnit";
 import { boligsidenLink } from "@/lib/kommuner/boligsiden";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { kommuneSlug } from "@/lib/kommuner/slug";
+import { KORTBILLEDE_BREDDER, kortbilledeSrcSet } from "@/lib/kommuner/kortbilleder";
 import { formaterTal } from "@/lib/scores/formater";
 import { erSamletNoegletal } from "@/lib/scores/samlede-noegletal";
 import { PROFILER, type Profil } from "@/lib/scores/profiler";
@@ -871,20 +872,42 @@ function KommuneBillede({
   ikonClassName,
   sizes,
   straks = false,
+  version,
 }: {
   kode: string;
   navn: string;
   harBillede: boolean;
   ikonClassName: string;
-  /** Billedets bredde på siden, så Next.js kan sende en lille nok udgave (fotoene er store). */
+  /** Billedets bredde på siden, så browseren kan vælge en lille nok udgave (fotoene er store). */
   sizes: string;
   /** Hent fotoet med det samme og før de andre (de øverste kort). */
   straks?: boolean;
+  /** Versionen af fotoets færdige små udgaver; uden den bruges den store JPG via Next.js. */
+  version?: string;
 }) {
   const [fejlet, setFejlet] = useState(false);
 
   if (!harBillede || fejlet) {
     return <IconHome className={ikonClassName} />;
+  }
+
+  if (version) {
+    return (
+      <picture>
+        <source type="image/avif" srcSet={kortbilledeSrcSet(kode, version, "avif")} sizes={sizes} />
+        <img
+          src={`/kommuner/kort/${kode}.${version}.${KORTBILLEDE_BREDDER[1]}.webp`}
+          srcSet={kortbilledeSrcSet(kode, version, "webp")}
+          sizes={sizes}
+          alt={navn}
+          loading={straks ? "eager" : "lazy"}
+          fetchPriority={straks ? "high" : "auto"}
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setFejlet(true)}
+        />
+      </picture>
+    );
   }
 
   return (
@@ -1213,6 +1236,7 @@ function KommuneKort({
   noegletalTekst,
   lavtBillede = false,
   harBillede,
+  billedVersion,
   hentBillede = true,
   straks = false,
   favorit,
@@ -1224,6 +1248,8 @@ function KommuneKort({
   score: number | null;
   valgt?: boolean;
   harBillede: boolean;
+  // Versionen af fotoets små udgaver (se KommuneBillede).
+  billedVersion?: string;
   profil?: KommuneProfil;
   // Tallet ved en kategori i Styrker (styrke = true) og Fokusområder, fx "18.400 kr./m² (hus)".
   noegletalTekst: (kat: KategoriMeta, styrke: boolean) => string | null;
@@ -1262,6 +1288,7 @@ function KommuneKort({
               harBillede={harBillede}
               ikonClassName="h-8 w-8 text-muted/50"
               straks={straks}
+              version={billedVersion}
               // Sidepanelet er 20 % bredt; i Oversigt står kortene i op til fire kolonner.
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             />
@@ -1484,12 +1511,15 @@ export function DanmarkKort({
   kommuneScores: databaseScorer,
   kommuner: serverKommuner,
   kommunerMedBillede,
+  kortbilledVersioner,
 }: {
   kategorier: KategoriMeta[];
   kommuneScores: KommuneScore[];
   /** Kommunerne med region fra serveren, så listen kan vises, før kortets grænser er hentet. */
   kommuner: Kommune[];
   kommunerMedBillede: string[];
+  /** Fotos med færdige små udgaver til kortene (se lib/kommuner/kortbilleder.ts). */
+  kortbilledVersioner: Record<string, string>;
 }) {
   // Skal matche fetch() i hentKommuner (cors, samme-origin-cookies), ellers genbruges den ikke.
   preload(KOMMUNER_URL, { as: "fetch", crossOrigin: "anonymous" });
@@ -3512,6 +3542,7 @@ export function DanmarkKort({
                 noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
                 lavtBillede
                 harBillede={billedKoder.has(k.kode)}
+                billedVersion={kortbilledVersioner[k.kode]}
                 hentBillede={tegnet}
                 favorit={favoritter.includes(k.kode)}
                 onFavorit={(k) => skiftFavorit(k.kode)}
@@ -3603,6 +3634,7 @@ export function DanmarkKort({
                 kode={valgtKommune.kode}
                 navn={valgtKommune.navn}
                 harBillede={billedKoder.has(valgtKommune.kode)}
+                version={kortbilledVersioner[valgtKommune.kode]}
                 ikonClassName="h-7 w-7 text-muted/50"
                 sizes="288px"
               />
@@ -3681,6 +3713,7 @@ export function DanmarkKort({
               profil={kommuneProfiler.get(k.kode)}
               noegletalTekst={(kat, styrke) => noegletalTekst(k.kode, kat, styrke)}
               harBillede={billedKoder.has(k.kode)}
+              billedVersion={kortbilledVersioner[k.kode]}
               favorit={favoritter.includes(k.kode)}
               onFavorit={(k) => skiftFavorit(k.kode)}
               onVaelg={vaelgFraOversigt}

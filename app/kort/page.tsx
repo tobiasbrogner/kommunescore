@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DanmarkKort } from "@/components/danmark-kort";
-import { kommunerMedBillede } from "@/lib/kommuner/billeder";
+import { kommunerMedBillede, kortbilledVersioner } from "@/lib/kommuner/billeder";
 import { sammenlignKommunenavne } from "@/lib/kommuner/navn";
 import { getCachedKommuneScores } from "@/lib/scores/get-scores";
 import { hentGeoFakta } from "@/lib/scores/kommune-rapport";
@@ -29,6 +29,7 @@ export default async function KortSide() {
         kommuneScores={kommuneScores}
         kommuner={kommuner}
         kommunerMedBillede={kommunerMedBillede()}
+        kortbilledVersioner={kortbilledVersioner()}
       />
     </main>
   );

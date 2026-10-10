@@ -30,3 +30,14 @@ export function kommunerMedBillede(): string[] {
     .filter((fil) => /^\d{4}\.jpg$/.test(fil))
     .map((fil) => fil.slice(0, 4));
 }
+
+// Versionen af hvert fotos små udgaver til kortene på /kort (se scripts/byg-kortbilleder.ts),
+// fx { "0101": "b2e31035" }. Fotos uden små udgaver er ikke med; de vises fra den store JPG.
+export function kortbilledVersioner(): Record<string, string> {
+  const versioner: Record<string, string> = {};
+  for (const fil of readdirSync(path.join(process.cwd(), "public/kommuner/kort"))) {
+    const match = /^(\d{4})\.([0-9a-f]{8})\.\d+\.avif$/.exec(fil);
+    if (match) versioner[match[1]] = match[2];
+  }
+  return versioner;
+}
