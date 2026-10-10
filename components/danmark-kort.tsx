@@ -321,6 +321,8 @@ function hentKommuner() {
 
 const SOURCE_ID = "kommuner";
 const LINJE_SOURCE_ID = "kommune-linjer";
+// Fra denne zoom tegnes kommunegrænserne fra de uforenklede kommuner (se kommune-linje).
+const LINJE_PRAECIS_ZOOM = 7;
 // Hver kommune opdelt i sine enkelte polygoner (fastland og øer), så hover-omridset
 // kan springe øer over, der er for små på skærmen.
 const KOMMUNE_DELE_SOURCE_ID = "kommune-dele";
@@ -1766,16 +1768,25 @@ export function DanmarkKort({
           buffer: 256,
         });
 
-        map.addLayer({
-          id: "kommune-linje",
-          type: "line",
-          source: LINJE_SOURCE_ID,
-          layout: { "line-join": "round" },
-          paint: {
-            "line-color": KORT_TEMA_FARVER[kortTemaRef.current].linje,
-            "line-width": 1,
-          },
-        });
+        // Forenklingen flytter dog stregen lidt ind over kysten, så der kan stikke en smule
+        // farve ud på den anden side (ses især i mørkt tema). Tæt på tegnes stregen derfor
+        // fra de samme, uforenklede kommuner som farven.
+        for (const [id, kilde, zoom] of [
+          ["kommune-linje", LINJE_SOURCE_ID, { maxzoom: LINJE_PRAECIS_ZOOM }],
+          ["kommune-linje-praecis", SOURCE_ID, { minzoom: LINJE_PRAECIS_ZOOM }],
+        ] as const) {
+          map.addLayer({
+            id,
+            type: "line",
+            source: kilde,
+            ...zoom,
+            layout: { "line-join": "round" },
+            paint: {
+              "line-color": KORT_TEMA_FARVER[kortTemaRef.current].linje,
+              "line-width": 1,
+            },
+          });
+        }
 
         // Fremhæv ved mus: kun et tykkere hvidt omrids om kommunen under musen.
         // Eget lag øverst, så nabokommunernes tynde linjer ikke tegnes hen over det.
@@ -2105,6 +2116,7 @@ export function DanmarkKort({
       byggKommuneFyldFarve(KORT_PALETTER[farvePaletIdRef.current].farver, tema),
     );
     map.setPaintProperty("kommune-linje", "line-color", f.linje);
+    map.setPaintProperty("kommune-linje-praecis", "line-color", f.linje);
   }, [resolvedTheme, klar]);
 
   useEffect(() => {
