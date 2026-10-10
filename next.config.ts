@@ -36,8 +36,24 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/kommune/*/pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
+  images: {
+    // AVIF er ca. en tredjedel mindre end WebP; browsere uden AVIF får WebP.
+    formats: ["image/avif", "image/webp"],
+  },
   async headers() {
-    return [{ source: "/:path*", headers: SIKKERHEDS_HEADERE }];
+    return [
+      { source: "/:path*", headers: SIKKERHEDS_HEADERE },
+      // Kommunefotoene skifter sjældent. Uden dette sender Vercel max-age=0, også for de
+      // optimerede udgaver (/_next/image arver fotoets max-age), så browseren spørger
+      // serveren om hvert foto igen ved hvert besøg. Nu genbruges de i en uge og
+      // tjekkes i baggrunden i en måned derefter.
+      {
+        source: "/kommuner/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" },
+        ],
+      },
+    ];
   },
   experimental: {
     // Fejler en side under buildet (fx fordi databasen kortvarigt er løbet tør for

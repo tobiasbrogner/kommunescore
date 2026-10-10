@@ -870,6 +870,7 @@ function KommuneBillede({
   harBillede,
   ikonClassName,
   sizes,
+  straks = false,
 }: {
   kode: string;
   navn: string;
@@ -877,6 +878,8 @@ function KommuneBillede({
   ikonClassName: string;
   /** Billedets bredde på siden, så Next.js kan sende en lille nok udgave (fotoene er store). */
   sizes: string;
+  /** Hent fotoet med det samme og før de andre (de øverste kort). */
+  straks?: boolean;
 }) {
   const [fejlet, setFejlet] = useState(false);
 
@@ -890,6 +893,8 @@ function KommuneBillede({
       alt={navn}
       fill
       sizes={sizes}
+      loading={straks ? "eager" : "lazy"}
+      fetchPriority={straks ? "high" : "auto"}
       className="object-cover"
       onError={() => setFejlet(true)}
     />
@@ -1209,6 +1214,7 @@ function KommuneKort({
   lavtBillede = false,
   harBillede,
   hentBillede = true,
+  straks = false,
   favorit,
   onFavorit,
   onVaelg,
@@ -1225,6 +1231,8 @@ function KommuneKort({
   lavtBillede?: boolean;
   // false: kun baggrunden, indtil fotoet må hentes (se sidepanelet).
   hentBillede?: boolean;
+  // De øverste kort i Oversigt: fotoet hentes med det samme og før de andre.
+  straks?: boolean;
   favorit: boolean;
   onFavorit: (k: Kommune) => void;
   onVaelg: (k: Kommune) => void;
@@ -1253,6 +1261,7 @@ function KommuneKort({
               navn={k.navn}
               harBillede={harBillede}
               ikonClassName="h-8 w-8 text-muted/50"
+              straks={straks}
               // Sidepanelet er 20 % bredt; i Oversigt står kortene i op til fire kolonner.
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             />
@@ -3662,9 +3671,10 @@ export function DanmarkKort({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-5">
           {/* Kortene har Styrker/Fokusområder i to kolonner, så de skal have en vis bredde. */}
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {sidepanelListe.slice(0, oversigtAntalVist).map((k) => (
+            {sidepanelListe.slice(0, oversigtAntalVist).map((k, i) => (
               <KommuneKort
               key={k.kode}
+              straks={i < 4}
               kommune={k}
               rang={rangAf(k.kode)}
               score={vaegtetScore(k.kode)}
